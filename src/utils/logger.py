@@ -2,7 +2,7 @@ import os
 import logging
 from datetime import datetime
 
-def setup_logger(log_dir="log"):
+def setup_logger(log_dir="log/output"):
     os.makedirs(log_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     log_path = os.path.join(log_dir, f"output_{timestamp}.log")
