@@ -33,4 +33,4 @@ export DATASET_DIR=${TMP}/datasets/
 
 source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
 
-python src/main.py
+python src/main.py --mode inference
