@@ -1,0 +1,7 @@
+
+
+1. Sliding Window Attention is enabled but not implemented for `sdpa`; unexpected results may be encountered.
+2025-03-24 10:52:15,256 - INFO - Based on the current allocation process, no modules could be assigned to the following devices due to insufficient memory:
+  - 0: 1866989568 bytes required
+These minimum requirements are specific to this allocation attempt and may vary. Consider increasing the available memory for these devices to at least the specified minimum, or adjusting the model config.
+

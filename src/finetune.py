@@ -9,7 +9,7 @@ from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
 from torch.cuda.amp import autocast, GradScaler
 from utils.logger import log_gpu_info
-
+import datetime
 
 def batchify(data, batch_size):
     """
@@ -18,7 +18,7 @@ def batchify(data, batch_size):
     for i in range(0, len(data), batch_size):
         yield data[i:i+batch_size]
 
-def evaluate(model, tokenizer, text_data, device, max_length=2048, batch_size=1):
+def evaluate(model, tokenizer, text_data, device, max_length, batch_size):
     """
     Evaluates the given model on a list of text samples using mixed precision,
     and returns the average loss.
@@ -47,12 +47,14 @@ def run_finetuning(
     tokenizer,
     device,
     logger,
+    model_name,
     epochs=3,
     lr=5e-5,
     warmup_steps=100,
     max_length=2048,
-    batch_size=1,
-    early_stopping_patience=2
+    batch_size=8,
+    early_stopping_patience=2, 
+    use_subset=True 
 ):
     """
     Fine-tunes the model on local Parquet files from data/jtatman-python-code-dataset-500k.
@@ -90,12 +92,21 @@ def run_finetuning(
     random.shuffle(all_texts)
     n = len(all_texts)
 
-    # =============================================================================
-    # Comment this block to use a smaller subset of the data for testing
-    n = int(n * 0.01)
-    logger.info(f"Using a subset of the data for testing: {n} samples.")
-    all_texts = all_texts[:n]
-    # =============================================================================
+    if use_subset:
+        n = int(n * 0.01)
+        logger.info(f"Using a subset of the data for testing: {n} samples.")
+        all_texts = all_texts[:n]
+    else: 
+        logger.info(f"Using the entire dataset for training: {n} samples.")
+
+    # Generate a unique run identifier that includes the model name, training data label, subset flag, and a timestamp.
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    sanitized_model_name = model_name.replace("/", "-")
+    subset_tag = "subset" if use_subset else "full"
+    run_id = f"{sanitized_model_name}_{subset_tag}_{timestamp}"
+    save_dir = os.path.join("model", run_id)
+    os.makedirs(save_dir, exist_ok=True)
+    logger.info(f"Checkpoints and best model will be saved in {save_dir}")
 
     train_end = int(n * 0.8)
     val_end = train_end + int(n * 0.1)
@@ -119,6 +130,11 @@ def run_finetuning(
     if hasattr(model, "gradient_checkpointing_enable"):
         model.gradient_checkpointing_enable()
         logger.info("Enabled gradient checkpointing.")
+    
+    # Log all hyperparameters
+    logger.info(f"Hyperparameters: epochs={epochs}, lr={lr}, warmup_steps={warmup_steps}, "
+                f"max_length={max_length}, batch_size={batch_size}, "
+                f"early_stopping_patience={early_stopping_patience}, use_subset={use_subset}")
 
     # Evaluate model before fine-tuning (validation set)
     logger.info("Evaluating model before fine-tuning...")
@@ -130,7 +146,7 @@ def run_finetuning(
     total_steps = (len(train_texts) // batch_size) * epochs
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps,
                                                 num_training_steps=total_steps)
-    scaler = GradScaler()  # For mixed precision training
+    scaler = GradScaler(device="cuda") # For mixed precision training
 
     best_val_loss = float('inf')
     epochs_without_improve = 0
@@ -174,9 +190,6 @@ def run_finetuning(
         val_loss = evaluate(model, tokenizer, val_texts, device, max_length=max_length, batch_size=batch_size)
         logger.info(f"Epoch {epoch+1} - Validation Loss: {val_loss:.4f}")
 
-        # Save checkpoint every epoch
-        save_dir = "model"
-        os.makedirs(save_dir, exist_ok=True)
         checkpoint_path = os.path.join(save_dir, f"finetuned_epoch_{epoch+1}.pt")
         torch.save({
             'epoch': epoch+1,
