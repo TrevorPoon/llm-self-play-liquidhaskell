@@ -3,7 +3,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from utils.logger import setup_logger
 from inference import run_inference
-from finetune import run_finetuning
+from finetune_load import run_finetuning
 
 def main():
 
