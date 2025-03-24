@@ -1,15 +1,13 @@
 import os
-import glob
 import random
 import torch
-import pyarrow.parquet as pq
-import pandas as pd
 from tqdm import tqdm
 from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
 from torch.cuda.amp import autocast, GradScaler
 from utils.logger import log_gpu_info
 import datetime
+from datasets import load_dataset
 
 def batchify(data, batch_size):
     """
@@ -57,7 +55,7 @@ def run_finetuning(
     use_subset=True 
 ):
     """
-    Fine-tunes the model on local Parquet files from data/jtatman-python-code-dataset-500k.
+    Fine-tunes the model on the jtatman/python-code-dataset-500k dataset loaded via Hugging Face.
     Each sample is constructed as:
         System: <system>
         Instruction: <instruction>
@@ -67,26 +65,15 @@ def run_finetuning(
     The function uses mixed precision, gradient checkpointing, data shuffling, learning rate scheduling,
     checkpointing, early stopping, and logs GPU utilization information.
     """
-    logger.info("Loading all Parquet files from data/jtatman-python-code-dataset-500k/")
-    
-    # Read all parquet files in the folder
-    parquet_files = glob.glob("data/jtatman-python-code-dataset-500k/*.parquet")
-    if not parquet_files:
-        logger.error("No parquet files found in the specified directory.")
-        return
-
-    df_list = []
-    for file in parquet_files:
-        table = pq.read_table(file)
-        df_list.append(table.to_pandas())
-    df = pd.concat(df_list, ignore_index=True)
-    logger.info(f"Total samples in concatenated DataFrame: {len(df)}")
+    logger.info("Loading dataset jtatman/python-code-dataset-500k from Hugging Face")
+    ds = load_dataset("jtatman/python-code-dataset-500k", split="train")
+    logger.info(f"Total samples in dataset: {len(ds)}")
 
     # Build the training text using the three columns: system, instruction, output.
     def build_sample(row):
         return f"System: {row['system']}\nInstruction: {row['instruction']}\nAnswer: {row['output']}"
     
-    all_texts = df.apply(build_sample, axis=1).tolist()
+    all_texts = [build_sample(row) for row in ds]
 
     # Shuffle and split into train (80%), validation (10%), test (10%)
     random.shuffle(all_texts)
@@ -145,14 +132,13 @@ def run_finetuning(
     total_steps = (len(train_texts) // batch_size) * epochs
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps,
                                                 num_training_steps=total_steps)
-    scaler = GradScaler() # For mixed precision training
+    scaler = GradScaler()  
 
     best_val_loss = float('inf')
     epochs_without_improve = 0
     best_epoch = -1
 
     model.train()
-    
     for epoch in range(epochs):
         logger.info(f"Epoch {epoch+1}/{epochs} - Training started")
         epoch_loss = 0.0
