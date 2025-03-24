@@ -23,6 +23,8 @@ export PATH=${CUDA_HOME}/bin:${PATH}
 
 export PYTHON_PATH=$PATH
 
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True # Set the PyTorch CUDA allocation config to help reduce memory fragmentation
+
 mkdir -p /disk/scratch/${STUDENT_ID}
 
 export TMPDIR=/disk/scratch/${STUDENT_ID}/

@@ -6,21 +6,25 @@ from inference import run_inference
 from finetune import run_finetuning
 
 def main():
-    
+
     parser = argparse.ArgumentParser(description="Run inference or fine-tuning")
     parser.add_argument('--mode', choices=['inference', 'finetune'], required=True,
                         help="Mode to run: inference or finetune")
     parser.add_argument('--prompt', type=str, default="What is the capital of France?",
                         help="Prompt for inference")
-    parser.add_argument('--epochs', type=int, default=20, help="Number of epochs for fine-tuning")
+    parser.add_argument('--epochs', type=int, default=10, help="Number of epochs for fine-tuning")
     parser.add_argument('--batch_size', type=int, default=1, help="Batch size")
     parser.add_argument('--max_length', type=int, default=2048, help="Maximum sequence length")
     parser.add_argument('--lr', type=float, default=5e-5, help="Learning rate")
+    parser.add_argument('--warmup_steps', type=int, default=100, help="Warmup steps")
+    parser.add_argument('--early_stopping_patience', type=int, default=2, help="Early stopping patience")
+    parser.add_argument('--use_subset', action='store_true', default=True, help="Use a subset of the data for fine-tuning")
     args = parser.parse_args()
     
     # Setup logger
     logger = setup_logger()
-    
+
+
     # Model and tokenizer loading in main.py
     model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -40,9 +44,6 @@ def main():
     else:
         logger.info("No GPU available, using CPU")
 
-    if torch.cuda.is_available():
-        logger.info(torch.cuda.memory_summary(device=torch.cuda.current_device(), abbreviated=False))
-
     
     if args.mode == 'inference':
         run_inference(model, tokenizer, args.prompt, device, logger)
@@ -53,10 +54,14 @@ def main():
             tokenizer=tokenizer,
             device=device,
             logger=logger,
+            model_name=model_name, 
             epochs=args.epochs,
-            batch_size=args.batch_size,
+            lr=args.lr, 
+            warmup_steps=args.warmup_steps,
             max_length=args.max_length,
-            lr=args.lr
+            batch_size=args.batch_size,
+            early_stopping_patience=args.early_stopping_patience,
+            use_subset=args.use_subset 
         )
 
 if __name__ == "__main__":
