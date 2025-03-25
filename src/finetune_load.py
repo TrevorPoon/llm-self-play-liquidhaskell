@@ -16,29 +16,79 @@ def batchify(data, batch_size):
     for i in range(0, len(data), batch_size):
         yield data[i:i+batch_size]
 
-def evaluate(model, tokenizer, text_data, device, max_length, batch_size):
+def evaluate(model, tokenizer, text_data, device, max_length, batch_size, logger):
     """
     Evaluates the given model on a list of text samples using mixed precision,
-    and returns the average loss.
+    and returns the average loss. Additionally, logs the inputs and predicted outputs
+    for the last 5 batches for manual inspection.
+    
+    It logs:
+    1) Eval set input: The part before "Answer:".
+    2) Eval set output: The expected output (the part after "Answer:").
+    3) Model prediction: The model's predicted sequence.
     """
     model.eval()
     total_loss = 0.0
     count = 0
+    last_batches = []  # Will store info for the last 5 batches
 
     with torch.no_grad():
         batches = list(batchify(text_data, batch_size))
         progress_bar = tqdm(batches, desc="Evaluation", mininterval=60, leave=False)
-        for batch in progress_bar:
+        for idx, batch in enumerate(progress_bar):
             inputs = tokenizer(batch, return_tensors="pt", truncation=True,
                                padding=True, max_length=max_length)
             inputs = {k: v.to(device) for k, v in inputs.items()}
+
             with torch.amp.autocast(device_type="cuda"):
                 outputs = model(**inputs, labels=inputs["input_ids"])
-            total_loss += outputs.loss.item() * len(batch)
+            loss_value = outputs.loss.item()
+            total_loss += loss_value * len(batch)
             count += len(batch)
+            progress_bar.set_postfix(loss=loss_value)
+
+            # For the last 5 batches, capture additional info.
+            if idx >= len(batches) - 5:
+                # Get the predicted token ids (take argmax over logits)
+                preds = outputs.logits.argmax(dim=-1)
+                # Decode predictions for each sample
+                decoded_preds = [tokenizer.decode(p, skip_special_tokens=True) for p in preds]
+                # For each sample in the batch, parse out the eval input and expected output.
+                batch_info = []
+                for orig_text, pred_text in zip(batch, decoded_preds):
+                    # We assume the sample is constructed with "Answer:" as the separator.
+                    parts = orig_text.split("Answer:")
+                    eval_input = parts[0].strip() if parts else orig_text
+                    eval_output = parts[1].strip() if len(parts) > 1 else ""
+                    batch_info.append({
+                        "eval_input": eval_input,
+                        "eval_output": eval_output,
+                        "model_prediction": pred_text
+                    })
+                last_batches.append({
+                    "batch_index": idx,
+                    "samples": batch_info
+                })
+
     torch.cuda.empty_cache()
     model.train()
+
+    # Log the last 5 batches for manual inspection.
+    logger.info("----- Last 5 Batches Inspection -----")
+    for batch_info in last_batches:
+        logger.info(f"Batch Index: {batch_info['batch_index']}")
+        for sample in batch_info["samples"]:
+            logger.info("Eval Set Input:")
+            logger.info(sample["eval_input"])
+            logger.info("Eval Set Output (Ground Truth):")
+            logger.info(sample["eval_output"])
+            logger.info("Model Prediction:")
+            logger.info(sample["model_prediction"])
+            logger.info("-----")
+            
     return total_loss / count if count > 0 else 0.0
+
+
 
 def run_finetuning(
     model,
@@ -124,7 +174,7 @@ def run_finetuning(
 
     # Evaluate model before fine-tuning (validation set)
     logger.info("Evaluating model before fine-tuning...")
-    val_loss_before = evaluate(model, tokenizer, val_texts, device, max_length=max_length, batch_size=batch_size)
+    val_loss_before = evaluate(model, tokenizer, val_texts, device, max_length, batch_size, logger)
     logger.info(f"Pre-Fine-tuning - Validation Loss: {val_loss_before:.4f}")
 
     # Set up optimizer and scheduler
@@ -173,7 +223,7 @@ def run_finetuning(
         # Log GPU usage at the end of the epoch
         log_gpu_info(logger)
 
-        val_loss = evaluate(model, tokenizer, val_texts, device, max_length=max_length, batch_size=batch_size)
+        val_loss = evaluate(model, tokenizer, val_texts, device, max_length, batch_size, logger)
         logger.info(f"Epoch {epoch+1} - Validation Loss: {val_loss:.4f}")
 
         os.makedirs(save_dir, exist_ok=True)
@@ -211,7 +261,7 @@ def run_finetuning(
         torch.cuda.empty_cache()
 
     logger.info("Evaluating on test set...")
-    test_loss = evaluate(model, tokenizer, test_texts, device, max_length=max_length, batch_size=batch_size)
+    test_loss = evaluate(model, tokenizer, test_texts, device, max_length, batch_size, logger)
     logger.info(f"Test Loss after fine-tuning: {test_loss:.4f}")
 
     logger.info("Fine-tuning complete.")
