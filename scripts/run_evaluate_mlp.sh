@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:8
 #SBATCH --mem=96000  # memory in Mb
 #SBATCH --time=0-80:00:00
-#SBATCH --output=log/slurm/slurm-infer-%j.out   # %j = Job ID
+#SBATCH --output=log/slurm/slurm-eval-%j.out   # %j = Job ID
 
 export CUDA_HOME=/opt/cuda-9.0.176.1/
 
@@ -33,5 +33,4 @@ export DATASET_DIR=${TMP}/datasets/
 
 source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
 
-python src/main.py --mode inference
-
+python src/main.py --mode evaluate
