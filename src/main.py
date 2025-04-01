@@ -3,13 +3,14 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from utils.logger import setup_logger
 from inference import run_inference
-from finetune_load import run_finetuning
+from finetune import run_finetuning
+from evaluate import run_evaluation
 
 def main():
 
     parser = argparse.ArgumentParser(description="Run inference or fine-tuning")
-    parser.add_argument('--mode', choices=['inference', 'finetune'], required=True,
-                        help="Mode to run: inference or finetune")
+    parser.add_argument('--mode', choices=['inference', 'finetune', 'evaluate'], required=True,
+                        help="Mode to run: inference, finetune or evaluate")
     parser.add_argument('--prompt', type=str, default="What is the capital of France?",
                         help="Prompt for inference")
     parser.add_argument('--epochs', type=int, default=10, help="Number of epochs for fine-tuning")
@@ -63,6 +64,9 @@ def main():
             early_stopping_patience=args.early_stopping_patience,
             use_subset=args.use_subset 
         )
+    
+    elif args.mode == 'evaluate':
+        run_evaluation(model, tokenizer, device, logger)
 
 if __name__ == "__main__":
     main()

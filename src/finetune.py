@@ -1,15 +1,13 @@
 import os
-import glob
 import random
 import torch
-import pyarrow.parquet as pq
-import pandas as pd
 from tqdm import tqdm
 from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
 from torch.cuda.amp import autocast, GradScaler
 from utils.logger import log_gpu_info
 import datetime
+from datasets import load_dataset
 
 def batchify(data, batch_size):
     """
@@ -18,29 +16,79 @@ def batchify(data, batch_size):
     for i in range(0, len(data), batch_size):
         yield data[i:i+batch_size]
 
-def evaluate(model, tokenizer, text_data, device, max_length, batch_size):
+def evaluate(model, tokenizer, text_data, device, max_length, batch_size, logger):
     """
     Evaluates the given model on a list of text samples using mixed precision,
-    and returns the average loss.
+    and returns the average loss. Additionally, logs the inputs and predicted outputs
+    for the last 5 batches for manual inspection.
+    
+    It logs:
+    1) Eval set input: The part before "Answer:".
+    2) Eval set output: The expected output (the part after "Answer:").
+    3) Model prediction: The model's predicted sequence.
     """
     model.eval()
     total_loss = 0.0
     count = 0
+    last_batches = []  # Will store info for the last 5 batches
 
     with torch.no_grad():
         batches = list(batchify(text_data, batch_size))
         progress_bar = tqdm(batches, desc="Evaluation", mininterval=60, leave=False)
-        for batch in progress_bar:
+        for idx, batch in enumerate(progress_bar):
             inputs = tokenizer(batch, return_tensors="pt", truncation=True,
                                padding=True, max_length=max_length)
             inputs = {k: v.to(device) for k, v in inputs.items()}
+
             with torch.amp.autocast(device_type="cuda"):
                 outputs = model(**inputs, labels=inputs["input_ids"])
-            total_loss += outputs.loss.item() * len(batch)
+            loss_value = outputs.loss.item()
+            total_loss += loss_value * len(batch)
             count += len(batch)
+            progress_bar.set_postfix(loss=loss_value)
+
+            # For the last 5 batches, capture additional info.
+            if idx >= len(batches) - 5:
+                # Get the predicted token ids (take argmax over logits)
+                preds = outputs.logits.argmax(dim=-1)
+                # Decode predictions for each sample
+                decoded_preds = [tokenizer.decode(p, skip_special_tokens=True) for p in preds]
+                # For each sample in the batch, parse out the eval input and expected output.
+                batch_info = []
+                for orig_text, pred_text in zip(batch, decoded_preds):
+                    # We assume the sample is constructed with "Answer:" as the separator.
+                    parts = orig_text.split("Answer:")
+                    eval_input = parts[0].strip() if parts else orig_text
+                    eval_output = parts[1].strip() if len(parts) > 1 else ""
+                    batch_info.append({
+                        "eval_input": eval_input,
+                        "eval_output": eval_output,
+                        "model_prediction": pred_text
+                    })
+                last_batches.append({
+                    "batch_index": idx,
+                    "samples": batch_info
+                })
+
     torch.cuda.empty_cache()
     model.train()
+
+    # Log the last 5 batches for manual inspection.
+    logger.info("----- Last 5 Batches Inspection -----")
+    for batch_info in last_batches:
+        logger.info(f"Batch Index: {batch_info['batch_index']}")
+        for sample in batch_info["samples"]:
+            logger.info("Eval Set Input:")
+            logger.info(sample["eval_input"])
+            logger.info("Eval Set Output (Ground Truth):")
+            logger.info(sample["eval_output"])
+            logger.info("Model Prediction:")
+            logger.info(sample["model_prediction"])
+            logger.info("-----")
+            
     return total_loss / count if count > 0 else 0.0
+
+
 
 def run_finetuning(
     model,
@@ -57,7 +105,7 @@ def run_finetuning(
     use_subset=True 
 ):
     """
-    Fine-tunes the model on local Parquet files from data/jtatman-python-code-dataset-500k.
+    Fine-tunes the model on the jtatman/python-code-dataset-500k dataset loaded via Hugging Face.
     Each sample is constructed as:
         System: <system>
         Instruction: <instruction>
@@ -67,26 +115,15 @@ def run_finetuning(
     The function uses mixed precision, gradient checkpointing, data shuffling, learning rate scheduling,
     checkpointing, early stopping, and logs GPU utilization information.
     """
-    logger.info("Loading all Parquet files from data/jtatman-python-code-dataset-500k/")
-    
-    # Read all parquet files in the folder
-    parquet_files = glob.glob("data/jtatman-python-code-dataset-500k/*.parquet")
-    if not parquet_files:
-        logger.error("No parquet files found in the specified directory.")
-        return
-
-    df_list = []
-    for file in parquet_files:
-        table = pq.read_table(file)
-        df_list.append(table.to_pandas())
-    df = pd.concat(df_list, ignore_index=True)
-    logger.info(f"Total samples in concatenated DataFrame: {len(df)}")
+    logger.info("Loading dataset jtatman/python-code-dataset-500k from Hugging Face")
+    ds = load_dataset("jtatman/python-code-dataset-500k", split="train")
+    logger.info(f"Total samples in dataset: {len(ds)}")
 
     # Build the training text using the three columns: system, instruction, output.
     def build_sample(row):
         return f"System: {row['system']}\nInstruction: {row['instruction']}\nAnswer: {row['output']}"
     
-    all_texts = df.apply(build_sample, axis=1).tolist()
+    all_texts = [build_sample(row) for row in ds]
 
     # Shuffle and split into train (80%), validation (10%), test (10%)
     random.shuffle(all_texts)
@@ -137,7 +174,7 @@ def run_finetuning(
 
     # Evaluate model before fine-tuning (validation set)
     logger.info("Evaluating model before fine-tuning...")
-    val_loss_before = evaluate(model, tokenizer, val_texts, device, max_length=max_length, batch_size=batch_size)
+    val_loss_before = evaluate(model, tokenizer, val_texts, device, max_length, batch_size, logger)
     logger.info(f"Pre-Fine-tuning - Validation Loss: {val_loss_before:.4f}")
 
     # Set up optimizer and scheduler
@@ -145,14 +182,13 @@ def run_finetuning(
     total_steps = (len(train_texts) // batch_size) * epochs
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps,
                                                 num_training_steps=total_steps)
-    scaler = GradScaler() # For mixed precision training
+    scaler = GradScaler()  
 
     best_val_loss = float('inf')
     epochs_without_improve = 0
     best_epoch = -1
 
     model.train()
-    
     for epoch in range(epochs):
         logger.info(f"Epoch {epoch+1}/{epochs} - Training started")
         epoch_loss = 0.0
@@ -187,7 +223,7 @@ def run_finetuning(
         # Log GPU usage at the end of the epoch
         log_gpu_info(logger)
 
-        val_loss = evaluate(model, tokenizer, val_texts, device, max_length=max_length, batch_size=batch_size)
+        val_loss = evaluate(model, tokenizer, val_texts, device, max_length, batch_size, logger)
         logger.info(f"Epoch {epoch+1} - Validation Loss: {val_loss:.4f}")
 
         os.makedirs(save_dir, exist_ok=True)
@@ -225,7 +261,7 @@ def run_finetuning(
         torch.cuda.empty_cache()
 
     logger.info("Evaluating on test set...")
-    test_loss = evaluate(model, tokenizer, test_texts, device, max_length=max_length, batch_size=batch_size)
+    test_loss = evaluate(model, tokenizer, test_texts, device, max_length, batch_size, logger)
     logger.info(f"Test Loss after fine-tuning: {test_loss:.4f}")
 
     logger.info("Fine-tuning complete.")
