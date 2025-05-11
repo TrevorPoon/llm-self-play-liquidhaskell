@@ -1,6 +1,6 @@
 import argparse
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from utils.logger import setup_logger
 from inference import run_inference
 from finetune import run_finetuning
@@ -27,12 +27,14 @@ def main():
 
 
     # Model and tokenizer loading in main.py
-    model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+    model_name = "meta-llama/Llama-3.2-1B"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Using device: {device}")
     logger.info(f"Loading model: {model_name}")
+
+    config = AutoConfig.from_pretrained(model_name)
     
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, config=config)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         device_map="auto" if device == "cuda" else {"": device}
