@@ -38,12 +38,9 @@ class HumanEval:
         self.inference_increment = inference_increment
         os.makedirs(self.log_dir, exist_ok=True)
         tokenizer_cls = tokenizer_cfg.pop('cls')
-        model_path = tokenizer_cfg.pop("model_path")
-
-        print(f"Loading tokenizer from {model_path}")
 
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)       
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_cfg.pop("model_path"), trust_remote_code=True)       
         except Exception as e:
             print(e)
             assert False

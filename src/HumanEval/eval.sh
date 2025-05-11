@@ -33,9 +33,9 @@ export DATASET_DIR=${TMP}/datasets/
 
 source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
 
-MODEL_NAME_OR_PATH="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+MODEL_NAME_OR_PATH="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_ROOT="data/"
 LANGUAGE="python"
-python eval_pal.py --logdir ${MODEL_NAME_OR_PATH} --language ${LANGUAGE} --dataroot ${DATASET_ROOT}
+python src/HumanEval/eval_pal.py --logdir ${MODEL_NAME_OR_PATH} --language ${LANGUAGE} --dataroot ${DATASET_ROOT}
 
-# python src/HumanEval/eval_pal.py --logdir deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --language python --dataroot data/
+# python src/HumanEval/eval_pal.py --logdir deepseek-ai/DeepSeek-R1-Distill-Qwen-7B --language python --dataroot data/
