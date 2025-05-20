@@ -32,10 +32,10 @@ export TMP=/disk/scratch/${STUDENT_ID}/
 mkdir -p ${TMP}/datasets/
 export DATASET_DIR=${TMP}/datasets/
 
-free -h > log/memory_info.txt
+free -h > log/LongJobs_memory_info.txt
 
-nvidia-smi > log/gpu_info.txt
+nvidia-smi > log/LongJobs_gpu_info.txt
 
 source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
 
-python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU count: {torch.cuda.device_count()}'); [print(f'GPU {i}: {torch.cuda.get_device_name(i)}') for i in range(torch.cuda.device_count())]" > log/cuda_device.txt
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU count: {torch.cuda.device_count()}'); [print(f'GPU {i}: {torch.cuda.get_device_name(i)}') for i in range(torch.cuda.device_count())]" > log/LongJobs_cuda_device.txt

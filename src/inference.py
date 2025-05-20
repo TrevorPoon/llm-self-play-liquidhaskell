@@ -1,4 +1,5 @@
 import torch
+import re
 
 def run_inference(model, tokenizer, prompt, device, logger):
 
@@ -32,7 +33,10 @@ def run_inference(model, tokenizer, prompt, device, logger):
     torch.cuda.synchronize()  # Wait for the events to be recorded
     inference_time = start_event.elapsed_time(end_event) / 1000.0 # elapsed_time returns milliseconds; convert to seconds
 
-    logger.info(f"Output Tokens: {output_tokens}")
     output_text = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
+    # 🧹 Remove <think>...</think> block (non-greedy match to avoid overshooting)
+    # output_text_cleaned = re.sub(r"<think>.*?</think>", "", output_text, flags=re.DOTALL).strip()
+
     logger.info(f"Inference time: {inference_time:.3f} seconds")
-    logger.info(f"Model Output: {output_text}")
+    logger.info(f"Model Output (raw): {output_text}")
+    # logger.info(f"Model Output (cleaned): {output_text_cleaned}")

@@ -5,7 +5,8 @@
 #SBATCH --gres=gpu:8
 #SBATCH --mem=48000  # memory in Mb
 #SBATCH --time=0-08:00:00
-#SBATCH --output=log/slurm-eval-%j.out   # %j = Job ID
+#SBATCH --output=log/slurm/slurm-%j.out   # %j = Job ID
+
 
 export CUDA_HOME=/opt/cuda-9.0.176.1/
 
@@ -31,14 +32,10 @@ export TMP=/disk/scratch/${STUDENT_ID}/
 mkdir -p ${TMP}/datasets/
 export DATASET_DIR=${TMP}/datasets/
 
+free -h > log/standard_memory_info.txt
+
+nvidia-smi > log/standard_gpu_info.txt
+
 source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
 
-LANG="python"
-OUTPUT_DIR="output"
-MODEL="DeepSeek-R1-Distill-Qwen-1.5B"
-
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python eval_instruct.py \
-    --model "deepseek-ai/$MODEL" \
-    --output_path "$OUTPUT_DIR/${LANG}.$MODEL.jsonl" \
-    --language $LANG \
-    --temp_dir $OUTPUT_DIR
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU count: {torch.cuda.device_count()}'); [print(f'GPU {i}: {torch.cuda.get_device_name(i)}') for i in range(torch.cuda.device_count())]" > log/standard_cuda_device.txt
