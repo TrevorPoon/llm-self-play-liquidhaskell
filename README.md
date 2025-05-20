@@ -5,6 +5,10 @@ The repo provides a pipeline for fine-tuning and running inference on a large la
 
 In future, the repo will be developed into self-play. 
 
+Setup
+```bash
+mkdir -p log/output log/slurm model src/HumanEval/log
+
 To run finetuning:
 ```bash
 sbatch scripts/run_finetune_mlp.sh
@@ -16,6 +20,11 @@ sbatch scripts/run_inference_mlp.sh
 ```
 
 To run self-play fine-tuning (to be developed):
+```bash
+
+```
+
+To check GPU info: 
 ```bash
 sbatch scripts/gpu_info.sh
 ```
