@@ -27,7 +27,7 @@ def main():
 
 
     # Model and tokenizer loading in main.py
-    model_name = "meta-llama/Llama-3.2-1B"
+    model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Using device: {device}")
     logger.info(f"Loading model: {model_name}")
