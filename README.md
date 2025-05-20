@@ -7,7 +7,9 @@ In future, the repo will be developed into self-play.
 
 Setup
 ```bash
+huggingface-cli login
 mkdir -p log/output log/slurm model src/HumanEval/log
+```
 
 To run finetuning:
 ```bash
