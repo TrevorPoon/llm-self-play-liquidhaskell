@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1, help="Batch size")
     parser.add_argument('--max_length', type=int, default=2048, help="Maximum sequence length")
     parser.add_argument('--lr', type=float, default=5e-5, help="Learning rate")
+    parser.add_argument('--model_name', type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", help="Model name")
     parser.add_argument('--warmup_steps', type=int, default=100, help="Warmup steps")
     parser.add_argument('--early_stopping_patience', type=int, default=2, help="Early stopping patience")
     parser.add_argument('--use_subset', action='store_true', default=True, help="Use a subset of the data for fine-tuning")
@@ -27,7 +28,7 @@ def main():
 
 
     # Model and tokenizer loading in main.py
-    model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+    model_name = args.model_name
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Using device: {device}")
     logger.info(f"Loading model: {model_name}")
