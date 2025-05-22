@@ -1,10 +1,10 @@
 #!/bin/sh
 #SBATCH -N 1	  # nodes requested
 #SBATCH -n 1	  # tasks requested
-#SBATCH --partition=Teach-Standard
+#SBATCH --partition=Teach-LongJobs
 #SBATCH --gres=gpu:8
 #SBATCH --mem=48000  # memory in Mb
-#SBATCH --time=0-08:00:00
+#SBATCH --time=0-80:00:00
 #SBATCH --output=log/slurm-eval-%j.out   # %j = Job ID
 
 # export CUDA_HOME=/opt/cuda-9.0.176.1/
@@ -35,7 +35,7 @@ source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
 
 LANG="python"
 OUTPUT_DIR="output"
-MODEL="DeepSeek-R1-Distill-Qwen-1.5B"
+MODEL="DeepSeek-R1-Distill-Qwen-7B"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python eval_instruct.py \
     --model "deepseek-ai/$MODEL" \
