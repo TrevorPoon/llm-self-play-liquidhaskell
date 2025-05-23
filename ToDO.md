@@ -3,7 +3,8 @@
 1. General HumanEval
 2. HumanEval Haskell
 3. HumanEval-x
-4. Any token limitation
+4. Any max token
+Copy the whole concept to evaluate.py
 
 # Self-Play Pipeline
 

@@ -43,6 +43,7 @@ def generate_one(example, lang, tokenizer, model):
     output = tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
     example['output'] = output
     
+    # Return both the example and the success status
     return extract_generation_code(example, lang_code=lang)
 
 def generate_main(args):
@@ -67,8 +68,11 @@ def generate_main(args):
     print("Read {} examples for evaluation over.".format(len(examples)))
 
     generated_examples = []
+    failed_extraction_count = 0  # Initialize counter
     for ex in tqdm(examples, desc='Generating'):
-        gen_example = generate_one(ex, args.language, tokenizer, model)
+        gen_example, extraction_successful = generate_one(ex, args.language, tokenizer, model)
+        if not extraction_successful:
+            failed_extraction_count += 1
         generated_examples.append(gen_example)
 
     print("Generate all over!!!")
@@ -86,6 +90,7 @@ def generate_main(args):
         language=lang
     )
     print(lang, result, model_name_or_path)
+    print(f"Total failed code extractions: {failed_extraction_count}") # Print the count
     pass
 
 def evaluation_only(args):
@@ -97,7 +102,12 @@ def evaluation_only(args):
     output_name = os.path.basename(args.output_path)
     output_examples = [json.loads(x) for x in open(args.output_path) if x.strip()]
 
-    processed_examples = [extract_generation_code(ex, lang) for ex in tqdm(output_examples, "Processing")]
+    processed_examples = []
+    # Loop and unpack the tuple, though extraction_successful is not directly used here
+    for ex in tqdm(output_examples, "Processing"):
+        processed_ex, _ = extract_generation_code(ex, lang)
+        processed_examples.append(processed_ex)
+        
     processed_path = os.path.join(temp_dir, output_name)
     with open(processed_path, 'w', encoding='utf-8') as fw:
         for ex in processed_examples:

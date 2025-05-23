@@ -35,6 +35,10 @@ languge_settings = {
     'sh': {
         'full_name': "Bash",
         'indent': 0
+    },
+    'go': {
+        'full_name': "Go",
+        'indent': 0, # Typically uses tabs, but for extraction, 0 is fine as fallback.
     }
 }
 
@@ -57,14 +61,22 @@ def extract_generation_code(example: str, lang_code: str, verbose: bool=False):
     question = example["prompt"].strip()
     setting = languge_settings[lang_code]
     lang = setting['full_name']
-    indent = setting['indent']
+    extraction_successful = False
 
     try:
-        code_block: str = re.findall(f'```{lang.lower()}\n(.*?)```', output, re.DOTALL | re.IGNORECASE)[0]
+        found_blocks = re.findall(f'```{lang.lower()}\n(.*?)\n```', output, re.DOTALL | re.IGNORECASE)
+        
+        if not found_blocks:
+            found_blocks = re.findall(f'```{lang.lower()}\n(.*?)```', output, re.DOTALL | re.IGNORECASE)
+
+        if not found_blocks:
+            raise ValueError(f"No code blocks found for language {lang.lower()}")
+        
+        code_block: str = found_blocks[-1]
+        
         if verbose:
             print(">>> Task: {}\n{}".format(task_id, code_block))
         
-        # Remove main
         if setting.get('main', None) and setting['main'] in code_block:
             main_start = code_block.index(setting['main'])
             code_block = code_block[:main_start]
@@ -73,28 +85,44 @@ def extract_generation_code(example: str, lang_code: str, verbose: bool=False):
 
         try:
             start = code_block.lower().index(func_name.lower())
-            indent = 0
-            while start - indent >= 0 and code_block[start - indent-1] == ' ':
-                indent += 1
+            current_func_indent_level = 0
+            temp_start = start
+            while temp_start > 0 and code_block[temp_start-1] == ' ':
+                current_func_indent_level += 1
+                temp_start -=1
             
+            line_start_for_func_name = code_block.rfind('\n', 0, start) + 1
+            calculated_indent_val = start - line_start_for_func_name
+
             try:
-                end = code_block.rindex('\n' + ' '*indent + '}')
-            except:
+                original_calculated_indent = 0
+                temp_idx = start
+                while temp_idx > 0 and code_block[temp_idx-1] == ' ':
+                    original_calculated_indent +=1
+                    temp_idx -=1
+                
+                end = code_block.rindex('\n' + ' '*original_calculated_indent + '}')
+            except ValueError:
                 end = len(code_block)
-        except:
+
+        except ValueError:
             start = 0
             try:
-                end = code_block.rindex('\n' + ' '*indent + '}')
-            except:
+                end = code_block.rindex('\n' + ' '*setting['indent'] + '}')
+            except ValueError:
                 end = len(code_block)
 
         body = code_block[start:end]
 
         if lang_code.lower() in ['php', 'ts', 'js']:
-            body += '\n' + ' '*indent + '}'
+            final_indent_for_closing_brace = setting['indent']
+            if 'original_calculated_indent' in locals():
+                 final_indent_for_closing_brace = original_calculated_indent
+            body += '\n' + ' '*final_indent_for_closing_brace + '}'
     
         generation = func_prefix + '\n' + body + '\n'
         example['generation'] = generation
+        extraction_successful = True
 
     except Exception as ex:
         print("Failed to extract code block with error `{}`:\n>>> Task: {}\n>>> Output:\n{}".format(
@@ -102,7 +130,7 @@ def extract_generation_code(example: str, lang_code: str, verbose: bool=False):
         ))
         example['generation'] = example['prompt'] + '\n' + output
     
-    return example
+    return example, extraction_successful
 
 def cleanup_code(
     code: str,
