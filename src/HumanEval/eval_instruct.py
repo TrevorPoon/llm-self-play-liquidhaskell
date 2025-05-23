@@ -7,20 +7,32 @@ from tqdm import tqdm
 
 data_abs_dir = Path(__file__).parent / "data"
 
-from utils.utils import extract_generation_code, languge_settings
+from utils.utils import extract_generation_code, language_settings
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from human_eval.evaluation import evaluate_functional_correctness
 
-def build_deepseekcoder_instruction(languge: str, question: str):
-    return '''
-Please continue to complete the function. You are not allowed to modify the given code and do the completion only. Please return all completed function in a codeblock. Here is the given code to do completion:
-```{}
-{}
-```
-'''.strip().format(languge.lower(), question.strip())
+def build_deepseekcoder_instruction(language: str, question: str):
+    # New instruction format incorporating the <think> block
+    return f"""Below is an instruction that describes a task.
+        Write a response that appropriately completes the request.
+        Before generating the code, think carefully about the problem and write down a step-by-step plan in the <think> block.
+        Then, complete the function, returning all completed function in a markdown codeblock. You are not allowed to modify the given code outside the completion.
 
-def generate_one(example, lang, tokenizer, model):
-    prompt = build_deepseekcoder_instruction(languge_settings[lang]['full_name'], example['prompt'])
+        ### Instruction:
+        Complete the following {language} function:
+
+        ### Given Code:
+        ```{language.lower()}
+        {question.strip()}
+        ```
+
+        ### Response:
+        <think>
+        """
+
+
+def generate_one(example, lang, tokenizer, model, max_new_tokens):
+    prompt = build_deepseekcoder_instruction(language_settings[lang]['full_name'], example['prompt'])
     inputs = tokenizer.apply_chat_template(
         [{'role': 'user', 'content': prompt }],
         return_tensors="pt",
@@ -30,15 +42,17 @@ def generate_one(example, lang, tokenizer, model):
     stop_id = tokenizer.convert_tokens_to_ids("<|EOT|>")
     assert isinstance(stop_id, int), "Invalid tokenizer, EOT id not found"
 
-    outputs = model.generate(
-        inputs, 
-        max_new_tokens=1024,
-        do_sample=False,
-        # top_p=0.95,
-        # temperature=temperature,
-        pad_token_id=stop_id,
-        eos_token_id=stop_id
-    )
+    with torch.inference_mode():
+        with torch.autocast(device_type=model.device.type, dtype=torch.float16):
+            outputs = model.generate(
+                inputs, 
+                max_new_tokens=max_new_tokens,
+                do_sample=False,
+                # top_p=0.95,
+                # temperature=temperature,
+                pad_token_id=stop_id,
+                eos_token_id=stop_id
+            )
 
     output = tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
     example['output'] = output
@@ -51,18 +65,23 @@ def generate_main(args):
     lang = args.language
     saved_path = args.output_path
     temp_dir = args.temp_dir
+    max_new_tokens = args.max_new_tokens
     os.makedirs(temp_dir, exist_ok=True)
     problem_file = os.path.join(data_abs_dir, f"humaneval-{lang}.jsonl")
 
     print("model", model_name_or_path)
+    print("lang", lang)
+    print("max_new_tokens", max_new_tokens)
+    
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     print("load tokenizer {} from {} over.".format(tokenizer.__class__, model_name_or_path))
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=torch.float16,
         device_map="auto",
         #use_flash_attention_2=True
     )
+    model = torch.compile(model)
     model.eval()
     examples = [json.loads(x) for x in open(problem_file) if x.strip()]
     print("Read {} examples for evaluation over.".format(len(examples)))
@@ -70,7 +89,7 @@ def generate_main(args):
     generated_examples = []
     failed_extraction_count = 0  # Initialize counter
     for ex in tqdm(examples, desc='Generating'):
-        gen_example, extraction_successful = generate_one(ex, args.language, tokenizer, model)
+        gen_example, extraction_successful = generate_one(ex, args.language, tokenizer, model, max_new_tokens)
         if not extraction_successful:
             failed_extraction_count += 1
         generated_examples.append(gen_example)
@@ -132,6 +151,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_path', type=str, help="output path of your generation")
     parser.add_argument('--language', type=str, help="langauge")
     parser.add_argument('--temp_dir', type=str, help="temp dir for evaluation", default="tmp")
+    parser.add_argument('--max_new_tokens', type=int, help="max new tokens", default=4096)
     args = parser.parse_args()
 
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
