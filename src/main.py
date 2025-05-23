@@ -1,6 +1,13 @@
+# Main.py
+
 import argparse
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    AutoConfig,
+    BitsAndBytesConfig
+)
 from utils.logger import setup_logger
 from inference import run_inference
 from finetune import run_finetuning
@@ -26,29 +33,37 @@ def main():
     # Setup logger
     logger = setup_logger()
 
-
-    # Model and tokenizer loading in main.py
-    model_name = args.model_name
+    # Determine device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Using device: {device}")
-    logger.info(f"Loading model: {model_name}")
 
+    # Load model and tokenizer
+    model_name = args.model_name
+    logger.info(f"Loading model: {model_name}")
     config = AutoConfig.from_pretrained(model_name)
-    
     tokenizer = AutoTokenizer.from_pretrained(model_name, config=config)
+
+    # 8-bit quantization config
+    # bnb_cfg = BitsAndBytesConfig(load_in_8bit=True)
+
+    # Load the model in 8-bit and shard across available GPUs
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map="auto" if device == "cuda" else {"": device}
+        # quantization_config=bnb_cfg,
+        device_map="auto"
     )
 
-    # Log the number of GPUs being used
+    # Compile with Torch 2.0 for kernel fusion
+    model = torch.compile(model)
+
+    # Log GPU count
     if device == "cuda":
         num_gpus = torch.cuda.device_count()
         logger.info(f"Number of GPUs available: {num_gpus}")
     else:
         logger.info("No GPU available, using CPU")
 
-    
+    # Dispatch based on mode
     if args.mode == 'inference':
         run_inference(model, tokenizer, args.prompt, device, logger)
 
