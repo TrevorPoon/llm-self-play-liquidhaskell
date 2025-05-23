@@ -35,10 +35,10 @@ source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
 
 LANG="python"
 OUTPUT_DIR="output"
-MODEL="DeepSeek-R1-Distill-Qwen-7B"
+MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python eval_instruct.py \
-    --model "deepseek-ai/$MODEL" \
+    --model "$MODEL" \
     --output_path "$OUTPUT_DIR/${LANG}.$MODEL.jsonl" \
     --language $LANG \
     --temp_dir $OUTPUT_DIR
