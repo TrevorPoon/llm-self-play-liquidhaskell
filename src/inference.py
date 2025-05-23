@@ -18,7 +18,7 @@ def run_inference(model, tokenizer, prompt, device, logger):
         ### Response:
         <think>{}"""
     
-    final_prompt = prompt_style.format(prompt, "", "")
+    final_prompt = prompt_style.format(prompt, "")
     logger.info(f"Final Prompt: {final_prompt}")
 
     # Tokenize and move inputs to device
