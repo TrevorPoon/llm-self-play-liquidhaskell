@@ -39,18 +39,22 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
         add_generation_prompt=True
     ).to(model.device)
 
-    stop_id = tokenizer.convert_tokens_to_ids("<|EOT|>")
-    assert isinstance(stop_id, int), "Invalid tokenizer, EOT id not found"
+    stop_id = tokenizer.eos_token_id # Use the tokenizer's own EOS token ID
+    # Ensure stop_id is an int, otherwise generation will fail.
+    if isinstance(stop_id, list): # Sometimes it can be a list
+        stop_id = stop_id[0]
+    assert isinstance(stop_id, int), f"Invalid tokenizer, EOS id not found or not an int: {stop_id}"
 
     with torch.inference_mode():
         with torch.autocast(device_type=model.device.type, dtype=torch.float16):
             outputs = model.generate(
-                inputs, 
+                inputs,
+                attention_mask=torch.ones_like(inputs), # Explicitly pass attention_mask
                 max_new_tokens=max_new_tokens,
                 do_sample=False,
                 # top_p=0.95,
                 # temperature=temperature,
-                pad_token_id=stop_id,
+                pad_token_id=stop_id, # It's common to use EOS as PAD when no other pad_token is set
                 eos_token_id=stop_id
             )
 
@@ -95,6 +99,12 @@ def generate_main(args):
         generated_examples.append(gen_example)
 
     print("Generate all over!!!")
+
+    # Ensure the directory for the output file exists
+    output_dir = os.path.dirname(saved_path)
+    if output_dir: # Check if dirname is not empty (e.g. for relative paths in current dir)
+        os.makedirs(output_dir, exist_ok=True)
+
     with open(saved_path, 'w', encoding='utf-8') as fw:
         for ex in generated_examples:
             fw.write(json.dumps(ex) + '\n')
