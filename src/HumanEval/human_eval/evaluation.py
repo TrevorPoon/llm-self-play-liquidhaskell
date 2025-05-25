@@ -55,7 +55,15 @@ IMPORT_HELPER = {
         "#include<iostream>",
         "#include<cassert>"
     ],
-    "cs": ["using System.Numerics;", "using System.Diagnostics;", "using System.Collections.Generic;", "using System.Linq;", "using System.Text;", "using System.Security.Cryptography;", "using System.Collections.Generic;"]
+    "cs": ["using System.Numerics;", "using System.Diagnostics;", "using System.Collections.Generic;", "using System.Linq;", "using System.Text;", "using System.Security.Cryptography;", "using System.Collections.Generic;"],
+    "hs": [ # For Haskell
+        "import Data.List",
+        "import Data.Char",
+        "import Data.Maybe",
+        "import Text.Read (readMaybe)",
+        "import Control.Monad (guard)" 
+        # Add other common ones if needed or if specific problems require them
+    ]
 }
 
 
@@ -65,6 +73,7 @@ LANGUAGE_NAME = {
     "java"  : "Java",
     "js"    : "JavaScript",
     "python": "Python",
+    "hs": "Haskell" # Added Haskell
 }
 
 
@@ -174,6 +183,28 @@ def process_humaneval_test(sample, problems, example_test=False, is_mbpp=False, 
         if code[:5] != "<?php":
             code = "<?php\n" + code
         test_string = code + "\n" + test + "?>"
+    elif language == "hs" or language == "haskell": # Added Haskell block
+        # The "test" field from conversion.py already contains the main module and function.
+        # The "code" is the LLM-generated function definition.
+        # We need to insert the "code" into the "test" structure.
+        # The test_code from conversion.py has a comment placeholder:
+        # -- Solution will be prepended here by the evaluation script
+
+        imports = "\n".join(IMPORT_HELPER.get("hs", [])) + "\n\n"
+        # The test field from conversion.py is expected to be a full Main module
+        # that includes the LLM's solution within its structure.
+        # It should look like:
+        # module Main where
+        # -- <LLM solution here>
+        # main = ...
+        # So, we find where to insert the solution.
+        if "-- Solution will be prepended here by the evaluation script" in test:
+            test_string = imports + test.replace("-- Solution will be prepended here by the evaluation script", code.strip())
+        else:
+            # Fallback: if placeholder is missing, just prepend solution to test (might not be ideal)
+            # This assumes the test code is just the `main = do ...` part and needs the solution and module header.
+            print(f"Warning: Haskell test for {task_id} missing solution placeholder. Attempting basic concatenation.")
+            test_string = imports + "module Main where\n\n" + code.strip() + "\n\n" + test
     return test_string
 
 

@@ -36,24 +36,169 @@ language_settings = {
         'full_name': "Bash",
         'indent': 0
     },
-    'go': {
-        'full_name': "Go",
-        'indent': 0, # Typically uses tabs, but for extraction, 0 is fine as fallback.
+    'hs': {
+        'full_name': 'Haskell',
+        'indent': 0
     }
 }
 
 def get_function_name(question: str, lang: str):
-    func_lines = [x for x in question.strip().split('\n') if x.strip()]
-
-    if lang.lower() == 'python':
-        func_idx = [i for i in range(len(func_lines)) if func_lines[i].startswith("def ")][-1]
-        func_name = func_lines[func_idx].split('(')[0].strip()
-        func_prefix = "\n".join(func_lines[:func_idx])
+    if lang.lower() == "python":
+        func_lines = question.split("\\n")
+        func_name = ""
+        for line in func_lines:
+            if line.startswith("def "):
+                func_name = line.split("def ")[1].split("(")[0]
+                break
+        func_prefix = "\\n".join(func_lines)
         return func_name, func_prefix
-    
-    func_name = func_lines[-1].split('{')[0].strip()
-    func_prefix = "\n".join(func_lines[:-1])
-    return func_name, func_prefix
+    elif lang.lower() == "java":
+        func_lines = question.split("\\n")
+        func_sig = ""
+        for line in func_lines:
+            if "public static" in line and "{" in line: # a bit fragile
+                func_sig = line.split("{")[0].strip()
+                break
+            elif "public" in line and "class" not in line and "interface" not in line and "(" in line and ")" in line and "{" in line: # for inner methods or non-static
+                func_sig = line.split("{")[0].strip()
+                break
+
+        if not func_sig: # Fallback if above doesn't match, try to find last method-like signature
+            for line in reversed(func_lines):
+                if "(" in line and ")" in line and "{" in line and "class" not in line and "interface" not in line:
+                    func_sig = line.split("{")[0].strip()
+                    break
+        
+        func_name = func_sig.split(" ")[-1].split("(")[0] if func_sig else "" # last word before (
+        func_prefix = "\\n".join(func_lines) # The whole prompt is prefix for Java
+        return func_name, func_prefix
+    elif lang.lower() == "cpp":
+        func_lines = question.split("\\n")
+        func_name = ""
+        # Find the last function signature before a {
+        potential_sig = ""
+        for line in func_lines:
+            if "(" in line and ")" in line and "{" in line.split(")")[-1]: # check { after )
+                potential_sig = line.split("{")[0].strip()
+        
+        if potential_sig : # extract name from "return_type func_name (params)"
+             parts = potential_sig.split("(")[0].split()
+             if len(parts) > 1:
+                 func_name = parts[-1]
+        
+        # If the above fails, try a simpler regex for "func_name("
+        if not func_name:
+            match = re.search(r"(\\w+)\\s*\\(", question)
+            if match:
+                func_name = match.group(1)
+
+        func_prefix = "\\n".join(func_lines)
+        return func_name, func_prefix
+    elif lang.lower() == "js" or lang.lower() == "javascript" or lang.lower() == "ts" or lang.lower() == "typescript":
+        func_lines = question.split("\\n")
+        func_name = ""
+        # Try to find "function funcName(" or "const funcName = function(" or "const funcName = ("
+        for line in func_lines:
+            if "function " in line:
+                func_name = line.split("function ")[1].split("(")[0].strip()
+                break
+            elif "const " in line and (" = function(" in line or " = (" in line) : # Arrow functions as well
+                func_name = line.split("const ")[1].split("=")[0].strip()
+                break
+        # Fallback for simple `funcName = (` type declarations often seen in prompts
+        if not func_name:
+            for line in func_lines:
+                if " = (" in line and "const" not in line and "let" not in line and "var" not in line :
+                     # Catches export default myFunction = (
+                     parts = line.split(" = (")
+                     if not parts[0].strip().startswith("export default"): # avoid export default as func name
+                        func_name = parts[0].strip()
+                        break
+
+
+        func_prefix = "\\n".join(func_lines)
+        return func_name, func_prefix
+    elif lang.lower() == 'cs':
+        # C# function names are often like: public static ReturnType FunctionName(parameters)
+        # The prompt usually contains the class structure.
+        # We're looking for a method signature within the prompt.
+        # Example: public static string remove_vowels(string input)
+        match = re.search(r"public\\s+(static\\s+)?\\w+\\s+(\\w+)\\s*\\(", question)
+        func_name = match.group(2) if match else ""
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'go':
+        # Go function names are like: func FunctionName(params) ReturnType
+        match = re.search(r"func\\s+(\\w+)\\s*\\(", question)
+        func_name = match.group(1) if match else ""
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'php':
+        # PHP function names: function functionName($params)
+        match = re.search(r"function\\s+(\\w+)\\s*\\(", question)
+        func_name = match.group(1) if match else ""
+        func_prefix = question # Whole prompt
+        return func_name, func_prefix
+    elif lang.lower() == 'ruby':
+        # Ruby: def function_name(params)
+        match = re.search(r"def\\s+(\\w+)", question)
+        func_name = match.group(1) if match else ""
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'rust':
+        # Rust: fn function_name(params) -> ReturnType {
+        match = re.search(r"fn\\s+(\\w+)\\s*\\(", question)
+        func_name = match.group(1) if match else ""
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'scala':
+        # Scala: def functionName(params): ReturnType = {
+        match = re.search(r"def\\s+(\\w+)\\s*\\(", question)
+        func_name = match.group(1) if match else ""
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'swift':
+        # Swift: func functionName(params) -> ReturnType {
+        match = re.search(r"func\\s+(\\w+)\\s*\\(", question)
+        func_name = match.group(1) if match else ""
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'kotlin':
+        # Kotlin: fun functionName(params): ReturnType {
+        match = re.search(r"fun\\s+(\\w+)\\s*\\(", question)
+        func_name = match.group(1) if match else ""
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'sh': # For shell scripts, often no clear "function" name in prompt.
+        func_name = "" # Or derive from task_id if needed
+        func_prefix = question
+        return func_name, func_prefix
+    elif lang.lower() == 'haskell' or lang.lower() == 'hs':
+        # Haskell: functionName :: TypeSignature
+        # The prompt from conversion.py includes docstring then signature.
+        # We need to find the last line that looks like a type signature.
+        func_name = ""
+        signature_line = ""
+        lines = question.strip().split('\\n')
+        for line in reversed(lines):
+            if "::" in line and not line.strip().startswith("--"):
+                signature_line = line.strip()
+                break
+        
+        if signature_line:
+            # funcName :: Int -> Int OR (operator) :: Int -> Int -> Int
+            match = re.match(r"\\s*([a-zA-Z_][a-zA-Z0-9_']+|\\([^\\)]+\\))\\s*::", signature_line)
+            if match:
+                func_name = match.group(1)
+
+        func_prefix = question # The whole prompt is used
+        return func_name, func_prefix
+    else:
+        # Default or for languages not explicitly handled
+        func_lines = question.split("\\n")
+        func_name = func_lines[-1].split('{')[0].strip() # very basic fallback
+        func_prefix = "\\n".join(func_lines[:-1])
+        return func_name, func_prefix
 
 def extract_generation_code(example: str, lang_code: str, verbose: bool=False):
     task_id = example['task_id']
@@ -150,6 +295,7 @@ def extract_generation_code(example: str, lang_code: str, verbose: bool=False):
     
         generation = func_prefix + '\n' + body + '\n'
         example['generation'] = generation
+        print("Generation: ", generation)
         extraction_successful = True
 
     except Exception as ex:
