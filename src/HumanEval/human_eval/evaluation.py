@@ -205,6 +205,8 @@ def process_humaneval_test(sample, problems, example_test=False, is_mbpp=False, 
             # This assumes the test code is just the `main = do ...` part and needs the solution and module header.
             print(f"Warning: Haskell test for {task_id} missing solution placeholder. Attempting basic concatenation.")
             test_string = imports + "module Main where\n\n" + code.strip() + "\n\n" + test
+    
+    print(f"[DEBUG][process_humaneval_test] Final test_string for Task ID {task_id}:\n{test_string}")
     return test_string
 
 
@@ -241,12 +243,15 @@ def evaluate_functional_correctness(
     """
     Evaluates the functional correctness of a model.
     """
+    pass_at_k = {}  # Initialize pass_at_k to an empty dict
     if example_test:
-        print("Example test...")
+        print("[DEBUG][evaluate_functional_correctness] Example test mode enabled.")
 
     problems = read_dataset(problem_file,
                             dataset_type="humaneval")
     sample_jsonl = stream_jsonl_all(input_file)
+    print(f"[DEBUG][evaluate_functional_correctness] Loaded {len(problems)} problems from {problem_file}")
+    print(f"[DEBUG][evaluate_functional_correctness] Loaded {len(sample_jsonl)} samples from {input_file}")
 
 
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
@@ -257,7 +262,7 @@ def evaluate_functional_correctness(
         results = defaultdict(list)
 
         if test_groundtruth:
-            print("Testing ground truth...")
+            print("[DEBUG][evaluate_functional_correctness] Testing ground truth...")
             for sample in tqdm(problems.values()):
                 task_id = sample["task_id"]
                 lang = task_id.split("/")[0].lower()
@@ -274,7 +279,7 @@ def evaluate_functional_correctness(
                 completion_id[task_id] += 1
                 n_samples += 1
         else:
-            print("Reading samples...")
+            print("[DEBUG][evaluate_functional_correctness] Reading samples...")
             for sample in tqdm(sample_jsonl):
                 task_id = sample["task_id"]
                 if not is_mbpp:
@@ -303,10 +308,11 @@ def evaluate_functional_correctness(
         else:
             evaluate_pass_at_k = False
 
-        print("Running test suites...")
+        print("[DEBUG][evaluate_functional_correctness] Running test suites...")
         for future in tqdm(as_completed(futures), total=len(futures)):
             result = future.result()
             results[result["task_id"]].append((result["completion_id"], result))
+            print(f"[DEBUG][evaluate_functional_correctness] Result for {result['task_id']} completion {result['completion_id']}: {result['result']}")
 
     # Calculate pass@k.
     total, correct = [], []
@@ -320,8 +326,17 @@ def evaluate_functional_correctness(
         ks = k
         pass_at_k = {f"pass@{k}": estimate_pass_at_k(total, correct, k).mean()
                      for k in ks if (total >= k).all()}
-        print(pass_at_k)
+        print(f"[DEBUG][evaluate_functional_correctness] Pass@k results: {pass_at_k}")
+        for k_val, score in pass_at_k.items():
+            print(f"[DEBUG][evaluate_functional_correctness]   {k_val}: {score:.4f}")
     else:
-        print("Total:", np.sum(total))
-        print("Correct:", np.sum(correct))
+        # Even if not calculating pass@k, provide a summary.
+        # The summary is now calculated regardless, but let's be explicit.
+        pass_at_k['summary'] = {
+            "total_evaluated": np.sum(total),
+            "total_correct": np.sum(correct)
+        }
+        print("\n[DEBUG][evaluate_functional_correctness] Evaluation Summary (pass@k not applicable):")
+        print(f"[DEBUG][evaluate_functional_correctness]   Total Samples Evaluated: {np.sum(total)}")
+        print(f"[DEBUG][evaluate_functional_correctness]   Total Correct Samples: {np.sum(correct)}")
     return pass_at_k

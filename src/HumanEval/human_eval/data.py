@@ -9,7 +9,10 @@ HUMAN_EVAL = os.path.join(ROOT, "..", "data", "HumanEval.jsonl.gz")
 
 
 def read_problems(evalset_file: str = HUMAN_EVAL) -> Dict[str, Dict]:
-    return {task["task_id"]: task for task in stream_jsonl(evalset_file)}
+    print(f"[DEBUG][read_problems] Reading problems from: {evalset_file}")
+    problems = {task["task_id"]: task for task in stream_jsonl(evalset_file)}
+    print(f"[DEBUG][read_problems] Loaded {len(problems)} problems.")
+    return problems
 
 
 def stream_jsonl(filename: str) -> Iterable[Dict]:

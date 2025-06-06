@@ -2,7 +2,7 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard
-#SBATCH --gres=gpu:8
+#SBATCH --gres=gpu:2
 #SBATCH --mem=96000
 #SBATCH --time=0-168:00:00
 #SBATCH --output=log/slurm-eval-hs-%j.out
@@ -16,9 +16,9 @@ LANG="hs"
 OUTPUT_DIR="output"
 MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python eval_instruct.py \
+CUDA_VISIBLE_DEVICES=0,1 python eval_instruct.py \
   --model "$MODEL" \
   --output_path "$OUTPUT_DIR/${LANG}.$MODEL.jsonl" \
   --language $LANG \
   --temp_dir $OUTPUT_DIR \
-  --max_new_tokens 1024
+  --max_new_tokens 4096

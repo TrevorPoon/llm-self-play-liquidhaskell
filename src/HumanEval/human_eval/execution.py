@@ -32,6 +32,7 @@ def check_correctness(
     Evaluates the functional correctness of a completion by running the test
     suite provided in the problem.
     """
+    print(f"[DEBUG][check_correctness] Evaluating task_id: {task_id}, completion_id: {completion_id}, language: {language_type}")
 
     def unsafe_execute(tmp_dir):
         random_id = random.randint(1, 100000)
@@ -69,6 +70,8 @@ def check_correctness(
                     result.append(f"failed: AssertionError")
                 except BaseException as e:
                     result.append(f"failed: {e}")
+                
+                print(f"[DEBUG][unsafe_execute] Python execution result for task_id='{task_id}': {result[-1] if result else 'no result'}")
                 #print(sample["test_code"])
                 #print(result)
                 # Needed for cleaning up.
@@ -102,7 +105,9 @@ def check_correctness(
                     # does not perform destructive actions on their host or network.
                     # Once you have read this disclaimer and taken appropriate precautions,
                     # uncomment the following line and proceed at your own risk:
-                     exec_result = subprocess.run([f"{go_exec}go", "test", f"-timeout={timeout}s", "main_test.go"], timeout=timeout, capture_output=True)
+                     cmd = [f"{go_exec}go", "test", f"-timeout={timeout}s", "main_test.go"]
+                     print(f"[DEBUG][unsafe_execute] Running command: {' '.join(cmd)} in {os.getcwd()}")
+                     exec_result = subprocess.run(cmd, timeout=timeout, capture_output=True)
 
                 if exec_result.returncode == 0:
                     result.append("passed")
@@ -118,6 +123,7 @@ def check_correctness(
                         except:
                             err = exec_result.stdout
                     result.append(f"failed: {err}")
+                    print(f"[DEBUG][unsafe_execute] Go test failed for {task_id}. Stderr: {err}")
 
             except TimeoutException:
                 result.append("timed out")
@@ -147,14 +153,18 @@ def check_correctness(
                     # does not perform destructive actions on their host or network.
                     # Once you have read this disclaimer and taken appropriate precautions,
                     # uncomment the following line and proceed at your own risk:
-                     exec_result = subprocess.run([f"{node_exec}node", "test.js"], timeout=timeout, capture_output=True)
+                     cmd = [f"{node_exec}node", "test.js"]
+                     print(f"[DEBUG][unsafe_execute] Running command: {' '.join(cmd)} in {os.getcwd()}")
+                     exec_result = subprocess.run(cmd, timeout=timeout, capture_output=True)
 
                 if exec_result.stderr.decode():
                     err = exec_result.stderr.decode()
                     result.append(f"failed: {err}")
+                    print(f"[DEBUG][unsafe_execute] JS execution failed for {task_id}. Stderr: {err}")
                 elif exec_result.stdout.decode():
                     err = exec_result.stdout.decode()
                     result.append(f"failed: {err}")
+                    print(f"[DEBUG][unsafe_execute] JS execution failed for {task_id}. Stdout: {err}")
                 else:
                     result.append("passed")
 
@@ -175,18 +185,23 @@ def check_correctness(
             os.chdir(tmp_dir)
             open(f"test.cpp", 'w').write(sample["test_code"])
             if "162" in task_id:
-                compilation_result = subprocess.run(["/usr/bin/g++", "-std=c++17", "test.cpp", "-lcrypto", "-lssl"],
+                compile_cmd = ["/usr/bin/g++", "-std=c++17", "test.cpp", "-lcrypto", "-lssl"]
+                compilation_result = subprocess.run(compile_cmd,
                                                     timeout=timeout,
                                                     capture_output=True)
             else:
-                compilation_result = subprocess.run(["/usr/bin/g++", "-std=c++17", "test.cpp"], timeout=timeout,
+                compile_cmd = ["/usr/bin/g++", "-std=c++17", "test.cpp"]
+                compilation_result = subprocess.run(compile_cmd, timeout=timeout,
                                                     capture_output=True)
+            
+            print(f"[DEBUG][unsafe_execute] Running command: {' '.join(compile_cmd)} in {os.getcwd()}")
             if compilation_result.returncode != 0:
                 if compilation_result.stderr:
                     err = compilation_result.stderr.decode()
                 else:
                     err = compilation_result.stdout.decode()
                 result.append(f"failed: compilation error: {err}")
+                print(f"[DEBUG][unsafe_execute] C++ compilation failed for {task_id}. Error: {err}")
             else:
                 try:
                     exec_result = None
@@ -200,7 +215,9 @@ def check_correctness(
                         # does not perform destructive actions on their host or network.
                         # Once you have read this disclaimer and taken appropriate precautions,
                         # uncomment the following line and proceed at your own risk:
-                         exec_result = subprocess.run(["./a.out"], timeout=timeout, capture_output=True)
+                         exec_cmd = ["./a.out"]
+                         print(f"[DEBUG][unsafe_execute] Running command: {' '.join(exec_cmd)} in {os.getcwd()}")
+                         exec_result = subprocess.run(exec_cmd, timeout=timeout, capture_output=True)
 
                     if exec_result.returncode == 0:
                         result.append("passed")
@@ -216,6 +233,7 @@ def check_correctness(
                             except:
                                 err = exec_result.stdout
                         result.append(f"failed: {err}")
+                        print(f"[DEBUG][unsafe_execute] C++ execution failed for {task_id}. Error: {err}")
                 except TimeoutException:
                     result.append("timed out")
             #print(result[-1])
@@ -238,6 +256,7 @@ def check_correctness(
                 exec_result = None
                 with time_limit(timeout):
                     cmd = f"{php_exec}php -f test.php"
+                    print(f"[DEBUG][unsafe_execute] Running command: {cmd} in {os.getcwd()}")
                     exec_result = subprocess.run(cmd, timeout=timeout, capture_output=True, shell=True)
 
                 if exec_result.returncode == 0:
@@ -254,6 +273,7 @@ def check_correctness(
                         except:
                             err = exec_result.stdout
                     result.append(f"failed: {err}")
+                    print(f"[DEBUG][unsafe_execute] PHP execution failed for {task_id}. Error: {err}")
             except TimeoutException:
                 result.append("timed out")
             print(result[-1])
@@ -276,6 +296,7 @@ def check_correctness(
                 exec_result = None
                 with time_limit(timeout):
                     cmd = "/bin/bash test.sh"
+                    print(f"[DEBUG][unsafe_execute] Running command: {cmd} in {os.getcwd()}")
                     exec_result = subprocess.run(cmd, timeout=10, capture_output=True, shell=True)
 
                 if exec_result.returncode == 0:
@@ -292,6 +313,7 @@ def check_correctness(
                         except:
                             err = exec_result.stdout
                     result.append(f"failed: {err}")
+                    print(f"[DEBUG][unsafe_execute] Bash execution failed for {task_id}. Error: {err}")
             except TimeoutException:
                 result.append("timed out")
             #print(result[-1])
@@ -312,6 +334,7 @@ def check_correctness(
             env = {"PATH": f"{node_exec}:" + subprocess.os.environ["PATH"]}
             open(f"test.ts", 'w').write(sample["test_code"])
             cmd = f"{tsc_exec}tsc test.ts --target ES2015 --lib ES2015,DOM"
+            print(f"[DEBUG][unsafe_execute] Running command: {cmd} in {os.getcwd()}")
             compilation_result = subprocess.run(cmd, timeout=timeout, capture_output=True, env=env, shell=True)
             if compilation_result.returncode != 0:
                 if compilation_result.stderr:
@@ -319,11 +342,14 @@ def check_correctness(
                 else:
                     err = compilation_result.stdout.decode()
                 result.append(f"failed: compilation error: {err}")
+                print(f"[DEBUG][unsafe_execute] TypeScript compilation failed for {task_id}. Error: {err}")
             else:
                 try:
                     exec_result = None
                     with time_limit(timeout):
-                         exec_result = subprocess.run([f"{node_exec}node", "test.js"], timeout=timeout, capture_output=True)
+                         exec_cmd = [f"{node_exec}node", "test.js"]
+                         print(f"[DEBUG][unsafe_execute] Running command: {' '.join(exec_cmd)} in {os.getcwd()}")
+                         exec_result = subprocess.run(exec_cmd, timeout=timeout, capture_output=True)
 
                     if exec_result.returncode == 0:
                         result.append("passed")
@@ -339,11 +365,13 @@ def check_correctness(
                             except:
                                 err = exec_result.stdout
                         result.append(f"failed: {err}")
+                        print(f"[DEBUG][unsafe_execute] TypeScript execution failed for {task_id}. Error: {err}")
                 except TimeoutException:
                     result.append("timed out")
             if result[-1] != "passed":
                 env = {"PATH": f"{node_exec}:" + subprocess.os.environ["PATH"]}
                 cmd = f"{tsc_exec}tsc test.ts"
+                print(f"[DEBUG][unsafe_execute] Running command: {cmd} in {os.getcwd()}")
                 compilation_result = subprocess.run(cmd, timeout=timeout, capture_output=True, env=env, shell=True)
                 if compilation_result.returncode != 0:
                     if compilation_result.stderr:
@@ -351,11 +379,14 @@ def check_correctness(
                     else:
                         err = compilation_result.stdout.decode()
                     result[-1] = f"failed: compilation error: {err}"
+                    print(f"[DEBUG][unsafe_execute] TypeScript re-compilation failed for {task_id}. Error: {err}")
                 else:
                     try:
                         exec_result = None
                         with time_limit(timeout):
-                            exec_result = subprocess.run([f"{node_exec}node", "test.js"], timeout=timeout, capture_output=True)
+                            exec_cmd = [f"{node_exec}node", "test.js"]
+                            print(f"[DEBUG][unsafe_execute] Running command: {' '.join(exec_cmd)} in {os.getcwd()}")
+                            exec_result = subprocess.run(exec_cmd, timeout=timeout, capture_output=True)
 
                         if exec_result.returncode == 0:
                             result[-1] = "passed"
@@ -371,6 +402,7 @@ def check_correctness(
                                 except:
                                     err = exec_result.stdout
                             result[-1] = f"failed: {err}"
+                            print(f"[DEBUG][unsafe_execute] TypeScript re-execution failed for {task_id}. Error: {err}")
                     except TimeoutException:
                         result[-1] = "timed out"
  
@@ -388,6 +420,7 @@ def check_correctness(
             os.chdir(tmp_dir)
             open(f"Program.cs", 'w').write(sample["test_code"])
             cmd = f"{cs_exec}mcs -d:DEBUG Program.cs"
+            print(f"[DEBUG][unsafe_execute] Running command: {cmd} in {os.getcwd()}")
             compilation_result = subprocess.run(cmd, shell=True, capture_output=True)
             if compilation_result.returncode != 0:
                 if compilation_result.stderr:
@@ -395,12 +428,14 @@ def check_correctness(
                 else:
                     err = compilation_result.stdout.decode()
                 result.append(f"failed: compilation error: {err}")
+                print(f"[DEBUG][unsafe_execute] C# compilation failed for {task_id}. Error: {err}")
             else:
                 try:
                     exec_result = None
                     cmd = f"{cs_exec}mono Program.exe"
                     env = dict(MONO_TRACE_LISTENER="Console.Error")
                     with time_limit(timeout):
+                         print(f"[DEBUG][unsafe_execute] Running command: {cmd} in {os.getcwd()}")
                          exec_result = subprocess.run(cmd, timeout=timeout, shell=True, capture_output=True, env=env)
 
                     if "Fail" not in exec_result.stderr.decode():
@@ -417,6 +452,7 @@ def check_correctness(
                             except:
                                 err = exec_result.stdout
                         result.append(f"failed: {err}")
+                        print(f"[DEBUG][unsafe_execute] C# execution failed for {task_id}. Error: {err}")
                 except TimeoutException:
                     result.append("timed out")
                 except Exception as e:
@@ -557,7 +593,9 @@ def check_correctness(
 
     if not result:
         result.append("timed out")
+        print(f"[DEBUG][check_correctness] Task {task_id} timed out.")
 
+    print(f"[DEBUG][check_correctness] Result for {task_id}, completion_id {completion_id}: {result[0]}")
     return {
         "task_id"      : task_id,
         "completion_id": completion_id,
