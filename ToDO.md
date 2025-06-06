@@ -1,9 +1,7 @@
 # Evaluation
 
-1. General HumanEval
-2. HumanEval Haskell
-3. Any max token
-Copy the whole concept to evaluate.py
+cpp 
+hs
 
 # Self-Play Pipeline
 
@@ -12,6 +10,7 @@ Copy the whole concept to evaluate.py
 
 # Finetuning
 1. DoRA
+2. Unsloth? 
 
 # API 
 Credit
