@@ -39,6 +39,7 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
     ).to(model.device)
 
     stop_id = tokenizer.eos_token_id # Use the tokenizer's own EOS token ID
+    print(f"[DEBUG][generate_one] Stop ID: {stop_id}")
     # Ensure stop_id is an int, otherwise generation will fail.
     if isinstance(stop_id, list): # Sometimes it can be a list
         stop_id = stop_id[0]
@@ -47,24 +48,19 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
     print(f"\n[DEBUG][generate_one] Task ID: {example.get('task_id', 'N/A')}")
     print(f"[DEBUG][generate_one] Prompt sent to model:\n{prompt}")
 
-    input_ids=inputs['input_ids']
-    attention_mask=inputs['attention_mask']
-
     with torch.inference_mode():
         with torch.autocast(device_type=model.device.type, dtype=torch.float16):
             outputs = model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                max_new_tokens=max_new_tokens,
+                **inputs,
+                max_length=inputs["input_ids"].shape[-1] + max_new_tokens,
                 do_sample=False,
                 # top_p=0.95,
                 # temperature=temperature,
                 pad_token_id=stop_id, # It's common to use EOS as PAD when no other pad_token is set
-                eos_token_id=stop_id,
-                early_stopping=True
+                eos_token_id=stop_id
             )
 
-    output = tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
+    output = tokenizer.decode(outputs[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
     print(f"[DEBUG][generate_one] Raw model output for Task ID {example.get('task_id', 'N/A')}:\n{output}")
     example['output'] = output
     
@@ -100,7 +96,7 @@ def generate_main(args):
     examples = [json.loads(x) for x in open(problem_file) if x.strip()]
     
     # For debugging purposes, only use the first 5 questions. Comment out the line below to run on all questions.
-    examples = examples[:5]
+    examples = examples[:10]
     
     print(f"Read {len(examples)} examples for evaluation over.")
 
@@ -161,6 +157,7 @@ def evaluation_only(args):
     for ex in tqdm(output_examples, "Processing"):
         print(f"\n[DEBUG][evaluation_only] Processing Task ID: {ex.get('task_id', 'N/A')} from input file.")
         processed_ex, extraction_status = extract_generation_code(ex, lang) # Keep both return values
+        print(f"[DEBUG][evaluation_only] Extracted code for Task ID {ex.get('task_id', 'N/A')}:\n{processed_ex.get('generation', 'N/A')}")
         print(f"[DEBUG][evaluation_only] Extraction status for Task ID {ex.get('task_id', 'N/A')}: {extraction_status}")
         processed_examples.append(processed_ex)
         

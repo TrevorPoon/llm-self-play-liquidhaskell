@@ -1,8 +1,8 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard
-#SBATCH --gres=gpu:2
+#SBATCH --partition=PGR-Standard-Noble       # only nodes with A40s
+#SBATCH --gres=gpu:a40:4                     # specifically four A40 GPUs
 #SBATCH --mem=96000
 #SBATCH --time=0-168:00:00
 #SBATCH --output=log/slurm-eval-php-%j.out      
@@ -16,7 +16,7 @@ LANG="php"
 OUTPUT_DIR="output"
 MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
-CUDA_VISIBLE_DEVICES=0,1 python eval_instruct.py \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_instruct.py \
   --model "$MODEL" \
   --output_path "$OUTPUT_DIR/${LANG}.$MODEL.jsonl" \
   --language $LANG \
