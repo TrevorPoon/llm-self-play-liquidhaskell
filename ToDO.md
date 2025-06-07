@@ -1,7 +1,7 @@
 # Evaluation
-
-cpp 
-hs
+ 
+hs-testing on original hs dataset
+LiveCodeBench
 
 # Self-Play Pipeline
 
@@ -11,6 +11,8 @@ hs
 # Finetuning
 1. DoRA
 2. Unsloth? 
+3. The difficulty of training data
+4. multi-cirriculum
 
 # API 
 Credit

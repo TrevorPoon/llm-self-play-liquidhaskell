@@ -73,7 +73,7 @@ LANGUAGE_NAME = {
     "java"  : "Java",
     "js"    : "JavaScript",
     "python": "Python",
-    "hs": "Haskell" # Added Haskell
+    "hs": "Haskell"
 }
 
 
@@ -184,27 +184,9 @@ def process_humaneval_test(sample, problems, example_test=False, is_mbpp=False, 
             code = "<?php\n" + code
         test_string = code + "\n" + test + "?>"
     elif language == "hs" or language == "haskell": # Added Haskell block
-        # The "test" field from conversion.py already contains the main module and function.
-        # The "code" is the LLM-generated function definition.
-        # We need to insert the "code" into the "test" structure.
-        # The test_code from conversion.py has a comment placeholder:
-        # -- Solution will be prepended here by the evaluation script
-
-        imports = "\n".join(IMPORT_HELPER.get("hs", [])) + "\n\n"
-        # The test field from conversion.py is expected to be a full Main module
-        # that includes the LLM's solution within its structure.
-        # It should look like:
-        # module Main where
-        # -- <LLM solution here>
-        # main = ...
-        # So, we find where to insert the solution.
-        if "-- Solution will be prepended here by the evaluation script" in test:
-            test_string = imports + test.replace("-- Solution will be prepended here by the evaluation script", code.strip())
-        else:
-            # Fallback: if placeholder is missing, just prepend solution to test (might not be ideal)
-            # This assumes the test code is just the `main = do ...` part and needs the solution and module header.
-            print(f"Warning: Haskell test for {task_id} missing solution placeholder. Attempting basic concatenation.")
-            test_string = imports + "module Main where\n\n" + code.strip() + "\n\n" + test
+        imports = "\n".join(IMPORT_HELPER.get("hs", []))
+        # Ensure the generated code is clean and properly placed in a module structure.
+        test_string = f"{imports}\n\n{code.strip()}\n\n{test.strip()}"
     
     print(f"[DEBUG][process_humaneval_test] Final test_string for Task ID {task_id}:\n{test_string}")
     return test_string

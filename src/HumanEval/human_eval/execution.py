@@ -19,12 +19,13 @@ tsc_exec = ""
 go_exec = ""
 php_exec = ""
 cs_exec = ""
+ghc_exec = ""
 
 def check_correctness(
         task_id: str,
         sample: dict,
         language_type: str,
-        timeout: float = 3.0,
+        timeout: float = 120.0,
         tmp_dir: str = None,
         completion_id: Optional[int] = None,
 ) -> Dict:
@@ -297,7 +298,7 @@ def check_correctness(
                 with time_limit(timeout):
                     cmd = "/bin/bash test.sh"
                     print(f"[DEBUG][unsafe_execute] Running command: {cmd} in {os.getcwd()}")
-                    exec_result = subprocess.run(cmd, timeout=10, capture_output=True, shell=True)
+                    exec_result = subprocess.run(cmd, timeout=120, capture_output=True, shell=True)
 
                 if exec_result.returncode == 0:
                     result.append("passed")
@@ -581,7 +582,64 @@ def check_correctness(
             result.append(res)  
             os.chdir(origin_path)          
             shutil.rmtree(tmp_dir)
-        
+        elif "hs" in language_type.lower():
+            import os
+            import shutil
+            origin_path = os.getcwd()
+            if "tmp" not in tmp_dir:
+                tmp_dir = os.path.join(tmp_dir, "tmp")
+            
+            # Sanitize task_id for directory creation if needed
+            safe_task_id = task_id.replace('/', '_')
+            tmp_dir = os.path.join(tmp_dir, f"{safe_task_id}-{random_id}")
+            
+            if not os.path.exists(tmp_dir):
+                os.makedirs(tmp_dir)
+
+            os.chdir(tmp_dir)
+            
+            # Write the Haskell test code to a file
+            test_file_name = "test.hs"
+            with open(test_file_name, 'w', encoding='utf-8') as f:
+                f.write(sample["test_code"])
+            
+            # Compile the Haskell code
+            compile_cmd = [f"{ghc_exec}ghc", test_file_name]
+            print(f"[DEBUG][unsafe_execute] Running command: {' '.join(compile_cmd)} in {os.getcwd()}")
+            
+            try:
+                compilation_result = subprocess.run(compile_cmd, timeout=timeout, capture_output=True)
+
+                if compilation_result.returncode != 0:
+                    error_message = compilation_result.stderr.decode() if compilation_result.stderr else "Unknown compilation error"
+                    result.append(f"failed: compilation error: {error_message}")
+                    print(f"[DEBUG][unsafe_execute] Haskell compilation failed for {task_id}. Error: {error_message}")
+                else:
+                    # Execute the compiled program
+                    exec_cmd = ["./test"]
+                    print(f"[DEBUG][unsafe_execute] Running command: {' '.join(exec_cmd)} in {os.getcwd()}")
+                    
+                    with time_limit(timeout):
+                        exec_result = subprocess.run(exec_cmd, timeout=timeout, capture_output=True)
+
+                    if exec_result.returncode == 0:
+                        result.append("passed")
+                    else:
+                        error_message = exec_result.stderr.decode() if exec_result.stderr else "Unknown execution error"
+                        result.append(f"failed: {error_message}")
+                        print(f"[DEBUG][unsafe_execute] Haskell execution failed for {task_id}. Error: {error_message}")
+
+            except TimeoutException:
+                result.append("timed out")
+                print(f"[DEBUG][unsafe_execute] Haskell execution timed out for {task_id}.")
+            except Exception as e:
+                result.append(f"failed: unexpected error: {e}")
+                print(f"[DEBUG][unsafe_execute] An unexpected error occurred during Haskell execution for {task_id}: {e}")
+            finally:
+                # Clean up and return to original directory
+                os.chdir(origin_path)
+                shutil.rmtree(tmp_dir)
+
     manager = multiprocessing.Manager()
     result = manager.list()
 

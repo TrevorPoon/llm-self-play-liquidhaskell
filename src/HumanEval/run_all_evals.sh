@@ -1,22 +1,63 @@
 #!/bin/bash
 
-# Define the languages you want to run evaluations for
-LANGUAGES=("python" "java" "sh" "cpp" "cs" "php" "ts" "js" "hs") # Add other languages here e.g., "cpp" "java"
-
-# Directory where the eval_LANG.sh scripts are located
+# Define languages
+LANGUAGES=("python" "java" "cpp" "cs" "php" "ts" "js" "hs")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+echo "📂 Script directory: $SCRIPT_DIR"
 
-echo "Script directory: $SCRIPT_DIR"
+# Parameters
+MAX_RETRIES=10
+SLEEP_SECONDS=5
 
-# Loop through the languages and submit sbatch jobs
+# Arrays to store job info
+declare -A JOBS  # lang -> jobid
+
+# Step 1: Submit all jobs
 for lang in "${LANGUAGES[@]}"; do
     eval_script="${SCRIPT_DIR}/eval_script/eval_${lang}.sh"
     if [ -f "$eval_script" ]; then
-        echo "Submitting sbatch job for ${lang} using ${eval_script}..."
-        sbatch "$eval_script"
+        echo "🚀 Submitting job for $lang..."
+        jobid=$(sbatch "$eval_script" | awk '{print $4}')
+        if [ -n "$jobid" ]; then
+            JOBS["$lang"]=$jobid
+            echo "✅ Submitted $lang with Job ID $jobid"
+        else
+            echo "❌ Failed to submit $lang (no Job ID returned)"
+        fi
     else
-        echo "Warning: Evaluation script ${eval_script} not found. Skipping ${lang}."
+        echo "⚠️ Script not found: $eval_script — skipping $lang"
+    fi
+    sleep $SLEEP_SECONDS
+done
+
+echo "⏳ Waiting $SLEEP_SECONDS seconds before verification..."
+sleep $SLEEP_SECONDS
+
+# Step 2: Check and retry failed jobs
+for lang in "${!JOBS[@]}"; do
+    jobid=${JOBS[$lang]}
+    attempt=1
+    while ! squeue -j "$jobid" | grep -q "$jobid"; do
+        echo "⚠️ Job $jobid for $lang not found in queue. Retrying ($attempt)..."
+        if [ $attempt -ge $MAX_RETRIES ]; then
+            echo "❌ Max retries reached for $lang. Giving up."
+            break
+        fi
+        eval_script="${SCRIPT_DIR}/eval_script/eval_${lang}.sh"
+        jobid=$(sbatch "$eval_script" | awk '{print $4}')
+        if [ -n "$jobid" ]; then
+            JOBS["$lang"]=$jobid
+            echo "🔄 Re-submitted $lang with new Job ID $jobid"
+        else
+            echo "❌ Failed to resubmit $lang"
+        fi
+        ((attempt++))
+        sleep $SLEEP_SECONDS
+    done
+
+    if squeue -j "${JOBS[$lang]}" | grep -q "${JOBS[$lang]}"; then
+        echo "✅ Final check passed: ${JOBS[$lang]} for $lang is now in the queue."
     fi
 done
 
-echo "All specified sbatch jobs submitted." 
+echo "✅ All job submissions and checks complete."
