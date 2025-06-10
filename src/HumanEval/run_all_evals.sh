@@ -7,7 +7,7 @@ echo "📂 Script directory: $SCRIPT_DIR"
 
 # Parameters
 MAX_RETRIES=10
-SLEEP_SECONDS=5
+SLEEP_SECONDS=1
 
 # Arrays to store job info
 declare -A JOBS  # lang -> jobid
@@ -27,7 +27,6 @@ for lang in "${LANGUAGES[@]}"; do
     else
         echo "⚠️ Script not found: $eval_script — skipping $lang"
     fi
-    sleep $SLEEP_SECONDS
 done
 
 echo "⏳ Waiting $SLEEP_SECONDS seconds before verification..."

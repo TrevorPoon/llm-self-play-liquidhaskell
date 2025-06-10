@@ -37,6 +37,8 @@ def check_correctness(
 
     def unsafe_execute(tmp_dir):
         random_id = random.randint(1, 100000)
+        print(f"[DEBUG][unsafe_execute] Code_Start!!!: \n {sample['test_code']} \n Code_End!!!")
+
         if "python" in language_type.lower():
             with create_tempdir():
 
@@ -79,7 +81,6 @@ def check_correctness(
                 shutil.rmtree = rmtree
                 os.rmdir = rmdir
                 os.chdir = chdir
-
         elif "go" in language_type.lower():
             assert tmp_dir is not None, "Go should be evaluated in a dir where necessary module files installed."
 
@@ -524,8 +525,6 @@ def check_correctness(
 
             else:
                 result.append(f"failed: compilation error")
-
-
         elif "java" in language_type.lower():
             assert tmp_dir is not None, "Java should be evaluated in a temporary dir."
 
@@ -604,7 +603,7 @@ def check_correctness(
                 f.write(sample["test_code"])
             
             # Compile the Haskell code
-            compile_cmd = [f"{ghc_exec}ghc", test_file_name]
+            compile_cmd = [f"/usr/bin/ghc", test_file_name]
             print(f"[DEBUG][unsafe_execute] Running command: {' '.join(compile_cmd)} in {os.getcwd()}")
             
             try:

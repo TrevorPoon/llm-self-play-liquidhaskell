@@ -1,0 +1,572 @@
+--- Testing Haskell/0 ---
+❌ Test failed for Haskell/0.
+Stderr:
+Test-0: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-0.hs:44:15 in main:Main
+
+--- Testing Haskell/1 ---
+✅ Test passed for Haskell/1.
+--- Testing Haskell/2 ---
+❌ Test failed for Haskell/2.
+Stderr:
+Test-2: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-2.hs:38:15 in main:Main
+
+--- Testing Haskell/3 ---
+✅ Test passed for Haskell/3.
+--- Testing Haskell/4 ---
+✅ Test passed for Haskell/4.
+--- Testing Haskell/5 ---
+❌ Test failed for Haskell/5.
+Stderr:
+Test-5: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-5.hs:46:15 in main:Main
+
+--- Testing Haskell/6 ---
+✅ Test passed for Haskell/6.
+--- Testing Haskell/7 ---
+✅ Test passed for Haskell/7.
+--- Testing Haskell/8 ---
+✅ Test passed for Haskell/8.
+--- Testing Haskell/9 ---
+✅ Test passed for Haskell/9.
+--- Testing Haskell/10 ---
+✅ Test passed for Haskell/10.
+--- Testing Haskell/11 ---
+✅ Test passed for Haskell/11.
+--- Testing Haskell/12 ---
+✅ Test passed for Haskell/12.
+--- Testing Haskell/13 ---
+✅ Test passed for Haskell/13.
+--- Testing Haskell/14 ---
+✅ Test passed for Haskell/14.
+--- Testing Haskell/15 ---
+✅ Test passed for Haskell/15.
+--- Testing Haskell/16 ---
+✅ Test passed for Haskell/16.
+--- Testing Haskell/17 ---
+✅ Test passed for Haskell/17.
+--- Testing Haskell/18 ---
+✅ Test passed for Haskell/18.
+--- Testing Haskell/19 ---
+✅ Test passed for Haskell/19.
+--- Testing Haskell/20 ---
+❌ Test failed for Haskell/20.
+Stderr:
+Test-20: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-20.hs:53:15 in main:Main
+
+--- Testing Haskell/21 ---
+✅ Test passed for Haskell/21.
+--- Testing Haskell/23 ---
+✅ Test passed for Haskell/23.
+--- Testing Haskell/24 ---
+✅ Test passed for Haskell/24.
+--- Testing Haskell/25 ---
+✅ Test passed for Haskell/25.
+--- Testing Haskell/26 ---
+✅ Test passed for Haskell/26.
+--- Testing Haskell/27 ---
+✅ Test passed for Haskell/27.
+--- Testing Haskell/28 ---
+✅ Test passed for Haskell/28.
+--- Testing Haskell/29 ---
+✅ Test passed for Haskell/29.
+--- Testing Haskell/30 ---
+✅ Test passed for Haskell/30.
+--- Testing Haskell/31 ---
+✅ Test passed for Haskell/31.
+--- Testing Haskell/32 ---
+✅ Test passed for Haskell/32.
+--- Testing Haskell/33 ---
+❌ Test failed for Haskell/33.
+Stderr:
+Test-33: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-33.hs:49:15 in main:Main
+
+--- Testing Haskell/34 ---
+✅ Test passed for Haskell/34.
+--- Testing Haskell/35 ---
+✅ Test passed for Haskell/35.
+--- Testing Haskell/36 ---
+✅ Test passed for Haskell/36.
+--- Testing Haskell/37 ---
+✅ Test passed for Haskell/37.
+--- Testing Haskell/38 ---
+✅ Test passed for Haskell/38.
+--- Testing Haskell/39 ---
+✅ Test passed for Haskell/39.
+--- Testing Haskell/40 ---
+✅ Test passed for Haskell/40.
+--- Testing Haskell/41 ---
+✅ Test passed for Haskell/41.
+--- Testing Haskell/42 ---
+✅ Test passed for Haskell/42.
+--- Testing Haskell/43 ---
+✅ Test passed for Haskell/43.
+--- Testing Haskell/44 ---
+✅ Test passed for Haskell/44.
+--- Testing Haskell/45 ---
+✅ Test passed for Haskell/45.
+--- Testing Haskell/46 ---
+✅ Test passed for Haskell/46.
+--- Testing Haskell/47 ---
+✅ Test passed for Haskell/47.
+--- Testing Haskell/48 ---
+✅ Test passed for Haskell/48.
+--- Testing Haskell/49 ---
+✅ Test passed for Haskell/49.
+--- Testing Haskell/50 ---
+❌ Test failed for Haskell/50.
+Stderr:
+Test-50: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-50.hs:39:15 in main:Main
+
+--- Testing Haskell/51 ---
+✅ Test passed for Haskell/51.
+--- Testing Haskell/52 ---
+✅ Test passed for Haskell/52.
+--- Testing Haskell/53 ---
+✅ Test passed for Haskell/53.
+--- Testing Haskell/54 ---
+✅ Test passed for Haskell/54.
+--- Testing Haskell/55 ---
+✅ Test passed for Haskell/55.
+--- Testing Haskell/56 ---
+❌ Compilation failed for Haskell/56.
+
+/home/s2652867/haskell/temp_tests/Test-56.hs:53:9: error:
+    Unexpected case expression in function application:
+        case foldl process (0, True) brackets of
+    You could write it with parentheses
+    Or perhaps you meant to enable BlockArguments?
+   |
+53 |         case foldl process  (0, True) brackets of {}
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+--- Testing Haskell/57 ---
+✅ Test passed for Haskell/57.
+--- Testing Haskell/58 ---
+✅ Test passed for Haskell/58.
+--- Testing Haskell/59 ---
+✅ Test passed for Haskell/59.
+--- Testing Haskell/60 ---
+✅ Test passed for Haskell/60.
+--- Testing Haskell/61 ---
+❌ Compilation failed for Haskell/61.
+
+/home/s2652867/haskell/temp_tests/Test-61.hs:54:9: error:
+    Unexpected case expression in function application:
+        case foldl process (0, True) brackets of
+    You could write it with parentheses
+    Or perhaps you meant to enable BlockArguments?
+   |
+54 |         case foldl process  (0, True) brackets of {}
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+--- Testing Haskell/62 ---
+✅ Test passed for Haskell/62.
+--- Testing Haskell/63 ---
+✅ Test passed for Haskell/63.
+--- Testing Haskell/64 ---
+❌ Test failed for Haskell/64.
+Stderr:
+Test-64: Prelude.last: empty list
+
+--- Testing Haskell/65 ---
+✅ Test passed for Haskell/65.
+--- Testing Haskell/66 ---
+✅ Test passed for Haskell/66.
+--- Testing Haskell/67 ---
+✅ Test passed for Haskell/67.
+--- Testing Haskell/68 ---
+❌ Test failed for Haskell/68.
+Stderr:
+Test-68: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-68.hs:94:15 in main:Main
+
+--- Testing Haskell/69 ---
+✅ Test passed for Haskell/69.
+--- Testing Haskell/70 ---
+❌ Compilation failed for Haskell/70.
+
+/home/s2652867/haskell/temp_tests/Test-70.hs:41:29: error:
+    parse error on input ‘helper’
+   |
+41 |                             helper lst True =  minimum lst : helper (delete (minimum lst) lst) False
+   |                             ^^^^^^
+
+--- Testing Haskell/71 ---
+✅ Test passed for Haskell/71.
+--- Testing Haskell/72 ---
+✅ Test passed for Haskell/72.
+--- Testing Haskell/73 ---
+✅ Test passed for Haskell/73.
+--- Testing Haskell/74 ---
+✅ Test passed for Haskell/74.
+--- Testing Haskell/75 ---
+✅ Test passed for Haskell/75.
+--- Testing Haskell/76 ---
+✅ Test passed for Haskell/76.
+--- Testing Haskell/77 ---
+✅ Test passed for Haskell/77.
+--- Testing Haskell/78 ---
+✅ Test passed for Haskell/78.
+--- Testing Haskell/79 ---
+✅ Test passed for Haskell/79.
+--- Testing Haskell/80 ---
+✅ Test passed for Haskell/80.
+--- Testing Haskell/81 ---
+✅ Test passed for Haskell/81.
+--- Testing Haskell/82 ---
+✅ Test passed for Haskell/82.
+--- Testing Haskell/83 ---
+✅ Test passed for Haskell/83.
+--- Testing Haskell/84 ---
+✅ Test passed for Haskell/84.
+--- Testing Haskell/85 ---
+✅ Test passed for Haskell/85.
+--- Testing Haskell/86 ---
+✅ Test passed for Haskell/86.
+--- Testing Haskell/87 ---
+✅ Test passed for Haskell/87.
+--- Testing Haskell/88 ---
+✅ Test passed for Haskell/88.
+--- Testing Haskell/89 ---
+✅ Test passed for Haskell/89.
+--- Testing Haskell/90 ---
+✅ Test passed for Haskell/90.
+--- Testing Haskell/91 ---
+✅ Test passed for Haskell/91.
+--- Testing Haskell/92 ---
+❌ Test failed for Haskell/92.
+Stderr:
+Test-92: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-92.hs:61:15 in main:Main
+
+--- Testing Haskell/93 ---
+✅ Test passed for Haskell/93.
+--- Testing Haskell/94 ---
+✅ Test passed for Haskell/94.
+--- Testing Haskell/95 ---
+❌ Test failed for Haskell/95.
+Stderr:
+Test-95: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-95.hs:69:15 in main:Main
+
+--- Testing Haskell/96 ---
+✅ Test passed for Haskell/96.
+--- Testing Haskell/97 ---
+✅ Test passed for Haskell/97.
+--- Testing Haskell/98 ---
+✅ Test passed for Haskell/98.
+--- Testing Haskell/99 ---
+❌ Test failed for Haskell/99.
+Stderr:
+Test-99: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-99.hs:72:15 in main:Main
+
+--- Testing Haskell/100 ---
+✅ Test passed for Haskell/100.
+--- Testing Haskell/101 ---
+✅ Test passed for Haskell/101.
+--- Testing Haskell/102 ---
+✅ Test passed for Haskell/102.
+--- Testing Haskell/103 ---
+✅ Test passed for Haskell/103.
+--- Testing Haskell/104 ---
+✅ Test passed for Haskell/104.
+--- Testing Haskell/105 ---
+✅ Test passed for Haskell/105.
+--- Testing Haskell/106 ---
+✅ Test passed for Haskell/106.
+--- Testing Haskell/107 ---
+✅ Test passed for Haskell/107.
+--- Testing Haskell/108 ---
+❌ Test failed for Haskell/108.
+Stderr:
+Test-108: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-108.hs:48:15 in main:Main
+
+--- Testing Haskell/109 ---
+❌ Compilation failed for Haskell/109.
+
+/home/s2652867/haskell/temp_tests/Test-109.hs:93:12: error:
+    • Ambiguous type variable ‘a0’ arising from a use of ‘move_one_ball’
+      prevents the constraint ‘(Ord a0)’ from being solved.
+      Probable fix: use a type annotation to specify what ‘a0’ should be.
+      These potential instances exist:
+        instance Ord Ordering -- Defined in ‘GHC.Classes’
+        instance Ord Integer
+          -- Defined in ‘integer-gmp-1.0.2.0:GHC.Integer.Type’
+        instance Ord () -- Defined in ‘GHC.Classes’
+        ...plus 21 others
+        ...plus four instances involving out-of-scope types
+        (use -fprint-potential-instances to see them all)
+    • In the first argument of ‘(==)’, namely ‘move_one_ball []’
+      In the first argument of ‘check’, namely
+        ‘(move_one_ball [] == True)’
+      In a stmt of a 'do' block: check (move_one_ball [] == True)
+   |
+93 |     check (move_one_ball [] == True)
+   |            ^^^^^^^^^^^^^^^^
+
+--- Testing Haskell/110 ---
+✅ Test passed for Haskell/110.
+--- Testing Haskell/111 ---
+❌ Test failed for Haskell/111.
+Stderr:
+Test-111: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-111.hs:69:15 in main:Main
+
+--- Testing Haskell/112 ---
+❌ Compilation failed for Haskell/112.
+
+/home/s2652867/haskell/temp_tests/Test-112.hs:35:28: error:
+    • Ambiguous type variable ‘a0’ arising from a use of ‘==’
+      prevents the constraint ‘(Eq a0)’ from being solved.
+      Probable fix: use a type annotation to specify what ‘a0’ should be.
+      These potential instances exist:
+        instance Eq Ordering -- Defined in ‘GHC.Classes’
+        instance Eq Integer
+          -- Defined in ‘integer-gmp-1.0.2.0:GHC.Integer.Type’
+        instance Eq () -- Defined in ‘GHC.Classes’
+        ...plus 21 others
+        ...plus six instances involving out-of-scope types
+        (use -fprint-potential-instances to see them all)
+    • In the expression: s' == reverse s'
+      In the expression: (s', s' == reverse s')
+      In an equation for ‘reverse_delete’:
+          reverse_delete s c
+            = (s', s' == reverse s')
+            where
+                s' = v filter (`notElem` c) s
+   |
+35 | reverse_delete s c =  (s', s' ==  reverse s')
+   |                            ^^^^^^^^^^^^^^^^^
+
+/home/s2652867/haskell/temp_tests/Test-112.hs:37:9: error:
+    Variable not in scope:
+      v :: ((a1 -> Bool) -> [a1] -> [a1])
+           -> (Char -> Bool) -> String -> t
+   |
+37 |     s' =v filter (`notElem`  c) s
+   |         ^
+
+--- Testing Haskell/113 ---
+✅ Test passed for Haskell/113.
+--- Testing Haskell/114 ---
+❌ Test failed for Haskell/114.
+Stderr:
+Test-114: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-114.hs:45:15 in main:Main
+
+--- Testing Haskell/115 ---
+✅ Test passed for Haskell/115.
+--- Testing Haskell/116 ---
+✅ Test passed for Haskell/116.
+--- Testing Haskell/117 ---
+✅ Test passed for Haskell/117.
+--- Testing Haskell/118 ---
+✅ Test passed for Haskell/118.
+--- Testing Haskell/119 ---
+✅ Test passed for Haskell/119.
+--- Testing Haskell/120 ---
+✅ Test passed for Haskell/120.
+--- Testing Haskell/121 ---
+✅ Test passed for Haskell/121.
+--- Testing Haskell/122 ---
+✅ Test passed for Haskell/122.
+--- Testing Haskell/123 ---
+✅ Test passed for Haskell/123.
+--- Testing Haskell/124 ---
+✅ Test passed for Haskell/124.
+--- Testing Haskell/125 ---
+✅ Test passed for Haskell/125.
+--- Testing Haskell/126 ---
+❌ Test failed for Haskell/126.
+Stderr:
+Test-126: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-126.hs:62:15 in main:Main
+
+--- Testing Haskell/127 ---
+✅ Test passed for Haskell/127.
+--- Testing Haskell/128 ---
+✅ Test passed for Haskell/128.
+--- Testing Haskell/129 ---
+❌ Test failed for Haskell/129.
+Stderr:
+Test-129: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-129.hs:125:15 in main:Main
+
+--- Testing Haskell/130 ---
+✅ Test passed for Haskell/130.
+--- Testing Haskell/131 ---
+✅ Test passed for Haskell/131.
+--- Testing Haskell/132 ---
+✅ Test passed for Haskell/132.
+--- Testing Haskell/133 ---
+✅ Test passed for Haskell/133.
+--- Testing Haskell/134 ---
+❌ Test failed for Haskell/134.
+Stderr:
+Test-134: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/haskell/temp_tests/Test-134.hs:37:15 in main:Main
+
+--- Testing Haskell/135 ---
+✅ Test passed for Haskell/135.
+--- Testing Haskell/136 ---
+✅ Test passed for Haskell/136.
+--- Testing Haskell/137 ---
+✅ Test passed for Haskell/137.
+--- Testing Haskell/138 ---
+✅ Test passed for Haskell/138.
+--- Testing Haskell/139 ---
+✅ Test passed for Haskell/139.
+--- Testing Haskell/140 ---
+❌ Compilation failed for Haskell/140.
+
+/home/s2652867/haskell/temp_tests/Test-140.hs:72:1: error:
+    parse error on input ‘import’
+   |
+72 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/141 ---
+❌ Compilation failed for Haskell/141.
+
+/home/s2652867/haskell/temp_tests/Test-141.hs:65:1: error:
+    parse error on input ‘import’
+   |
+65 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/142 ---
+❌ Compilation failed for Haskell/142.
+
+/home/s2652867/haskell/temp_tests/Test-142.hs:56:1: error:
+    parse error on input ‘import’
+   |
+56 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/143 ---
+❌ Compilation failed for Haskell/143.
+
+/home/s2652867/haskell/temp_tests/Test-143.hs:70:1: error:
+    parse error on input ‘import’
+   |
+70 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/144 ---
+❌ Compilation failed for Haskell/144.
+
+/home/s2652867/haskell/temp_tests/Test-144.hs:61:1: error:
+    parse error on input ‘import’
+   |
+61 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/145 ---
+❌ Compilation failed for Haskell/145.
+
+/home/s2652867/haskell/temp_tests/Test-145.hs:52:1: error:
+    parse error on input ‘import’
+   |
+52 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/146 ---
+❌ Compilation failed for Haskell/146.
+
+/home/s2652867/haskell/temp_tests/Test-146.hs:47:1: error:
+    parse error on input ‘import’
+   |
+47 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/147 ---
+❌ Compilation failed for Haskell/147.
+
+/home/s2652867/haskell/temp_tests/Test-147.hs:52:1: error:
+    parse error on input ‘import’
+   |
+52 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/148 ---
+❌ Compilation failed for Haskell/148.
+
+/home/s2652867/haskell/temp_tests/Test-148.hs:70:1: error:
+    parse error on input ‘import’
+   |
+70 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/149 ---
+❌ Compilation failed for Haskell/149.
+
+/home/s2652867/haskell/temp_tests/Test-149.hs:54:1: error:
+    parse error on input ‘import’
+   |
+54 | import Test.HUnit
+   | ^^^^^^
+
+--- Testing Haskell/150 ---
+✅ Test passed for Haskell/150.
+--- Testing Haskell/151 ---
+✅ Test passed for Haskell/151.
+--- Testing Haskell/152 ---
+✅ Test passed for Haskell/152.
+--- Testing Haskell/153 ---
+✅ Test passed for Haskell/153.
+--- Testing Haskell/154 ---
+✅ Test passed for Haskell/154.
+--- Testing Haskell/155 ---
+✅ Test passed for Haskell/155.
+--- Testing Haskell/156 ---
+✅ Test passed for Haskell/156.
+--- Testing Haskell/157 ---
+✅ Test passed for Haskell/157.
+--- Testing Haskell/158 ---
+✅ Test passed for Haskell/158.
+--- Testing Haskell/159 ---
+✅ Test passed for Haskell/159.
+--- Testing Haskell/160 ---
+✅ Test passed for Haskell/160.
+--- Testing Haskell/161 ---
+✅ Test passed for Haskell/161.
+--- Testing Haskell/162 ---
+❌ Compilation failed for Haskell/162.
+
+/home/s2652867/haskell/temp_tests/Test-162.hs:26:24: error:
+    parse error on input ‘qualified’
+   |
+26 | import Crypto.Hash.MD5 qualified as MD5
+   |                        ^^^^^^^^^
+
+--- Testing Haskell/163 ---
+✅ Test passed for Haskell/163.
+
+--- Summary ---
+Total tests: 163
+✅ Passed: 130
+❌ Failed: 33
+Not found/skipped: 0

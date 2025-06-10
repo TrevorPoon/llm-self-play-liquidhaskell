@@ -8,8 +8,71 @@ from tqdm import tqdm
 data_abs_dir = Path(__file__).parent / "data"
 
 from utils.utils import extract_generation_code, language_settings
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, LogitsProcessor, LogitsProcessorList
 from human_eval.evaluation import evaluate_functional_correctness
+
+class EndThinkBlockProcessor(LogitsProcessor):
+    """
+    A LogitsProcessor that encourages the model to generate the `</think>` token 
+    once the thought process has become too long.
+    """
+    def __init__(self, 
+                 tokenizer, 
+                 prompt_len: int, 
+                 max_think_length: int = 256, 
+                 end_think_bias: float = 5.0):
+        """
+        Args:
+            tokenizer: The model's tokenizer.
+            prompt_len (int): The length of the initial prompt tokens.
+            max_think_length (int): The number of generated tokens after which to start
+                                    encouraging the end of the think block.
+            end_think_bias (float): The positive bias to add to the `</think>` token's logit.
+                                   A higher value makes generation more likely.
+        """
+        self.tokenizer = tokenizer
+        self.prompt_len = prompt_len
+        self.max_think_length = max_think_length
+        self.end_think_bias = end_think_bias
+
+        # Get token IDs. Handle cases where they might not exist.
+        self.think_token_id = self._get_token_id("<think>")
+        self.end_think_token_id = self._get_token_id("</think>")
+
+        if self.think_token_id is None or self.end_think_token_id is None:
+            print("[WARN] <think> or </think> tokens not found in tokenizer. Processor will be disabled.")
+            self.is_disabled = True
+        else:
+            self.is_disabled = False
+
+    def _get_token_id(self, text):
+        token_ids = self.tokenizer.encode(text, add_special_tokens=False)
+        # Often these tokens are single tokens, but handle cases where they might be split
+        return token_ids[0] if len(token_ids) == 1 else None
+
+    def __call__(self, input_ids, scores):
+        """
+        This method is called at each generation step.
+        `input_ids` are the tokens generated so far.
+        `scores` are the logits for the next token.
+        """
+        if self.is_disabled:
+            return scores
+
+        # We only operate on the generated part of the input_ids
+        # input_ids has shape (batch_size, sequence_length)
+        generated_ids = input_ids[0][self.prompt_len:]
+        
+        # 1. Check if we are currently inside a <think> block
+        in_think_block = self.think_token_id in generated_ids and self.end_think_token_id not in generated_ids
+
+        # 2. Check if the block is too long and we should intervene
+        if in_think_block and len(generated_ids) > self.max_think_length:
+            # 3. Add a strong bias to the </think> token logit
+            # scores has shape (batch_size, vocab_size)
+            scores[0, self.end_think_token_id] += self.end_think_bias
+            
+        return scores
 
 def build_deepseekcoder_instruction(language: str, question: str):
     # New instruction format incorporating the <think> block
@@ -27,6 +90,7 @@ def build_deepseekcoder_instruction(language: str, question: str):
         ```
 
         ### Response:
+        <think>
         """.strip()
 
 
@@ -48,25 +112,38 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
     print(f"\n[DEBUG][generate_one] Task ID: {example.get('task_id', 'N/A')}")
     print(f"[DEBUG][generate_one] Prompt sent to model:\n{prompt}")
 
+    prompt_token_len = inputs.shape[-1]
+
+    logits_processor = LogitsProcessorList([
+        EndThinkBlockProcessor(
+            tokenizer=tokenizer, 
+            prompt_len=prompt_token_len,
+            max_think_length=3072,
+            end_think_bias=5.0
+        )
+    ])
+
     with torch.inference_mode():
         with torch.autocast(device_type=model.device.type, dtype=torch.float16):
             outputs = model.generate(
-                **inputs,
-                max_length=inputs["input_ids"].shape[-1] + max_new_tokens,
-                do_sample=False,
-                # top_p=0.95,
-                # temperature=temperature,
-                pad_token_id=stop_id, # It's common to use EOS as PAD when no other pad_token is set
-                eos_token_id=stop_id
+                inputs,
+                max_length=inputs.shape[-1] + max_new_tokens,
+                temperature=0.6,
+                top_p=0.95,
+                top_k=20,
+                min_p=0,
+                pad_token_id=stop_id,
+                eos_token_id=stop_id,
+                logits_processor=logits_processor
             )
 
-    output = tokenizer.decode(outputs[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+    output = tokenizer.decode(outputs[0][inputs.shape[-1]:], skip_special_tokens=True)
     print(f"[DEBUG][generate_one] Raw model output for Task ID {example.get('task_id', 'N/A')}:\n{output}")
     example['output'] = output
     
     # Return both the example and the success status
     gen_example, success = extract_generation_code(example, lang_code=lang)
-    print(f"[DEBUG][generate_one] Extraction success for Task ID {example.get('task_id', 'N/A')}: {success}")
+    print(f"[DEBUG][generate_one] Extraction Code for Task ID {example.get('task_id', 'N/A')}:\n{gen_example.get('generation', 'N/A')}")
     return gen_example, success
 
 def generate_main(args):
@@ -96,7 +173,7 @@ def generate_main(args):
     examples = [json.loads(x) for x in open(problem_file) if x.strip()]
     
     # For debugging purposes, only use the first 5 questions. Comment out the line below to run on all questions.
-    examples = examples[:10]
+    # examples = examples[:10]
     
     print(f"Read {len(examples)} examples for evaluation over.")
 

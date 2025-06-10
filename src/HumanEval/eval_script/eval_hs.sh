@@ -12,6 +12,7 @@ export TMPDIR=/disk/scratch/$(whoami)/
 
 source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
+
 LANG="hs"
 OUTPUT_DIR="output"
 MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
