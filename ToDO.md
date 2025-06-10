@@ -1,7 +1,8 @@
 # Evaluation
  
 hs-testing on original hs dataset
-LiveCodeBench
+code cleaning
+<think></think>
 
 # Self-Play Pipeline
 

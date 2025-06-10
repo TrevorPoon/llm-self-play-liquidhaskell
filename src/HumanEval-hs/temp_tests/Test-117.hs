@@ -1,0 +1,70 @@
+-- Task ID: HumanEval/117
+-- Assigned To: Author D
+
+-- Python Implementation:
+
+-- 
+-- def select_words(s, n):
+--     """Given a string s and a natural number n, you have been tasked to implement 
+--     a function that returns a list of all words from string s that contain exactly 
+--     n consonants, in order these words appear in the string s.
+--     If the string s is empty then the function should return an empty list.
+--     Note: you may assume the input string contains only letters and spaces.
+--     Examples:
+--     select_words("Mary had a little lamb", 4) ==> ["little"]
+--     select_words("Mary had a little lamb", 3) ==> ["Mary", "lamb"]
+--     select_words("simple white space", 2) ==> []
+--     select_words("Hello world", 4) ==> ["world"]
+--     select_words("Uncle sam", 3) ==> ["Uncle"]
+--     """
+--     result = []
+--     for word in s.split():
+--         n_consonants = 0
+--         for i in range(0, len(word)):
+--             if word[i].lower() not in ["a","e","i","o","u"]:
+--                 n_consonants += 1 
+--         if n_consonants == n:
+--             result.append(word)
+--     return result
+-- 
+-- 
+
+
+-- Haskell Implementation:
+
+-- Given a string s and a natural number n, you have been tasked to implement 
+-- a function that returns a list of all words from string s that contain exactly 
+-- n consonants, in order these words appear in the string s.
+-- If the string s is empty then the function should return an empty list.
+-- Note: you may assume the input string contains only letters and spaces.
+-- Examples:
+-- select_words "Mary had a little lamb" 4 ==> ["little"]
+-- select_words "Mary had a little lamb" 3 ==> ["Mary", "lamb"]
+-- select_words "simple white space" 2 ==> []
+-- select_words "Hello world" 4 ==> ["world"]
+-- select_words "Uncle sam" 3 ==> ["Uncle"]
+import Data.Char (toLower)
+
+select_words :: String -> Int -> [String]
+select_words s n = filter  (\word ->  countConsonants word == n) $  words s
+  where
+    countConsonants word = length $ filter  (\c -> isConsonant c && isLetter c) word
+    isConsonant c =  toLower c `notElem`  "aeiou"
+    isLetter c =  c `elem` ['a'..'z'] ++  ['A'..'Z']
+
+
+
+-- Test suite
+check :: Bool -> IO ()
+check True  = return ()
+check False = error "Test failed"
+
+main :: IO ()
+main = do
+    check (select_words "Mary had a little lamb" 4 == ["little"] )
+    check (select_words "Mary had a little lamb" 3 == ["Mary","lamb"])                
+    check (select_words "simple white space"    2 == [] )
+    check (select_words "Hello world"           4 == ["world"])                      
+    check (select_words "Uncle sam"             3 == ["Uncle"])                      
+    check (select_words ""                      4 == [] )
+    check (select_words "a b c d e f"           1 == ["b","c","d","f"])        
