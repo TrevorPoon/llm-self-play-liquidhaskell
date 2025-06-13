@@ -1,30 +1,16 @@
+(llm_sp) (base) [uhtred]s2652867: python test_runner.py
 --- Testing Haskell/0 ---
-❌ Test failed for Haskell/0.
-Stderr:
-Test-0: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-0.hs:44:15 in main:Main
-
+✅ Test passed for Haskell/0.
 --- Testing Haskell/1 ---
 ✅ Test passed for Haskell/1.
 --- Testing Haskell/2 ---
-❌ Test failed for Haskell/2.
-Stderr:
-Test-2: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-2.hs:38:15 in main:Main
-
+✅ Test passed for Haskell/2.
 --- Testing Haskell/3 ---
 ✅ Test passed for Haskell/3.
 --- Testing Haskell/4 ---
 ✅ Test passed for Haskell/4.
 --- Testing Haskell/5 ---
-❌ Test failed for Haskell/5.
-Stderr:
-Test-5: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-5.hs:46:15 in main:Main
-
+✅ Test passed for Haskell/5.
 --- Testing Haskell/6 ---
 ✅ Test passed for Haskell/6.
 --- Testing Haskell/7 ---
@@ -54,14 +40,11 @@ CallStack (from HasCallStack):
 --- Testing Haskell/19 ---
 ✅ Test passed for Haskell/19.
 --- Testing Haskell/20 ---
-❌ Test failed for Haskell/20.
-Stderr:
-Test-20: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-20.hs:53:15 in main:Main
-
+✅ Test passed for Haskell/20.
 --- Testing Haskell/21 ---
 ✅ Test passed for Haskell/21.
+--- Testing Haskell/22 ---
+✅ Test passed for Haskell/22.
 --- Testing Haskell/23 ---
 ✅ Test passed for Haskell/23.
 --- Testing Haskell/24 ---
@@ -81,14 +64,14 @@ CallStack (from HasCallStack):
 --- Testing Haskell/31 ---
 ✅ Test passed for Haskell/31.
 --- Testing Haskell/32 ---
-✅ Test passed for Haskell/32.
---- Testing Haskell/33 ---
-❌ Test failed for Haskell/33.
+❌ Test failed for Haskell/32.
 Stderr:
-Test-33: Test failed
+Test-32: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-33.hs:49:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-32.hs:79:15 in main:Main
 
+--- Testing Haskell/33 ---
+✅ Test passed for Haskell/33.
 --- Testing Haskell/34 ---
 ✅ Test passed for Haskell/34.
 --- Testing Haskell/35 ---
@@ -122,34 +105,101 @@ CallStack (from HasCallStack):
 --- Testing Haskell/49 ---
 ✅ Test passed for Haskell/49.
 --- Testing Haskell/50 ---
-❌ Test failed for Haskell/50.
-Stderr:
-Test-50: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-50.hs:39:15 in main:Main
+❌ Compilation failed for Haskell/50.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-50.hs:45:5: error:
+    Variable not in scope: forM_ :: [Integer] -> t0
+   |
+45 |     forM_ [1..100] \$ \_ -> do
+   |     ^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-50.hs:45:20: error:
+    • Variable not in scope: (\$) :: t0 -> (p0 -> IO ()) -> IO ()
+    • Perhaps you meant one of these:
+        ‘$’ (imported from Prelude), ‘<$’ (imported from Prelude)
+   |
+45 |     forM_ [1..100] \$ \_ -> do
+   |                    ^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-50.hs:46:16: error:
+    Variable not in scope: randomRIO :: (Integer, Integer) -> IO t1
+   |
+46 |         len <- randomRIO (10,20)
+   |                ^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-50.hs:47:16: error:
+    • Variable not in scope: replicateM :: t1 -> t2 -> IO a0
+    • Perhaps you meant ‘replicate’ (imported from Prelude)
+   |
+47 |         str <- replicateM len (randomRIO ('a','z'))
+   |                ^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-50.hs:47:32: error:
+    Variable not in scope: randomRIO :: (Char, Char) -> t2
+   |
+47 |         str <- replicateM len (randomRIO ('a','z'))
+   |                                ^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-50.hs:48:23: error:
+    • Variable not in scope: encodeShift :: a0 -> t
+    • Perhaps you meant ‘encode_shift’ (line 28)
+   |
+48 |         let encoded = encodeShift str
+   |                       ^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-50.hs:49:16: error:
+    • Variable not in scope: decodeShift :: t3 -> a0
+    • Perhaps you meant ‘decode_shift’ (line 32)
+   |
+49 |         check (decodeShift encoded == str)
+   |                ^^^^^^^^^^^
 
 --- Testing Haskell/51 ---
-✅ Test passed for Haskell/51.
+❌ Compilation failed for Haskell/51.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-51.hs:56:33: error:
+    lexical error in string/character literal at character '\n'
+   |
+56 |     check (remove_vowels "abcdef
+   |                                 ^
+
 --- Testing Haskell/52 ---
 ✅ Test passed for Haskell/52.
 --- Testing Haskell/53 ---
-✅ Test passed for Haskell/53.
+❌ Compilation failed for Haskell/53.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-53.hs:44:5: error:
+    Variable not in scope: forM_ :: [Integer] -> t0
+   |
+44 |     forM_ [1..100] \$ \_ -> do
+   |     ^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-53.hs:44:20: error:
+    • Variable not in scope: (\$) :: t0 -> (p0 -> IO ()) -> IO ()
+    • Perhaps you meant one of these:
+        ‘$’ (imported from Prelude), ‘<$’ (imported from Prelude)
+   |
+44 |     forM_ [1..100] \$ \_ -> do
+   |                    ^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-53.hs:45:14: error:
+    Variable not in scope: randomRIO :: (Integer, Integer) -> IO Int
+   |
+45 |         x <- randomRIO (0,1000)
+   |              ^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-53.hs:46:14: error:
+    Variable not in scope: randomRIO :: (Integer, Integer) -> IO Int
+   |
+46 |         y <- randomRIO (0,1000)
+   |              ^^^^^^^^^
+
 --- Testing Haskell/54 ---
 ✅ Test passed for Haskell/54.
 --- Testing Haskell/55 ---
 ✅ Test passed for Haskell/55.
 --- Testing Haskell/56 ---
-❌ Compilation failed for Haskell/56.
-
-/home/s2652867/haskell/temp_tests/Test-56.hs:53:9: error:
-    Unexpected case expression in function application:
-        case foldl process (0, True) brackets of
-    You could write it with parentheses
-    Or perhaps you meant to enable BlockArguments?
-   |
-53 |         case foldl process  (0, True) brackets of {}
-   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+✅ Test passed for Haskell/56.
 --- Testing Haskell/57 ---
 ✅ Test passed for Haskell/57.
 --- Testing Haskell/58 ---
@@ -159,26 +209,13 @@ CallStack (from HasCallStack):
 --- Testing Haskell/60 ---
 ✅ Test passed for Haskell/60.
 --- Testing Haskell/61 ---
-❌ Compilation failed for Haskell/61.
-
-/home/s2652867/haskell/temp_tests/Test-61.hs:54:9: error:
-    Unexpected case expression in function application:
-        case foldl process (0, True) brackets of
-    You could write it with parentheses
-    Or perhaps you meant to enable BlockArguments?
-   |
-54 |         case foldl process  (0, True) brackets of {}
-   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+✅ Test passed for Haskell/61.
 --- Testing Haskell/62 ---
 ✅ Test passed for Haskell/62.
 --- Testing Haskell/63 ---
 ✅ Test passed for Haskell/63.
 --- Testing Haskell/64 ---
-❌ Test failed for Haskell/64.
-Stderr:
-Test-64: Prelude.last: empty list
-
+✅ Test passed for Haskell/64.
 --- Testing Haskell/65 ---
 ✅ Test passed for Haskell/65.
 --- Testing Haskell/66 ---
@@ -186,18 +223,13 @@ Test-64: Prelude.last: empty list
 --- Testing Haskell/67 ---
 ✅ Test passed for Haskell/67.
 --- Testing Haskell/68 ---
-❌ Test failed for Haskell/68.
-Stderr:
-Test-68: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-68.hs:94:15 in main:Main
-
+✅ Test passed for Haskell/68.
 --- Testing Haskell/69 ---
 ✅ Test passed for Haskell/69.
 --- Testing Haskell/70 ---
 ❌ Compilation failed for Haskell/70.
 
-/home/s2652867/haskell/temp_tests/Test-70.hs:41:29: error:
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-70.hs:41:29: error:
     parse error on input ‘helper’
    |
 41 |                             helper lst True =  minimum lst : helper (delete (minimum lst) lst) False
@@ -250,7 +282,7 @@ CallStack (from HasCallStack):
 Stderr:
 Test-92: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-92.hs:61:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-92.hs:63:15 in main:Main
 
 --- Testing Haskell/93 ---
 ✅ Test passed for Haskell/93.
@@ -261,7 +293,7 @@ CallStack (from HasCallStack):
 Stderr:
 Test-95: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-95.hs:69:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-95.hs:71:15 in main:Main
 
 --- Testing Haskell/96 ---
 ✅ Test passed for Haskell/96.
@@ -274,7 +306,7 @@ CallStack (from HasCallStack):
 Stderr:
 Test-99: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-99.hs:72:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-99.hs:74:15 in main:Main
 
 --- Testing Haskell/100 ---
 ✅ Test passed for Haskell/100.
@@ -283,7 +315,125 @@ CallStack (from HasCallStack):
 --- Testing Haskell/102 ---
 ✅ Test passed for Haskell/102.
 --- Testing Haskell/103 ---
-✅ Test passed for Haskell/103.
+❌ Compilation failed for Haskell/103.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:56:31: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b11"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 1 5 == "0b11")’
+      In a stmt of a 'do' block: check (rounded_avg 1 5 == "0b11")
+   |
+56 |     check (rounded_avg 1 5 == "0b11")
+   |                               ^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:57:32: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b1010"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 7 13 == "0b1010")’
+      In a stmt of a 'do' block: check (rounded_avg 7 13 == "0b1010")
+   |
+57 |     check (rounded_avg 7 13 == "0b1010")
+   |                                ^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:58:35: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b1111001010"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 964 977 == "0b1111001010")’
+      In a stmt of a 'do' block:
+        check (rounded_avg 964 977 == "0b1111001010")
+   |
+58 |     check (rounded_avg 964 977 == "0b1111001010")
+   |                                   ^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:59:35: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b1111100100"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 996 997 == "0b1111100100")’
+      In a stmt of a 'do' block:
+        check (rounded_avg 996 997 == "0b1111100100")
+   |
+59 |     check (rounded_avg 996 997 == "0b1111100100")
+   |                                   ^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:60:35: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b1011000010"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 560 851 == "0b1011000010")’
+      In a stmt of a 'do' block:
+        check (rounded_avg 560 851 == "0b1011000010")
+   |
+60 |     check (rounded_avg 560 851 == "0b1011000010")
+   |                                   ^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:61:35: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b101101110"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 185 546 == "0b101101110")’
+      In a stmt of a 'do' block:
+        check (rounded_avg 185 546 == "0b101101110")
+   |
+61 |     check (rounded_avg 185 546 == "0b101101110")
+   |                                   ^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:62:35: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b110101101"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 362 496 == "0b110101101")’
+      In a stmt of a 'do' block:
+        check (rounded_avg 362 496 == "0b110101101")
+   |
+62 |     check (rounded_avg 362 496 == "0b110101101")
+   |                                   ^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:63:35: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b1001110010"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 350 902 == "0b1001110010")’
+      In a stmt of a 'do' block:
+        check (rounded_avg 350 902 == "0b1001110010")
+   |
+63 |     check (rounded_avg 350 902 == "0b1001110010")
+   |                                   ^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:64:35: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b11010111"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 197 233 == "0b11010111")’
+      In a stmt of a 'do' block:
+        check (rounded_avg 197 233 == "0b11010111")
+   |
+64 |     check (rounded_avg 197 233 == "0b11010111")
+   |                                   ^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-103.hs:67:31: error:
+    • Couldn't match expected type ‘Either Int String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘(==)’, namely ‘"0b101"’
+      In the first argument of ‘check’, namely
+        ‘(rounded_avg 5 5 == "0b101")’
+      In a stmt of a 'do' block: check (rounded_avg 5 5 == "0b101")
+   |
+67 |     check (rounded_avg 5 5 == "0b101")
+   |                               ^^^^^^^
+
 --- Testing Haskell/104 ---
 ✅ Test passed for Haskell/104.
 --- Testing Haskell/105 ---
@@ -297,12 +447,12 @@ CallStack (from HasCallStack):
 Stderr:
 Test-108: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-108.hs:48:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-108.hs:50:15 in main:Main
 
 --- Testing Haskell/109 ---
 ❌ Compilation failed for Haskell/109.
 
-/home/s2652867/haskell/temp_tests/Test-109.hs:93:12: error:
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-109.hs:95:12: error:
     • Ambiguous type variable ‘a0’ arising from a use of ‘move_one_ball’
       prevents the constraint ‘(Ord a0)’ from being solved.
       Probable fix: use a type annotation to specify what ‘a0’ should be.
@@ -319,73 +469,13 @@ CallStack (from HasCallStack):
         ‘(move_one_ball [] == True)’
       In a stmt of a 'do' block: check (move_one_ball [] == True)
    |
-93 |     check (move_one_ball [] == True)
+95 |     check (move_one_ball [] == True)
    |            ^^^^^^^^^^^^^^^^
 
 --- Testing Haskell/110 ---
 ✅ Test passed for Haskell/110.
---- Testing Haskell/111 ---
-❌ Test failed for Haskell/111.
-Stderr:
-Test-111: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-111.hs:69:15 in main:Main
 
---- Testing Haskell/112 ---
-❌ Compilation failed for Haskell/112.
 
-/home/s2652867/haskell/temp_tests/Test-112.hs:35:28: error:
-    • Ambiguous type variable ‘a0’ arising from a use of ‘==’
-      prevents the constraint ‘(Eq a0)’ from being solved.
-      Probable fix: use a type annotation to specify what ‘a0’ should be.
-      These potential instances exist:
-        instance Eq Ordering -- Defined in ‘GHC.Classes’
-        instance Eq Integer
-          -- Defined in ‘integer-gmp-1.0.2.0:GHC.Integer.Type’
-        instance Eq () -- Defined in ‘GHC.Classes’
-        ...plus 21 others
-        ...plus six instances involving out-of-scope types
-        (use -fprint-potential-instances to see them all)
-    • In the expression: s' == reverse s'
-      In the expression: (s', s' == reverse s')
-      In an equation for ‘reverse_delete’:
-          reverse_delete s c
-            = (s', s' == reverse s')
-            where
-                s' = v filter (`notElem` c) s
-   |
-35 | reverse_delete s c =  (s', s' ==  reverse s')
-   |                            ^^^^^^^^^^^^^^^^^
-
-/home/s2652867/haskell/temp_tests/Test-112.hs:37:9: error:
-    Variable not in scope:
-      v :: ((a1 -> Bool) -> [a1] -> [a1])
-           -> (Char -> Bool) -> String -> t
-   |
-37 |     s' =v filter (`notElem`  c) s
-   |         ^
-
---- Testing Haskell/113 ---
-✅ Test passed for Haskell/113.
---- Testing Haskell/114 ---
-❌ Test failed for Haskell/114.
-Stderr:
-Test-114: Test failed
-CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-114.hs:45:15 in main:Main
-
---- Testing Haskell/115 ---
-✅ Test passed for Haskell/115.
---- Testing Haskell/116 ---
-✅ Test passed for Haskell/116.
---- Testing Haskell/117 ---
-✅ Test passed for Haskell/117.
---- Testing Haskell/118 ---
-✅ Test passed for Haskell/118.
---- Testing Haskell/119 ---
-✅ Test passed for Haskell/119.
---- Testing Haskell/120 ---
-✅ Test passed for Haskell/120.
 --- Testing Haskell/121 ---
 ✅ Test passed for Haskell/121.
 --- Testing Haskell/122 ---
@@ -395,27 +485,101 @@ CallStack (from HasCallStack):
 --- Testing Haskell/124 ---
 ✅ Test passed for Haskell/124.
 --- Testing Haskell/125 ---
-✅ Test passed for Haskell/125.
+❌ Compilation failed for Haskell/125.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-125.hs:52:42: error:
+    • Couldn't match expected type ‘Either Int [String]’
+                  with actual type ‘[[Char]]’
+    • In the second argument of ‘(==)’, namely ‘["Hello", "world!"]’
+      In the first argument of ‘check’, namely
+        ‘(split_words "Hello world!" == ["Hello", "world!"])’
+      In a stmt of a 'do' block:
+        check (split_words "Hello world!" == ["Hello", "world!"])
+   |
+52 |     check (split_words "Hello world!" == ["Hello", "world!"])
+   |                                          ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-125.hs:53:42: error:
+    • Couldn't match expected type ‘Either Int [String]’
+                  with actual type ‘[[Char]]’
+    • In the second argument of ‘(==)’, namely ‘["Hello", "world!"]’
+      In the first argument of ‘check’, namely
+        ‘(split_words "Hello,world!" == ["Hello", "world!"])’
+      In a stmt of a 'do' block:
+        check (split_words "Hello,world!" == ["Hello", "world!"])
+   |
+53 |     check (split_words "Hello,world!" == ["Hello", "world!"])
+   |                                          ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-125.hs:54:43: error:
+    • Couldn't match expected type ‘Either Int [String]’
+                  with actual type ‘[[Char]]’
+    • In the second argument of ‘(==)’, namely ‘["Hello", "world,!"]’
+      In the first argument of ‘check’, namely
+        ‘(split_words "Hello world,!" == ["Hello", "world,!"])’
+      In a stmt of a 'do' block:
+        check (split_words "Hello world,!" == ["Hello", "world,!"])
+   |
+54 |     check (split_words "Hello world,!" == ["Hello", "world,!"])
+   |                                           ^^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-125.hs:55:49: error:
+    • Couldn't match expected type ‘Either Int [String]’
+                  with actual type ‘[[Char]]’
+    • In the second argument of ‘(==)’, namely
+        ‘["Hello,Hello,world", "!"]’
+      In the first argument of ‘check’, namely
+        ‘(split_words "Hello,Hello,world !" == ["Hello,Hello,world", "!"])’
+      In a stmt of a 'do' block:
+        check
+          (split_words "Hello,Hello,world !" == ["Hello,Hello,world", "!"])
+   |
+55 |     check (split_words "Hello,Hello,world !" == ["Hello,Hello,world", "!"])
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 --- Testing Haskell/126 ---
 ❌ Test failed for Haskell/126.
 Stderr:
 Test-126: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-126.hs:62:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-126.hs:62:15 in main:Main
 
 --- Testing Haskell/127 ---
 ✅ Test passed for Haskell/127.
 --- Testing Haskell/128 ---
-✅ Test passed for Haskell/128.
+❌ Compilation failed for Haskell/128.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-128.hs:54:40: error:
+    • No instance for (Num (Maybe Int))
+        arising from a use of syntactic negation
+    • In the second argument of ‘(==)’, namely ‘- 9’
+      In the first argument of ‘check’, namely
+        ‘(prod_signs [1, 2, 2, - 4] == - 9)’
+      In a stmt of a 'do' block: check (prod_signs [1, 2, 2, - 4] == - 9)
+   |
+54 |     check (prod_signs [1, 2, 2, -4] == -9)
+   |                                        ^^
+
 --- Testing Haskell/129 ---
 ❌ Test failed for Haskell/129.
 Stderr:
 Test-129: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-129.hs:125:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-129.hs:125:15 in main:Main
 
 --- Testing Haskell/130 ---
-✅ Test passed for Haskell/130.
+❌ Compilation failed for Haskell/130.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-130.hs:72:28: error:
+    • No instance for (Fractional Int) arising from the literal ‘2.0’
+    • In the expression: 2.0
+      In the second argument of ‘(==)’, namely ‘[1, 3, 2.0, 8.0]’
+      In the first argument of ‘check’, namely
+        ‘(tri 3 == [1, 3, 2.0, 8.0])’
+   |
+72 |     check (tri 3 == [1, 3, 2.0, 8.0])
+   |                            ^^^
+
 --- Testing Haskell/131 ---
 ✅ Test passed for Haskell/131.
 --- Testing Haskell/132 ---
@@ -427,116 +591,331 @@ CallStack (from HasCallStack):
 Stderr:
 Test-134: Test failed
 CallStack (from HasCallStack):
-  error, called at /home/s2652867/haskell/temp_tests/Test-134.hs:37:15 in main:Main
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-134.hs:37:15 in main:Main
 
 --- Testing Haskell/135 ---
 ✅ Test passed for Haskell/135.
 --- Testing Haskell/136 ---
 ✅ Test passed for Haskell/136.
 --- Testing Haskell/137 ---
-✅ Test passed for Haskell/137.
+❌ Compilation failed for Haskell/137.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:68:26: error:
+    • Couldn't match expected type ‘Either3 Int Float String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘compare_one’, namely ‘"2,3"’
+      In the first argument of ‘(==)’, namely ‘compare_one 1 "2,3"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one 1 "2,3" == Just "2,3")’
+   |
+68 |     check (compare_one 1 "2,3" == Just "2,3")
+   |                          ^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:68:35: error:
+    • Couldn't match type ‘[Char]’ with ‘Either3 Int Float String’
+      Expected type: Maybe (Either3 Int Float String)
+        Actual type: Maybe [Char]
+    • In the second argument of ‘(==)’, namely ‘Just "2,3"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one 1 "2,3" == Just "2,3")’
+      In a stmt of a 'do' block:
+        check (compare_one 1 "2,3" == Just "2,3")
+   |
+68 |     check (compare_one 1 "2,3" == Just "2,3")
+   |                                   ^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:69:24: error:
+    • Couldn't match expected type ‘Either3 Int Float String’
+                  with actual type ‘[Char]’
+    • In the first argument of ‘compare_one’, namely ‘"5,1"’
+      In the first argument of ‘(==)’, namely ‘compare_one "5,1" "6"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one "5,1" "6" == Just "6")’
+   |
+69 |     check (compare_one "5,1" "6" == Just "6")
+   |                        ^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:69:30: error:
+    • Couldn't match expected type ‘Either3 Int Float String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘compare_one’, namely ‘"6"’
+      In the first argument of ‘(==)’, namely ‘compare_one "5,1" "6"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one "5,1" "6" == Just "6")’
+   |
+69 |     check (compare_one "5,1" "6" == Just "6")
+   |                              ^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:69:37: error:
+    • Couldn't match type ‘[Char]’ with ‘Either3 Int Float String’
+      Expected type: Maybe (Either3 Int Float String)
+        Actual type: Maybe [Char]
+    • In the second argument of ‘(==)’, namely ‘Just "6"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one "5,1" "6" == Just "6")’
+      In a stmt of a 'do' block:
+        check (compare_one "5,1" "6" == Just "6")
+   |
+69 |     check (compare_one "5,1" "6" == Just "6")
+   |                                     ^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:70:24: error:
+    • Couldn't match expected type ‘Either3 Int Float String’
+                  with actual type ‘[Char]’
+    • In the first argument of ‘compare_one’, namely ‘"1"’
+      In the first argument of ‘(==)’, namely ‘compare_one "1" "2"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one "1" "2" == Just "2")’
+   |
+70 |     check (compare_one "1" "2" == Just "2")
+   |                        ^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:70:28: error:
+    • Couldn't match expected type ‘Either3 Int Float String’
+                  with actual type ‘[Char]’
+    • In the second argument of ‘compare_one’, namely ‘"2"’
+      In the first argument of ‘(==)’, namely ‘compare_one "1" "2"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one "1" "2" == Just "2")’
+   |
+70 |     check (compare_one "1" "2" == Just "2")
+   |                            ^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:70:35: error:
+    • Couldn't match type ‘[Char]’ with ‘Either3 Int Float String’
+      Expected type: Maybe (Either3 Int Float String)
+        Actual type: Maybe [Char]
+    • In the second argument of ‘(==)’, namely ‘Just "2"’
+      In the first argument of ‘check’, namely
+        ‘(compare_one "1" "2" == Just "2")’
+      In a stmt of a 'do' block: check (compare_one "1" "2" == Just "2")
+   |
+70 |     check (compare_one "1" "2" == Just "2")
+   |                                   ^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-137.hs:71:24: error:
+    • Couldn't match expected type ‘Either3 Int Float String’
+                  with actual type ‘[Char]’
+    • In the first argument of ‘compare_one’, namely ‘"1"’
+      In the first argument of ‘(==)’, namely ‘compare_one "1" 1’
+      In the first argument of ‘check’, namely
+        ‘(compare_one "1" 1 == Nothing)’
+   |
+71 |     check (compare_one "1" 1 == Nothing)
+   |                        ^^^
+
 --- Testing Haskell/138 ---
 ✅ Test passed for Haskell/138.
 --- Testing Haskell/139 ---
 ✅ Test passed for Haskell/139.
 --- Testing Haskell/140 ---
-❌ Compilation failed for Haskell/140.
-
-/home/s2652867/haskell/temp_tests/Test-140.hs:72:1: error:
-    parse error on input ‘import’
-   |
-72 | import Test.HUnit
-   | ^^^^^^
+❌ Test failed for Haskell/140.
+Stderr:
+Test-140: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-140.hs:75:15 in main:Main
 
 --- Testing Haskell/141 ---
-❌ Compilation failed for Haskell/141.
-
-/home/s2652867/haskell/temp_tests/Test-141.hs:65:1: error:
-    parse error on input ‘import’
-   |
-65 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/141.
 --- Testing Haskell/142 ---
-❌ Compilation failed for Haskell/142.
-
-/home/s2652867/haskell/temp_tests/Test-142.hs:56:1: error:
-    parse error on input ‘import’
-   |
-56 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/142.
 --- Testing Haskell/143 ---
-❌ Compilation failed for Haskell/143.
-
-/home/s2652867/haskell/temp_tests/Test-143.hs:70:1: error:
-    parse error on input ‘import’
-   |
-70 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/143.
 --- Testing Haskell/144 ---
-❌ Compilation failed for Haskell/144.
-
-/home/s2652867/haskell/temp_tests/Test-144.hs:61:1: error:
-    parse error on input ‘import’
-   |
-61 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/144.
 --- Testing Haskell/145 ---
-❌ Compilation failed for Haskell/145.
-
-/home/s2652867/haskell/temp_tests/Test-145.hs:52:1: error:
-    parse error on input ‘import’
-   |
-52 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/145.
 --- Testing Haskell/146 ---
-❌ Compilation failed for Haskell/146.
-
-/home/s2652867/haskell/temp_tests/Test-146.hs:47:1: error:
-    parse error on input ‘import’
-   |
-47 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/146.
 --- Testing Haskell/147 ---
-❌ Compilation failed for Haskell/147.
-
-/home/s2652867/haskell/temp_tests/Test-147.hs:52:1: error:
-    parse error on input ‘import’
-   |
-52 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/147.
 --- Testing Haskell/148 ---
-❌ Compilation failed for Haskell/148.
-
-/home/s2652867/haskell/temp_tests/Test-148.hs:70:1: error:
-    parse error on input ‘import’
-   |
-70 | import Test.HUnit
-   | ^^^^^^
-
+✅ Test passed for Haskell/148.
 --- Testing Haskell/149 ---
-❌ Compilation failed for Haskell/149.
-
-/home/s2652867/haskell/temp_tests/Test-149.hs:54:1: error:
-    parse error on input ‘import’
-   |
-54 | import Test.HUnit
-   | ^^^^^^
+❌ Test failed for Haskell/149.
+Stderr:
+Test-149: Test failed
+CallStack (from HasCallStack):
+  error, called at /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-149.hs:57:15 in main:Main
 
 --- Testing Haskell/150 ---
 ✅ Test passed for Haskell/150.
 --- Testing Haskell/151 ---
-✅ Test passed for Haskell/151.
+❌ Compilation failed for Haskell/151.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-151.hs:51:35: error:
+    • No instance for (Fractional Int) arising from the literal ‘0.1’
+    • In the expression: 0.1
+      In the first argument of ‘double_the_difference’, namely
+        ‘[0.1, 0.2, 0.3]’
+      In the first argument of ‘(==)’, namely
+        ‘double_the_difference [0.1, 0.2, 0.3]’
+   |
+51 |     check (double_the_difference [0.1,0.2,0.3] == 0)
+   |                                   ^^^
+
 --- Testing Haskell/152 ---
-✅ Test passed for Haskell/152.
+❌ Compilation failed for Haskell/152.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-152.hs:54:52: error:
+    • Couldn't match expected type ‘Ordering’
+                  with actual type ‘[Integer]’
+    • In the second argument of ‘(==)’, namely ‘[0, 0, 0, 0, ....]’
+      In the first argument of ‘check’, namely
+        ‘(compare [1, 2, 3, 4, ....] [1, 2, 3, 4, ....]
+            == [0, 0, 0, 0, ....])’
+      In a stmt of a 'do' block:
+        check
+          (compare [1, 2, 3, 4, ....] [1, 2, 3, 4, ....]
+             == [0, 0, 0, 0, ....])
+   |
+54 |     check (compare [1,2,3,4,5,1] [1,2,3,4,2,-2] == [0,0,0,0,3,3])
+   |                                                    ^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-152.hs:55:52: error:
+    • Couldn't match expected type ‘Ordering’
+                  with actual type ‘[Integer]’
+    • In the second argument of ‘(==)’, namely ‘[4, 4, 1, 0, ....]’
+      In the first argument of ‘check’, namely
+        ‘(compare [0, 5, 0, 0, ....] [4, 1, 1, 0, ....]
+            == [4, 4, 1, 0, ....])’
+      In a stmt of a 'do' block:
+        check
+          (compare [0, 5, 0, 0, ....] [4, 1, 1, 0, ....]
+             == [4, 4, 1, 0, ....])
+   |
+55 |     check (compare [0,5,0,0,0,4] [4,1,1,0,0,-2] == [4,4,1,0,0,6])
+   |                                                    ^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-152.hs:56:52: error:
+    • Couldn't match expected type ‘Ordering’
+                  with actual type ‘[Integer]’
+    • In the second argument of ‘(==)’, namely ‘[0, 0, 0, 0, ....]’
+      In the first argument of ‘check’, namely
+        ‘(compare [1, 2, 3, 4, ....] [1, 2, 3, 4, ....]
+            == [0, 0, 0, 0, ....])’
+      In a stmt of a 'do' block:
+        check
+          (compare [1, 2, 3, 4, ....] [1, 2, 3, 4, ....]
+             == [0, 0, 0, 0, ....])
+   |
+56 |     check (compare [1,2,3,4,5,1] [1,2,3,4,2,-2] == [0,0,0,0,3,3])
+   |                                                    ^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-152.hs:57:51: error:
+    • Couldn't match expected type ‘Ordering’
+                  with actual type ‘[Integer]’
+    • In the second argument of ‘(==)’, namely ‘[0, 0, 0, 0, ....]’
+      In the first argument of ‘check’, namely
+        ‘(compare [0, 0, 0, 0, ....] [0, 0, 0, 0, ....]
+            == [0, 0, 0, 0, ....])’
+      In a stmt of a 'do' block:
+        check
+          (compare [0, 0, 0, 0, ....] [0, 0, 0, 0, ....]
+             == [0, 0, 0, 0, ....])
+   |
+57 |     check (compare [0,0,0,0,0,0] [0,0,0,0,0,0] == [0,0,0,0,0,0])
+   |                                                   ^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-152.hs:58:42: error:
+    • Couldn't match expected type ‘Ordering’
+                  with actual type ‘[Integer]’
+    • In the second argument of ‘(==)’, namely ‘[2, 4, 6]’
+      In the first argument of ‘check’, namely
+        ‘(compare [1, 2, 3] [- 1, - 2, - 3] == [2, 4, 6])’
+      In a stmt of a 'do' block:
+        check (compare [1, 2, 3] [- 1, - 2, - 3] == [2, 4, 6])
+   |
+58 |     check (compare [1,2,3] [-1,-2,-3] == [2,4,6])
+   |                                          ^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-152.hs:59:44: error:
+    • Couldn't match expected type ‘Ordering’
+                  with actual type ‘[Integer]’
+    • In the second argument of ‘(==)’, namely ‘[2, 0, 0, 1]’
+      In the first argument of ‘check’, namely
+        ‘(compare [1, 2, 3, 5] [- 1, 2, 3, 4] == [2, 0, 0, 1])’
+      In a stmt of a 'do' block:
+        check (compare [1, 2, 3, 5] [- 1, 2, 3, 4] == [2, 0, 0, 1])
+   |
+59 |     check (compare [1,2,3,5] [-1,2,3,4] == [2,0,0,1])
+   |                                            ^^^^^^^^^
+
 --- Testing Haskell/153 ---
-✅ Test passed for Haskell/153.
+❌ Compilation failed for Haskell/153.
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:74:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+74 |     check (Strongest_Extension "Watashi" ["tEN","niNE","eIGHt8OKe"] == "Watashi.eIGHt8OKe")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:75:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+75 |     check (Strongest_Extension "Boku123" ["nani","NazeDa","YEs.WeCaNe","32145tggg"] == "Boku123.YEs.WeCaNe")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:76:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+76 |     check (Strongest_Extension "**YESIMHERE" ["t","eMptY","nothing","zeR00","NuLl**","123NoooneB321"] == "**YESIMHERE.NuLl**")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:77:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+77 |     check (Strongest_Extension "K" ["Ta","TAR","t234An","cosSo"] == "K.TAR")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:78:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+78 |     check (Strongest_Extension "__HAHA" ["Tab","123","781345","-*-"] == "__HAHA.123")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:79:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+79 |     check (Strongest_Extension "YameRore" ["HhAas","okIWILL123","WorkOut","Fails","-*-"] == "YameRore.okIWILL123")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:80:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+80 |     check (Strongest_Extension "finNNalLLly" ["Die","NowW","Wow","WoW"] == "finNNalLLly.WoW")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:81:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+81 |     check (Strongest_Extension "*" ["Bb","91245"] == "*.Bb")
+   |            ^^^^^^^^^^^^^^^^^^^
+
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-153.hs:82:12: error:
+    • Data constructor not in scope:
+        Strongest_Extension :: [Char] -> [[Char]] -> [Char]
+    • Perhaps you meant variable ‘strongest_extension’ (line 59)
+   |
+82 |     check (Strongest_Extension "Sp" ["671235","Bb"] == "Sp.671235")
+   |            ^^^^^^^^^^^^^^^^^^^
+
 --- Testing Haskell/154 ---
 ✅ Test passed for Haskell/154.
 --- Testing Haskell/155 ---
@@ -556,7 +935,7 @@ CallStack (from HasCallStack):
 --- Testing Haskell/162 ---
 ❌ Compilation failed for Haskell/162.
 
-/home/s2652867/haskell/temp_tests/Test-162.hs:26:24: error:
+/home/s2652867/llm-self-play-liquidhaskell/src/HumanEval-hs/temp_tests/Test-162.hs:26:24: error:
     parse error on input ‘qualified’
    |
 26 | import Crypto.Hash.MD5 qualified as MD5
@@ -566,7 +945,6 @@ CallStack (from HasCallStack):
 ✅ Test passed for Haskell/163.
 
 --- Summary ---
-Total tests: 163
-✅ Passed: 130
-❌ Failed: 33
-Not found/skipped: 0
+Total tests: 0
+✅ Passed: 135
+❌ Failed: 29

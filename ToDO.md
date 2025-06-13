@@ -1,8 +1,7 @@
 # Evaluation
- 
-hs-testing on original hs dataset
-code cleaning
-<think></think>
+
+Examine deepseek 1.5B Performance on Haskell
+
 
 # Self-Play Pipeline
 

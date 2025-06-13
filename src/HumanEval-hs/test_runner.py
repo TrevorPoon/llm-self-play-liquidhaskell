@@ -1,12 +1,16 @@
-
 import json
 import os
 import subprocess
 import re
+import argparse
 
 def main():
+    parser = argparse.ArgumentParser(description='Run tests for HumanEval Haskell solutions.')
+    parser.add_argument('--number', type=int, help='Run a specific HumanEval problem (e.g., --number 0 for HumanEval-0.hs)')
+    args = parser.parse_args()
+
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    jsonl_file = os.path.join(script_dir, 'humaneval-hs-ans.jsonl')
+    jsonl_file = os.path.join(script_dir, 'humaneval-hs.jsonl')
     solutions_dir = os.path.join(script_dir, 'humaneval-hs')
     temp_dir = os.path.join(script_dir, 'temp_tests')
 
@@ -19,7 +23,6 @@ def main():
 
     with open(jsonl_file, 'r') as f:
         for line in f:
-            total_count += 1
             entry = json.loads(line)
             task_id = entry['task_id']
             test_code = entry['test']
@@ -30,6 +33,10 @@ def main():
                 continue
             
             problem_id = match.group(1)
+            
+            if args.number is not None and int(problem_id) != args.number:
+                continue
+                
             solution_file = os.path.join(solutions_dir, f'HumanEval-{problem_id}.hs')
 
             if not os.path.exists(solution_file):
@@ -59,7 +66,6 @@ def main():
                     # Let's assume the test code is self-sufficient with the solution code prepended.
                     combined_code = solution_code + "\n" + test_code
 
-
             with open(temp_test_file, 'w') as temp_f:
                 temp_f.write(combined_code)
 
@@ -82,7 +88,6 @@ def main():
                  with open(temp_test_file, 'w') as temp_f:
                     temp_f.write(final_code)
                  compile_command = ['/usr/bin/ghc', temp_test_file, '-o', executable_file]
-
 
             print(f"--- Testing {task_id} ---")
             
@@ -128,7 +133,7 @@ def main():
     print(f"Not found/skipped: {total_count - passed_count - failed_count}")
 
     # Clean up
-    # subprocess.run(['rm', '-rf', temp_dir])
+    subprocess.run(['rm', '-rf', temp_dir])
 
 if __name__ == '__main__':
     main()

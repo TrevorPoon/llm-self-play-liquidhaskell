@@ -61,7 +61,9 @@ IMPORT_HELPER = {
         "import Data.Char",
         "import Data.Maybe",
         "import Text.Read (readMaybe)",
-        "import Control.Monad (guard)" 
+        "import Control.Monad (guard)" ,
+        "import Control.Monad (forM_, replicateM)",
+        "import System.Random (randomRIO)"
         # Add other common ones if needed or if specific problems require them
     ]
 }

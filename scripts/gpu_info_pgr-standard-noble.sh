@@ -2,7 +2,7 @@
 #SBATCH -N 1	  # nodes requested
 #SBATCH -n 1	  # tasks requested
 #SBATCH --partition=PGR-Standard-Noble
-#SBATCH --gres=gpu:8
+#SBATCH --gres=gpu:a40:4
 #SBATCH --mem=96000  # memory in Mb
 #SBATCH --time=0-168:00:00
 #SBATCH --output=log/slurm/slurm-%j.out   # %j = Job ID

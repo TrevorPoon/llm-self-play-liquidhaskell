@@ -4,12 +4,20 @@ import os
 import torch
 from pathlib import Path
 from tqdm import tqdm
+from dotenv import load_dotenv
+import openai
+
+from vllm import LLM, SamplingParams
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 data_abs_dir = Path(__file__).parent / "data"
 
 from utils.utils import extract_generation_code, language_settings
 from transformers import AutoTokenizer, AutoModelForCausalLM, LogitsProcessor, LogitsProcessorList
 from human_eval.evaluation import evaluate_functional_correctness
+
 
 class EndThinkBlockProcessor(LogitsProcessor):
     """
@@ -74,6 +82,27 @@ class EndThinkBlockProcessor(LogitsProcessor):
             
         return scores
 
+def build_openrouter_instruct(language: str, question: str):
+    # This is a generic instruction for an API-based model
+    # that understands system/user roles.
+    # The <think> block instruction is preserved.
+    system_prompt = f"""Below is an instruction that describes a task.
+        Write a response that appropriately completes the request.
+        Before generating the code, think carefully about the problem and write down a step-by-step plan in the <think> block.
+        Then, complete the function, returning all completed function in a markdown codeblock. You are not allowed to modify the given code outside the completion.
+
+        Complete the following {language} function:
+        """
+    user_prompt = f"""
+        ### Given Code:
+        ```{language.lower()}
+        {question.strip()}
+        ```
+
+        ### Response:
+        """
+    return system_prompt, user_prompt.strip()
+
 def build_deepseekcoder_instruction(language: str, question: str):
     # New instruction format incorporating the <think> block
     return f"""Below is an instruction that describes a task.
@@ -93,6 +122,35 @@ def build_deepseekcoder_instruction(language: str, question: str):
         <think>
         """.strip()
 
+def generate_one_openrouter(example, lang, client, model_name, max_new_tokens):
+    system_prompt, user_prompt = build_openrouter_instruct(language_settings[lang]['full_name'], example['prompt'])
+    
+    print(f"\n[DEBUG][generate_one_openrouter] Task ID: {example.get('task_id', 'N/A')}")
+    print(f"[DEBUG][generate_one_openrouter] System Prompt sent to API:\n{system_prompt}")
+    print(f"[DEBUG][generate_one_openrouter] User Prompt sent to API:\n{user_prompt}")
+
+    try:
+        completion = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.6,
+            top_p=0.95,
+            max_tokens=max_new_tokens,
+        )
+        output = completion.choices[0].message.content
+        print(f"[DEBUG][generate_one_openrouter] Raw API output for Task ID {example.get('task_id', 'N/A')}:\n{output}")
+        
+    except Exception as e:
+        print(f"Error calling OpenRouter API for task {example.get('task_id', 'N/A')}: {e}")
+        output = f"<think>\nAPI Call Failed.\n</think>\n```{lang.lower()}\n# Error during generation\n```"
+
+    example['output'] = output
+    gen_example, success = extract_generation_code(example, lang_code=lang)
+    print(f"[DEBUG][generate_one_openrouter] Extraction Code for Task ID {example.get('task_id', 'N/A')}:\n{gen_example.get('generation', 'N/A')}")
+    return gen_example, success
 
 def generate_one(example, lang, tokenizer, model, max_new_tokens):
     prompt = build_deepseekcoder_instruction(language_settings[lang]['full_name'], example['prompt'])
@@ -118,7 +176,7 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
         EndThinkBlockProcessor(
             tokenizer=tokenizer, 
             prompt_len=prompt_token_len,
-            max_think_length=3072,
+            max_think_length=max_new_tokens - 1024,
             end_think_bias=5.0
         )
     ])
@@ -134,7 +192,7 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
                 min_p=0,
                 pad_token_id=stop_id,
                 eos_token_id=stop_id,
-                logits_processor=logits_processor
+                logits_processor=logits_processor,
             )
 
     output = tokenizer.decode(outputs[0][inputs.shape[-1]:], skip_special_tokens=True)
@@ -155,36 +213,106 @@ def generate_main(args):
     os.makedirs(temp_dir, exist_ok=True)
     problem_file = os.path.join(data_abs_dir, f"humaneval-{lang}.jsonl")
 
-    print(f"[DEBUG][generate_main] model: {model_name_or_path}")
     print(f"[DEBUG][generate_main] lang: {lang}")
     print(f"[DEBUG][generate_main] max_new_tokens: {max_new_tokens}")
     print(f"[DEBUG][generate_main] Problem file: {problem_file}")
-    
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    print("load tokenizer {} from {} over.".format(tokenizer.__class__, model_name_or_path))
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name_or_path,
-        torch_dtype=torch.float16,
-        device_map="auto",
-        #use_flash_attention_2=True
-    )
-    model = torch.compile(model)
-    model.eval()
+
     examples = [json.loads(x) for x in open(problem_file) if x.strip()]
-    
-    # For debugging purposes, only use the first 5 questions. Comment out the line below to run on all questions.
-    # examples = examples[:10]
-    
     print(f"Read {len(examples)} examples for evaluation over.")
 
-    generated_examples = []
-    failed_extraction_count = 0  # Initialize counter
-    for ex in tqdm(examples, desc='Generating'):
-        print(f"\n[DEBUG][generate_main] Processing Task ID: {ex.get('task_id', 'N/A')}")
-        gen_example, extraction_successful = generate_one(ex, args.language, tokenizer, model, max_new_tokens)
-        if not extraction_successful:
-            failed_extraction_count += 1
-        generated_examples.append(gen_example)
+    if args.use_openrouter:
+        print("[INFO] Using OpenRouter API for generation.")
+        api_key = args.openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError("OpenRouter API key must be provided via --openrouter_api_key or OPENROUTER_API_KEY environment variable.")
+        
+        client = openai.OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+        )
+        print(f"[DEBUG][generate_main] OpenRouter model: {model_name_or_path}")
+
+        generated_examples = []
+        failed_extraction_count = 0
+        for ex in tqdm(examples, desc='Generating with OpenRouter'):
+            print(f"\n[DEBUG][generate_main] Processing Task ID: {ex.get('task_id', 'N/A')}")
+            gen_example, extraction_successful = generate_one_openrouter(ex, lang, client, model_name_or_path, max_new_tokens)
+            if not extraction_successful:
+                failed_extraction_count += 1
+            generated_examples.append(gen_example)
+
+    else:
+        print(f"[DEBUG][generate_main] model: {model_name_or_path}")
+        
+        if args.use_vllm:
+            print("[INFO] Using vLLM for generation.")
+            print("[WARN] The 'EndThinkBlockProcessor' is not used with vLLM, which may affect generation for very long thought processes.")
+            
+            num_gpus = torch.cuda.device_count()
+            print(f"[INFO] Initializing vLLM with tensor_parallel_size={num_gpus}")
+            llm = LLM(model=model_name_or_path, tensor_parallel_size=num_gpus)
+            
+            tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+
+            sampling_params = SamplingParams(
+                temperature=0.6,
+                top_p=0.95,
+                top_k=20,
+                max_tokens=max_new_tokens,
+                stop=tokenizer.eos_token,
+            )
+
+            prompts = [
+                build_deepseekcoder_instruction(language_settings[lang]['full_name'], ex['prompt'])
+                for ex in examples
+            ]
+            
+            print(f"Generating completions for {len(prompts)} prompts...")
+            vllm_outputs = llm.generate(prompts, sampling_params)
+            print("Generation complete.")
+            
+            vllm_outputs.sort(key=lambda o: int(o.request_id))
+
+            generated_examples = []
+            failed_extraction_count = 0
+            for ex, vllm_output in tqdm(zip(examples, vllm_outputs), total=len(examples), desc="Processing vLLM outputs"):
+                output = vllm_output.outputs[0].text
+                print(f"[DEBUG][vLLM] Raw model output for Task ID {ex.get('task_id', 'N/A')}:\n{output}")
+                
+                ex['output'] = output
+                gen_example, success = extract_generation_code(ex, lang_code=lang)
+                if not success:
+                    failed_extraction_count += 1
+                generated_examples.append(gen_example)
+        else:
+            # Logic for local HuggingFace models
+            if model_name_or_path.endswith('.pt'):
+                print(f"Loading model from .pt file: {model_name_or_path}")
+                if not args.tokenizer_path:
+                    raise ValueError("When loading a .pt model file, --tokenizer_path must be provided.")
+                tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
+                print("load tokenizer {} from {} over.".format(tokenizer.__class__, args.tokenizer_path))
+                model = torch.load(model_name_or_path)
+            else:
+                tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+                print("load tokenizer {} from {} over.".format(tokenizer.__class__, model_name_or_path))
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name_or_path,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                )
+            
+            model = torch.compile(model)
+            model.eval()
+            
+            generated_examples = []
+            failed_extraction_count = 0  # Initialize counter
+            for ex in tqdm(examples, desc='Generating'):
+                print(f"\n[DEBUG][generate_main] Processing Task ID: {ex.get('task_id', 'N/A')}")
+                gen_example, extraction_successful = generate_one(ex, args.language, tokenizer, model, max_new_tokens)
+                if not extraction_successful:
+                    failed_extraction_count += 1
+                generated_examples.append(gen_example)
 
     print("Generate all over!!!")
     print(f"[DEBUG][generate_main] Total failed code extractions: {failed_extraction_count}")
@@ -257,12 +385,19 @@ def evaluation_only(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, help="model name or path")
+    parser.add_argument('--model', type=str, help="model name or path for local/HF, or model name on OpenRouter")
+    parser.add_argument('--tokenizer_path', type=str, default=None, help="Path to tokenizer, needed if loading a .pt model file.")
     parser.add_argument('--output_path', type=str, help="output path of your generation")
     parser.add_argument('--language', type=str, help="langauge")
     parser.add_argument('--temp_dir', type=str, help="temp dir for evaluation", default="tmp")
     parser.add_argument('--max_new_tokens', type=int, help="max new tokens", default=4096)
     parser.add_argument('--evaluation_only', action='store_true', help="if only evaluate the output file")
+    
+    # OpenRouter specific arguments
+    parser.add_argument('--use_openrouter', action='store_true', help="use OpenRouter API for generation")
+    parser.add_argument('--openrouter_api_key', type=str, default=None, help="OpenRouter API key. Can also be set via OPENROUTER_API_KEY env var.")
+    parser.add_argument('--use_vllm', action='store_true', help="Use vLLM for local generation")
+
     args = parser.parse_args()
 
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
