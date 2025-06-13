@@ -44,13 +44,12 @@
 -- >>> correct_bracketing ")(()"
 -- False
 correct_bracketing :: String -> Bool
-correct_bracketing brackets =
-    let
-        process (depth, flag) b
-            | depth < 0 =  (-1, False)
-            | b == '('  =  (depth + 1, True)
-            | otherwise =  (depth - 1, True)
-    in
-        case foldl process  (0, True) brackets of {}
-            (0, True) ->  True
-            _         ->  False
+correct_bracketing = go 0
+  where
+    go :: Int -> String -> Bool
+    go depth []        = depth == 0
+    go depth (_:_) | depth < 0 = False
+    go depth (c:cs)
+      | c == '('        = go (depth + 1) cs
+      | c == ')'        = go (depth - 1) cs
+      | otherwise       = go depth       cs

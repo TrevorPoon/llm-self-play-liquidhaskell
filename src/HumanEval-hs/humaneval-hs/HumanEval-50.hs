@@ -22,6 +22,8 @@
 
 -- Haskell Implementation:
 import Data.Char (chr, ord)
+import Control.Monad (forM_, replicateM)
+import System.Random (randomRIO)
 
 -- returns encoded string by shifting every character by 5 in the alphabet.
 encode_shift :: String -> String

@@ -52,11 +52,20 @@
 -- >>> prime_fib 5
 -- 89
 prime_fib :: Int -> Int
-prime_fib n = head $ drop (n - 1) $ filter isPrime $ map fib [1..]
+prime_fib n = primeFibs !! (n - 1)
   where
-    fib :: Int -> Int
-    fib 1 =  2
-    fib 2 =  3
-    fib n =  fib (n - 1) +  fib (n - 2)
+    -- 1,1,2,3,5,8,13,21,34,55,...
+    fibs :: [Int]
+    fibs = 1 : 1 : zipWith (+) fibs (tail fibs)
+
+    -- filter that down to primes
+    primeFibs :: [Int]
+    primeFibs = filter isPrime fibs
+
     isPrime :: Int -> Bool
-    isPrime p =  p > 1 &&  all (\k -> p `mod`  k /= 0)  [2..(p - 1)]
+    isPrime p
+      | p < 2     = False
+      | otherwise = null [ k | k <- [2..limit], p `mod` k == 0 ]
+      where
+        limit = floor . sqrt $ fromIntegral p
+

@@ -47,6 +47,7 @@
 
 -- Haskell Implementation:
 import Data.List
+import Data.Ord
 
 -- Given an array representing a branch of a tree that has non-negative integer nodes
 -- your task is to pluck one of the nodes and return it.
@@ -81,8 +82,9 @@ import Data.List
 --     * 0 <= node.value
 
 pluck :: [Int] -> [Int]
-pluck arr =  if length arr == 0 then []  else [minimum evens, head (elemIndices (minimum evens) arr)]
-    where 
-        evens :: [Int]
-        evens =  filter even arr
+pluck xs =
+  case filter (even . fst) (zip xs [0..]) of
+    []   -> []
+    evs  -> let (v,i) = minimumBy (comparing fst <> comparing snd) evs
+            in [v,i]
     
