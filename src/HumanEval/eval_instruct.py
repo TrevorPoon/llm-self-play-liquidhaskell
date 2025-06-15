@@ -6,6 +6,7 @@ from pathlib import Path
 from tqdm import tqdm
 from dotenv import load_dotenv
 import openai
+from datetime import datetime # Import datetime for timestamping results
 
 from vllm import LLM, SamplingParams
 
@@ -204,6 +205,34 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
     print(f"[DEBUG][generate_one] Extraction Code for Task ID {example.get('task_id', 'N/A')}:\n{gen_example.get('generation', 'N/A')}")
     return gen_example, success
 
+def save_results(args, result_data, failed_extractions=0):
+    """
+    Saves the evaluation results, model, and generation parameters to a JSON file.
+    """
+    results_dir = Path("result")
+    results_dir.mkdir(parents=True, exist_ok=True) # Ensure the result directory exists
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_name_safe = args.model.replace("/", "_").replace("-", "_")
+    output_filename = f"{model_name_safe}_{args.language}_{timestamp}.json"
+    output_filepath = results_dir / output_filename
+
+    save_data = {
+        "timestamp": timestamp,
+        "model": args.model,
+        "language": args.language,
+        "max_new_tokens": args.max_new_tokens,
+        "evaluation_results": result_data,
+        "failed_code_extractions": failed_extractions,
+        "use_openrouter": args.use_openrouter,
+        "use_vllm": args.use_vllm,
+        "tokenizer_path": args.tokenizer_path
+    }
+    
+    with open(output_filepath, 'w') as f:
+        json.dump(save_data, f, indent=4)
+    print(f"[INFO] Evaluation results saved to {output_filepath}")
+
 def generate_main(args):
     model_name_or_path = args.model
     lang = args.language
@@ -338,7 +367,9 @@ def generate_main(args):
     )
     print(f"\n[DEBUG][generate_main] Final evaluation result for {lang} on {model_name_or_path}: {result}")
     print(f"Total failed code extractions: {failed_extraction_count}") # Print the count
-    pass
+    
+    # Save the results
+    save_results(args, result, failed_extraction_count)
 
 def evaluation_only(args):
     lang = args.language
@@ -382,6 +413,9 @@ def evaluation_only(args):
         language=lang
     )
     print(f"\n[DEBUG][evaluation_only] Final evaluation result for {lang}: {result}")
+    
+    # Save the results
+    save_results(args, result) # No failed_extractions count for evaluation_only
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

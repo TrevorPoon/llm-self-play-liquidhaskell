@@ -1,7 +1,6 @@
 # Evaluation
 
-Examine deepseek 1.5B Performance on Haskell
-
+Haskell test vs Python Test
 
 # Self-Play Pipeline
 
