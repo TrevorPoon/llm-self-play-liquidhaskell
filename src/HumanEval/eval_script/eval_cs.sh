@@ -21,4 +21,5 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_instruct.py \
   --output_path "$OUTPUT_DIR/${LANG}.$MODEL.jsonl" \
   --language $LANG \
   --temp_dir $OUTPUT_DIR \
-  --max_new_tokens 4096 
+  --max_new_tokens 32768 \
+  --use_vllm
