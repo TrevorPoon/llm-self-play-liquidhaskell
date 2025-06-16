@@ -1,0 +1,180 @@
+Running evaluation iteration 1
+📂 Script directory: /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval
+🚀 Submitting job for python...
+✅ Submitted python with Job ID 2034906
+🚀 Submitting job for java...
+✅ Submitted java with Job ID 2034907
+🚀 Submitting job for cpp...
+✅ Submitted cpp with Job ID 2034908
+🚀 Submitting job for cs...
+✅ Submitted cs with Job ID 2034909
+🚀 Submitting job for php...
+✅ Submitted php with Job ID 2034910
+🚀 Submitting job for ts...
+✅ Submitted ts with Job ID 2034911
+🚀 Submitting job for js...
+✅ Submitted js with Job ID 2034912
+🚀 Submitting job for hs...
+✅ Submitted hs with Job ID 2034913
+⏳ Waiting 1 seconds before verification...
+✅ Final check passed: 2034907 for java is now in the queue.
+✅ Final check passed: 2034908 for cpp is now in the queue.
+✅ Final check passed: 2034906 for python is now in the queue.
+✅ Final check passed: 2034913 for hs is now in the queue.
+✅ Final check passed: 2034910 for php is now in the queue.
+✅ Final check passed: 2034909 for cs is now in the queue.
+✅ Final check passed: 2034911 for ts is now in the queue.
+✅ Final check passed: 2034912 for js is now in the queue.
+✅ All job submissions and checks complete.
+Completed iteration 1
+----------------------------------
+Running evaluation iteration 2
+📂 Script directory: /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval
+🚀 Submitting job for python...
+✅ Submitted python with Job ID 2034914
+🚀 Submitting job for java...
+✅ Submitted java with Job ID 2034915
+🚀 Submitting job for cpp...
+✅ Submitted cpp with Job ID 2034916
+🚀 Submitting job for cs...
+✅ Submitted cs with Job ID 2034917
+🚀 Submitting job for php...
+✅ Submitted php with Job ID 2034918
+🚀 Submitting job for ts...
+✅ Submitted ts with Job ID 2034919
+🚀 Submitting job for js...
+✅ Submitted js with Job ID 2034920
+🚀 Submitting job for hs...
+✅ Submitted hs with Job ID 2034921
+⏳ Waiting 1 seconds before verification...
+✅ Final check passed: 2034915 for java is now in the queue.
+✅ Final check passed: 2034916 for cpp is now in the queue.
+✅ Final check passed: 2034914 for python is now in the queue.
+✅ Final check passed: 2034921 for hs is now in the queue.
+✅ Final check passed: 2034918 for php is now in the queue.
+✅ Final check passed: 2034917 for cs is now in the queue.
+✅ Final check passed: 2034919 for ts is now in the queue.
+✅ Final check passed: 2034920 for js is now in the queue.
+✅ All job submissions and checks complete.
+Completed iteration 2
+----------------------------------
+Running evaluation iteration 3
+📂 Script directory: /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval
+🚀 Submitting job for python...
+✅ Submitted python with Job ID 2034922
+🚀 Submitting job for java...
+✅ Submitted java with Job ID 2034923
+🚀 Submitting job for cpp...
+✅ Submitted cpp with Job ID 2034924
+🚀 Submitting job for cs...
+✅ Submitted cs with Job ID 2034925
+🚀 Submitting job for php...
+✅ Submitted php with Job ID 2034926
+🚀 Submitting job for ts...
+✅ Submitted ts with Job ID 2034927
+🚀 Submitting job for js...
+✅ Submitted js with Job ID 2034928
+🚀 Submitting job for hs...
+✅ Submitted hs with Job ID 2034929
+⏳ Waiting 1 seconds before verification...
+✅ Final check passed: 2034923 for java is now in the queue.
+✅ Final check passed: 2034924 for cpp is now in the queue.
+✅ Final check passed: 2034922 for python is now in the queue.
+✅ Final check passed: 2034929 for hs is now in the queue.
+✅ Final check passed: 2034926 for php is now in the queue.
+✅ Final check passed: 2034925 for cs is now in the queue.
+✅ Final check passed: 2034927 for ts is now in the queue.
+✅ Final check passed: 2034928 for js is now in the queue.
+✅ All job submissions and checks complete.
+Completed iteration 3
+----------------------------------
+Running evaluation iteration 4
+📂 Script directory: /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval
+🚀 Submitting job for python...
+✅ Submitted python with Job ID 2034930
+🚀 Submitting job for java...
+✅ Submitted java with Job ID 2034931
+🚀 Submitting job for cpp...
+✅ Submitted cpp with Job ID 2034932
+🚀 Submitting job for cs...
+✅ Submitted cs with Job ID 2034933
+🚀 Submitting job for php...
+✅ Submitted php with Job ID 2034934
+🚀 Submitting job for ts...
+✅ Submitted ts with Job ID 2034935
+🚀 Submitting job for js...
+✅ Submitted js with Job ID 2034936
+🚀 Submitting job for hs...
+✅ Submitted hs with Job ID 2034937
+⏳ Waiting 1 seconds before verification...
+✅ Final check passed: 2034931 for java is now in the queue.
+✅ Final check passed: 2034932 for cpp is now in the queue.
+✅ Final check passed: 2034930 for python is now in the queue.
+✅ Final check passed: 2034937 for hs is now in the queue.
+✅ Final check passed: 2034934 for php is now in the queue.
+✅ Final check passed: 2034933 for cs is now in the queue.
+✅ Final check passed: 2034935 for ts is now in the queue.
+✅ Final check passed: 2034936 for js is now in the queue.
+✅ All job submissions and checks complete.
+Completed iteration 4
+----------------------------------
+Running evaluation iteration 5
+📂 Script directory: /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval
+🚀 Submitting job for python...
+✅ Submitted python with Job ID 2034938
+🚀 Submitting job for java...
+✅ Submitted java with Job ID 2034939
+🚀 Submitting job for cpp...
+✅ Submitted cpp with Job ID 2034940
+🚀 Submitting job for cs...
+✅ Submitted cs with Job ID 2034941
+🚀 Submitting job for php...
+✅ Submitted php with Job ID 2034942
+🚀 Submitting job for ts...
+✅ Submitted ts with Job ID 2034943
+🚀 Submitting job for js...
+✅ Submitted js with Job ID 2034944
+🚀 Submitting job for hs...
+✅ Submitted hs with Job ID 2034945
+⏳ Waiting 1 seconds before verification...
+✅ Final check passed: 2034939 for java is now in the queue.
+✅ Final check passed: 2034940 for cpp is now in the queue.
+✅ Final check passed: 2034938 for python is now in the queue.
+✅ Final check passed: 2034945 for hs is now in the queue.
+✅ Final check passed: 2034942 for php is now in the queue.
+✅ Final check passed: 2034941 for cs is now in the queue.
+✅ Final check passed: 2034943 for ts is now in the queue.
+✅ Final check passed: 2034944 for js is now in the queue.
+✅ All job submissions and checks complete.
+Completed iteration 5
+----------------------------------
+Running evaluation iteration 6
+📂 Script directory: /home/s2652867/llm-self-play-liquidhaskell/src/HumanEval
+🚀 Submitting job for python...
+✅ Submitted python with Job ID 2034946
+🚀 Submitting job for java...
+✅ Submitted java with Job ID 2034947
+🚀 Submitting job for cpp...
+✅ Submitted cpp with Job ID 2034948
+🚀 Submitting job for cs...
+✅ Submitted cs with Job ID 2034949
+🚀 Submitting job for php...
+✅ Submitted php with Job ID 2034950
+🚀 Submitting job for ts...
+✅ Submitted ts with Job ID 2034951
+🚀 Submitting job for js...
+✅ Submitted js with Job ID 2034952
+🚀 Submitting job for hs...
+✅ Submitted hs with Job ID 2034953
+⏳ Waiting 1 seconds before verification...
+✅ Final check passed: 2034947 for java is now in the queue.
+✅ Final check passed: 2034948 for cpp is now in the queue.
+✅ Final check passed: 2034946 for python is now in the queue.
+✅ Final check passed: 2034953 for hs is now in the queue.
+✅ Final check passed: 2034950 for php is now in the queue.
+✅ Final check passed: 2034949 for cs is now in the queue.
+✅ Final check passed: 2034951 for ts is now in the queue.
+✅ Final check passed: 2034952 for js is now in the queue.
+✅ All job submissions and checks complete.
+Completed iteration 6
+----------------------------------

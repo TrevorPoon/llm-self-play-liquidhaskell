@@ -1,6 +1,7 @@
 # Evaluation
 
-Haskell test vs Python Test
+Haskell Manual Inspection
+Foldering 
 
 # Self-Play Pipeline
 
