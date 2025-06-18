@@ -1,7 +1,7 @@
 log/
 model/
 output/
-livecodebench_code_generation_lite/*.jsonl
+code_generation_lite/*.jsonl
 src/HumanEval/result/*.json
 
 # Byte-compiled / optimized / DLL files
