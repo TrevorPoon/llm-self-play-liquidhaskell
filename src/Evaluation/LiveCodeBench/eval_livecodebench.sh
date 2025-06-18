@@ -25,10 +25,6 @@ MODEL_ARGS="model_name=$MODEL,dtype=bfloat16,max_model_length=32768,gpu_memory_u
 # Set the output directory relative to the script's location
 OUTPUT_DIR=output/$MODEL
 mkdir -p $OUTPUT_DIR
-
-export HF_HUB_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
-
 # LiveCodeBench
 lighteval vllm $MODEL_ARGS "extended|lcb:codegeneration|0|0" \
     --use-chat-template \
