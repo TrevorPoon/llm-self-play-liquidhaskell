@@ -1,0 +1,13 @@
+{
+    "timestamp": "20250615_184943",
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+    "language": "cpp",
+    "max_new_tokens": 32768,
+    "evaluation_results": {
+        "pass@1": 0.33540372670807456
+    },
+    "failed_code_extractions": 31,
+    "use_openrouter": false,
+    "use_vllm": true,
+    "tokenizer_path": null
+}
