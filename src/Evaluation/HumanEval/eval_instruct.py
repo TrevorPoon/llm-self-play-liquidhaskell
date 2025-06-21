@@ -239,6 +239,7 @@ def generate_main(args):
     saved_path = args.output_path
     temp_dir = args.temp_dir
     max_new_tokens = args.max_new_tokens
+    presence_penalty = args.presence_penalty
     os.makedirs(temp_dir, exist_ok=True)
     problem_file = os.path.join(data_abs_dir, f"humaneval-{lang}.jsonl")
 
@@ -289,6 +290,7 @@ def generate_main(args):
                 top_k=20,
                 max_tokens=max_new_tokens,
                 stop=tokenizer.eos_token,
+                presence_penalty=presence_penalty,
             )
 
             prompts = [
@@ -426,6 +428,7 @@ if __name__ == '__main__':
     parser.add_argument('--temp_dir', type=str, help="temp dir for evaluation", default="tmp")
     parser.add_argument('--max_new_tokens', type=int, help="max new tokens", default=4096)
     parser.add_argument('--evaluation_only', action='store_true', help="if only evaluate the output file")
+    parser.add_argument('--presence_penalty', type=float, default=1.5, help="Presence penalty for sampling.")
     
     # OpenRouter specific arguments
     parser.add_argument('--use_openrouter', action='store_true', help="use OpenRouter API for generation")
