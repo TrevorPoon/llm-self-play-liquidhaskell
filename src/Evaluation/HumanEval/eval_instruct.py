@@ -9,6 +9,7 @@ import openai
 from datetime import datetime # Import datetime for timestamping results
 
 from vllm import LLM, SamplingParams
+from vllm.lora.request import LoRARequest
 
 # Load environment variables from .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
@@ -228,6 +229,9 @@ def save_results(args, result_data, failed_extractions=0):
         "use_vllm": args.use_vllm,
         "tokenizer_path": args.tokenizer_path
     }
+    if args.use_vllm:
+        save_data["adapter_path"] = args.adapter_path
+        save_data["gpu_memory_utilization"] = args.gpu_memory_utilization
     
     with open(output_filepath, 'w') as f:
         json.dump(save_data, f, indent=4)
@@ -280,9 +284,16 @@ def generate_main(args):
             
             num_gpus = torch.cuda.device_count()
             print(f"[INFO] Initializing vLLM with tensor_parallel_size={num_gpus}")
-            llm = LLM(model=model_name_or_path, tensor_parallel_size=num_gpus)
+            llm = LLM(
+                model=model_name_or_path, 
+                tensor_parallel_size=num_gpus,
+                enable_lora=args.adapter_path is not None,
+                gpu_memory_utilization=args.gpu_memory_utilization,
+                max_model_len=args.max_new_tokens,
+                trust_remote_code=True,
+            )
             
-            tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+            tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path or model_name_or_path)
 
             sampling_params = SamplingParams(
                 temperature=0.6,
@@ -299,7 +310,12 @@ def generate_main(args):
             ]
             
             print(f"Generating completions for {len(prompts)} prompts...")
-            vllm_outputs = llm.generate(prompts, sampling_params)
+            lora_request = None
+            if args.adapter_path:
+                print(f"[INFO] Using LoRA adapter from: {args.adapter_path}")
+                lora_request = LoRARequest("adapter", 1, args.adapter_path)
+            
+            vllm_outputs = llm.generate(prompts, sampling_params, lora_request=lora_request)
             print("Generation complete.")
             
             vllm_outputs.sort(key=lambda o: int(o.request_id))
@@ -434,6 +450,11 @@ if __name__ == '__main__':
     parser.add_argument('--use_openrouter', action='store_true', help="use OpenRouter API for generation")
     parser.add_argument('--openrouter_api_key', type=str, default=None, help="OpenRouter API key. Can also be set via OPENROUTER_API_KEY env var.")
     parser.add_argument('--use_vllm', action='store_true', help="Use vLLM for local generation")
+
+    # vLLM specific arguments
+    parser.add_argument('--adapter_path', type=str, default=None, help="Path to LoRA adapter weights, for use with vLLM.")
+    parser.add_argument('--gpu_memory_utilization', type=float, default=0.8, help="The fraction of GPU memory to be used for the vLLM KV cache.")
+    
 
     args = parser.parse_args()
 
