@@ -48,6 +48,41 @@ language_settings = {
     }
 }
 
+def get_function_arg_type(program_code: str):
+    """
+    Extracts the first argument type from a Haskell function's type signature.
+    It handles simple signatures, signatures with typeclass constraints, and higher-order functions.
+    e.g., `func :: Int -> Int` -> `Int`
+    e.g., `func :: (Read a) => [a] -> [a]` -> `[a]`
+    e.g., `func :: (Int -> Bool) -> [Int] -> [Int]` -> `(Int -> Bool)`
+    e.g., `func :: (Int, String) -> Bool` -> `(Int, String)`
+    """
+    # Find the type signature part of the function definition
+    match = re.search(r"^\s*[\w']+\s*::\s*(.*)", program_code, re.MULTILINE)
+    if not match:
+        return None
+    
+    signature = match.group(1).strip()
+
+    # Remove typeclass constraints if they exist
+    if '=>' in signature:
+        signature = signature.split('=>', 1)[1].strip()
+
+    paren_level = 0
+    
+    # Find the first '->' at the top level (paren_level 0)
+    for i in range(len(signature) - 1):
+        char = signature[i]
+        if char == '(':
+            paren_level += 1
+        elif char == ')':
+            paren_level -= 1
+        elif signature[i:i+2] == '->' and paren_level == 0:
+            # We found the top-level arrow. The part before it is the first argument type.
+            return signature[:i].strip()
+
+    return None
+
 def get_function_name(program_code: str):
     """Extracts function name from a Haskell code snippet."""
     match = re.search(r"^([\w']+)\s*::", program_code, re.MULTILINE)
