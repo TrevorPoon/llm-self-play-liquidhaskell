@@ -13,9 +13,10 @@ Alice must know “how hard” we want her next challenge to be.  In the paper, 
   ````python
   ALICE_USER_PROMPT = textwrap.dedent("""
     Difficulty level: {difficulty_level}
-    Entry point function: {function_name}
+    Original program `P`:
     ```haskell
     {program}
+    ```
   ````
 
   """).strip()
@@ -28,7 +29,6 @@ Alice must know “how hard” we want her next challenge to be.  In the paper, 
   ```python
   user_content = ALICE_USER_PROMPT.format(
     difficulty_level=dt,              # e.g. 10 or measured d from last round
-    function_name=get_function_name(p_original),
     program=p_original
   )
   ```
@@ -44,7 +44,7 @@ The paper (§2.4) creates **(A) main** examples that teach Alice to hit a specif
 
 1. **Generate**
 
-   * Sample **N** outputs from Alice with target $d_t$.
+   * Sample outputs from Alice with target $d_t$.
    * Parse each into $(\text{CoT}, Q, x)$.
 
 2. **Measure**
@@ -61,7 +61,6 @@ The paper (§2.4) creates **(A) main** examples that teach Alice to hit a specif
 
      ````text
      Difficulty level: {measured_d}
-     Entry point function: {fn}
      ```haskell
      {P}
      ````
@@ -84,7 +83,6 @@ The paper (§2.4) creates **(A) main** examples that teach Alice to hit a specif
 
    ````text
    Difficulty level: Any
-   Entry point function: {fn}
    ```haskell
    {P}
    ````
@@ -166,8 +164,7 @@ Left unchecked, easy examples will vastly outnumber the hard ones and drown out 
 
 In the SInQ self-play setup, each round of adapter training for Alice is begun from the original base checkpoint, not from the adapter produced in the previous round. Concretely:
 
-“Each of Alice’s training runs starts from the baseline gpt-4o-mini-2024-07-18 checkpoint rather than the previous fine-tuned checkpoint, but we accumulate instances to be used as training examples between rounds.” 
-arxiv.org
+“Each of Alice’s training runs starts from the baseline rather than the previous fine-tuned checkpoint, but we accumulate instances to be used as training examples between rounds.” 
 
 The rationale is that, by always re-initializing from the same base model and re-training on the cumulative pool of examples (including newly generated hard cases), you avoid:
 

@@ -30,13 +30,11 @@ logger = logging.getLogger(__name__)
 # --- Prompts (from SInQ Paper, Appendix C) ---
 
 ALICE_SYSTEM_PROMPT = textwrap.dedent("""
-    You are an expert Haskell programmer. Your task is to generate a semantically inequivalent variant of a given Haskell program, which means that there must exist at least a diverging input example such that the original program and your program either produce different outputs or exceptions, or one halts and the other one does not halt.
+    You are an expert Haskell programmer. Your task is to generate a semantically inequivalent variant of a given Haskell program,.
     You must also provide a diverging input, which is a valid input for both programs, but on which they produce different outputs.
                                       
     A good inequivalent program `Q` should be subtly different from `P`.
     A good diverging input `x` should be simple and clearly demonstrate the semantic difference between `P` and `Q`.
-
-    The original program and your program will be used in a test to evaluate the skill of an expert Haskell programmer who will have to produce a diverging example (not necessarily the same as yours), so make sure that the difference you introduce are not very easy to understand. You will be given a difficulty level from 0 (easiest) to 10 (hardest) to target. E.g. difficulty level 0 means that an expert computer scientist in the bottom decile or above should be able to find a diverging example, difficulty level 9 means that only an expert computer scientist in the top decile should be able to find a diverging example, and difficulty level 10 means that only the top 0.01 or less of expert Haskell programmer should be able to find a diverging example.                                 
 
     First, think step-by-step and write down your analysis of program `P` and your strategy for creating an inequivalent program `Q`. Enclose this reasoning within `<think>` and `</think>` tags.
     After the thinking block, the final answer could **only** be in the following format, without any additional explanation or context.
@@ -54,7 +52,6 @@ ALICE_SYSTEM_PROMPT = textwrap.dedent("""
 """).strip()
 
 ALICE_USER_PROMPT = textwrap.dedent("""
-    Difficulty level: {difficulty_level}
     Original program `P`:
     ```haskell
     {program}
@@ -301,6 +298,7 @@ class SInQ:
 
         # print_gpu_memory_usage("After initializing vLLM model")
         print_nvidia_smi("After initializing vLLM model")
+        print_gpu_memory_usage("After initializing vLLM model")
 
     def load_initial_programs(self, dataset_name):
         logger.info(f"Loading initial programs from dataset {dataset_name}...")
@@ -392,12 +390,11 @@ class SInQ:
             print(f"🟥 --- Bob parsing failed with exception: {e} ---")
             return None
 
-    def run_alice(self, program_p, dt):
+    def run_alice(self, program_p):
         """Alice generates a variant of a program."""
-        logger.info(f"Running Alice with target difficulty {dt}...")
+        logger.info(f"Running Alice...")
         
         user_content = ALICE_USER_PROMPT.format(
-            difficulty_level=dt,
             program=program_p
         )
         messages = [
@@ -506,6 +503,8 @@ class SInQ:
 
         self._initialize_base_model_for_finetuning()
 
+        # Enable gradient checkpointing on the base model BEFORE wrapping with PEFT
+        self.base_model.gradient_checkpointing_enable()
 
         lora_config = LoraConfig(
             r=self.args.lora_r,
@@ -543,12 +542,13 @@ class SInQ:
         )
 
         # Print GPU memory usage before training
-        # print_nvidia_smi("Before training")
-        # print_gpu_memory_usage(f"Before training '{model_type}' model")
+        print_nvidia_smi("Before training")
+        print_gpu_memory_usage(f"Before training '{model_type}' model")
 
         trainer.train()
         
-        # print_gpu_memory_usage(f"After training '{model_type}' model")
+        print_nvidia_smi("After training")
+        print_gpu_memory_usage(f"After training '{model_type}' model")
 
         adapter_dir_name = f"{model_type}-adapter-iter-{iteration}-epoch-{int(self.args.num_train_epochs)}"
         adapter_path = os.path.join(output_dir, adapter_dir_name)
@@ -557,15 +557,11 @@ class SInQ:
         else:
             self.bob_adapter_path = adapter_path
         
-        # Clean up the model to free memory
-        # del self.base_model
         torch.cuda.empty_cache()
         # print_gpu_memory_usage(f"After cleaning up fine-tuning model")
 
     def run_self_play_loop(self):
         logger.info("Starting self-play loop...")
-        
-        target_difficulty = 10.0 # Initial difficulty from paper
         
         for i in range(self.args.n_iterations):
             logger.info(f"--- Self-Play Iteration {i+1}/{self.args.n_iterations} ---")
@@ -594,7 +590,7 @@ class SInQ:
                     continue
 
                 # Alice's turn
-                q_candidate, x_candidate, alice_raw_output = self.run_alice(p_original, target_difficulty)
+                q_candidate, x_candidate, alice_raw_output = self.run_alice(p_original)
                 
                 if not q_candidate:
                     logger.warning("🟨 Alice failed to generate a candidate program.")
@@ -685,7 +681,6 @@ class SInQ:
             for ex in final_alice_examples:
                 # --- (A) Main SFT Example ---
                 main_sft_user_content = ALICE_USER_PROMPT.format(
-                    difficulty_level=f"{ex['difficulty']:.2f}",
                     program=ex['p_original']
                 )
                 main_sft_messages = [
@@ -694,18 +689,6 @@ class SInQ:
                     {"role": "assistant", "content": ex['alice_raw_output']}
                 ]
                 new_alice_training_data.append(self.tokenizer.apply_chat_template(main_sft_messages, tokenize=False))
-
-                # --- (B) Difficulty-Prediction Example ---
-                diff_pred_user_content = ALICE_DIFFICULTY_PREDICTION_PROMPT_TEMPLATE.format(
-                    program=ex['p_original'],
-                )
-                diff_pred_messages = [
-                    {"role": "user", "content": diff_pred_user_content},
-                    {"role": "assistant", "content": ex['alice_raw_output']},
-                    {"role": "user", "content": "Predict the difficulty level of the instance. Just write \"Difficulty level: D\" where D is your prediction, do not write anything else."},
-                    {"role": "assistant", "content": f"Difficulty level: {ex['difficulty']:.2f}"}
-                ]
-                new_alice_training_data.append(self.tokenizer.apply_chat_template(diff_pred_messages, tokenize=False))
             
             self.cumulative_alice_training_data.extend(new_alice_training_data)
             
@@ -728,7 +711,10 @@ class SInQ:
                 logger.info("Releasing vLLM model to free up memory for fine-tuning...")
                 del self.vllm_model
                 torch.cuda.empty_cache()
-                # print_gpu_memory_usage("After releasing vLLM model")
+
+                print_nvidia_smi("After releasing vLLM model")
+                print_gpu_memory_usage("After releasing vLLM model")
+
 
                 if self.cumulative_alice_training_data:
                     self.finetune_model(self.cumulative_alice_training_data, "alice", i)
@@ -782,8 +768,10 @@ class SInQ:
         for i in range(self.args.n_humaneval_evaluations_per_iteration):
             logger.info(f"--- Starting Evaluation Run {i+1}/{self.args.n_humaneval_evaluations_per_iteration} for Iteration {iteration} ---")
             subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "hs", self.model_name], check=True, cwd=eval_working_dir)
+            logger.info(f"Submitted Haskell evaluation script for {agent_name} via sbatch.")
+            subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "python", self.model_name], check=True, cwd=eval_working_dir)
+            logger.info(f"Submitted Python evaluation script for {agent_name} via sbatch.")
 
-        logger.info(f"HumanEval Evaluation script for {agent_name} submitted.")
 
         # === LiveCodeBench Evaluation ===
         eval_working_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../Evaluation/LiveCodeBench/code_generation_lite'))

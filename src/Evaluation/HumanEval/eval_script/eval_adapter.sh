@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard     # only nodes with A40s
+#SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                     # specifically four A40 GPUs
 #SBATCH --mem=96000
 #SBATCH --time=0-168:00:00
@@ -12,7 +12,7 @@ export TMPDIR=/disk/scratch/$(whoami)/
 
 source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
-LANG="hs"
+
 MODEL_PATH="$1"  #TODO: add model path
 if [ -z "$MODEL_PATH" ]; then
     echo "Error: Model path argument is required."
@@ -20,8 +20,15 @@ if [ -z "$MODEL_PATH" ]; then
 fi
 MODEL_NAME=$(basename "$MODEL_PATH")
 
+echo "Adapter path: $MODEL_PATH"
+
+LANG="$2"
+echo "Language: $LANG"
+
 OUTPUT_DIR="output"
-MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+
+MODEL="$3"
+echo "Model: $MODEL"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_instruct.py \
   --model "$MODEL" \
