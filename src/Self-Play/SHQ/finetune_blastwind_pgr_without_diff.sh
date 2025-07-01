@@ -61,12 +61,12 @@ export BNB_CUDA_VERSION=125
 #INPUTS
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_NAME="../data/successfully_compiled_sorted_haskell_dataset"
-NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=1
-NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
+NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=16
+NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
 PER_DEVICE_TRAIN_BATCH_SIZE=1
-OUTPUT_DIR="output/SHQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}"
+OUTPUT_DIR="output/SHQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_without_difficulty_prediction"
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python -u run_blastwind.py \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -u run_blastwind_without_diff.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \
