@@ -597,10 +597,10 @@ class SInQ:
                     warning_counts["alice_generation_fail"] += 1
                     continue
 
-                if not self.executor.check_compiles(q_candidate):
-                    logger.warning("🟨 Candidate Q failed to compile. Skipping example.")
-                    warning_counts["q_compile_fail"] += 1
-                    continue
+                # if not self.executor.check_compiles(q_candidate):
+                #     logger.warning("🟨 Candidate Q failed to compile. Skipping example.")
+                #     warning_counts["q_compile_fail"] += 1
+                #     continue
             
                 print(f"Alice's candidate program: {q_candidate}")
                 print(f"Alice's diverging input: {x_candidate}")
@@ -608,7 +608,7 @@ class SInQ:
                 is_divergent_alice = self.executor.check_divergence(p_original, q_candidate, x_candidate)
                 
                 if not is_divergent_alice:
-                    logger.warning("🟨 Alice's candidate program and diverging input were not divergent. Skipping.")
+                    logger.warning("🟨 Alice's candidate program and diverging input were not divergent / Execution failed. Skipping.")
                     warning_counts["alice_not_divergent"] += 1
                     continue
 
@@ -705,7 +705,7 @@ class SInQ:
             logger.info(f"    - Original program P failed to compile: {warning_counts['p_compile_fail']}")
             logger.info(f"    - Alice failed to generate a candidate program: {warning_counts['alice_generation_fail']}")
             logger.info(f"    - Candidate Q failed to compile: {warning_counts['q_compile_fail']}")
-            logger.info(f"    - Alice's candidate not divergent: {warning_counts['alice_not_divergent']}")
+            logger.info(f"    - Alice's candidate not divergent / Execution failed: {warning_counts['alice_not_divergent']}")
 
             if self.cumulative_alice_training_data or bob_training_data:
                 logger.info("Releasing vLLM model to free up memory for fine-tuning...")
@@ -733,7 +733,8 @@ class SInQ:
             
             self.programs.extend(new_programs)
 
-            self.evaluate(i)
+            if self.args.run_evaluation:
+                self.evaluate(i)
 
     def evaluate(self, iteration):
         logger.info(f"Starting final evaluation for iteration {iteration}...")
@@ -765,12 +766,11 @@ class SInQ:
         logger.info(f"Working directory: {eval_working_dir}")
 
         logger.info(f"Submitting evaluation script for {agent_name} via sbatch...")
-        for i in range(self.args.n_humaneval_evaluations_per_iteration):
-            logger.info(f"--- Starting Evaluation Run {i+1}/{self.args.n_humaneval_evaluations_per_iteration} for Iteration {iteration} ---")
-            subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "hs", self.model_name], check=True, cwd=eval_working_dir)
-            logger.info(f"Submitted Haskell evaluation script for {agent_name} via sbatch.")
-            subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "python", self.model_name], check=True, cwd=eval_working_dir)
-            logger.info(f"Submitted Python evaluation script for {agent_name} via sbatch.")
+
+        subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "hs", self.model_name, str(self.args.n_humaneval_evaluations_per_iteration)], check=True, cwd=eval_working_dir)
+        logger.info(f"Submitted Haskell evaluation script for {agent_name} via sbatch.")
+        subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "python", self.model_name, str(self.args.n_humaneval_evaluations_per_iteration)], check=True, cwd=eval_working_dir)
+        logger.info(f"Submitted Python evaluation script for {agent_name} via sbatch.")
 
 
         # === LiveCodeBench Evaluation ===
@@ -806,6 +806,7 @@ def main():
     parser.add_argument('--num_initial_programs', type=int, default=None, help="Number of initial programs to load.")
     parser.add_argument('--difficulty_threshold', type=float, default=0.0, help="Difficulty threshold for filtering Alice's training data.")
     parser.add_argument('--n_humaneval_evaluations_per_iteration', type=int, default=1, help="Number of evaluations to run per iteration.")
+    parser.add_argument('--run_evaluation', type=bool, default=True, help="Whether to run evaluation after each iteration.")
     
     args = parser.parse_args()
 

@@ -4,6 +4,7 @@ output/
 code_generation_lite/
 src/HumanEval/result/*.json
 sorted_haskell_dataset/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

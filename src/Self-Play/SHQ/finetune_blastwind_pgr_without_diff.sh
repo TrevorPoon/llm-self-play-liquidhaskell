@@ -3,7 +3,7 @@
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard       # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
-#SBATCH --mem=96000
+#SBATCH --mem=192000
 #SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-finetune-%j.out
 
@@ -60,9 +60,9 @@ export BNB_CUDA_VERSION=125
 
 #INPUTS
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-DATASET_NAME="../data/successfully_compiled_sorted_haskell_dataset"
-NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=16
-NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
+DATASET_NAME="../data/successfully_compiled_sorted_blastwind_haskell_dataset"
+NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=2
+NUM_INITIAL_PROGRAMS=2 # Set 0 to use all programs
 PER_DEVICE_TRAIN_BATCH_SIZE=1
 OUTPUT_DIR="output/SHQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_without_difficulty_prediction"
 
@@ -82,4 +82,5 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python -u run_blastwind_without_diff.py \
     --gpu_memory_utilization 0.8 \
     --num_initial_programs $NUM_INITIAL_PROGRAMS \
     --per_device_train_batch_size $PER_DEVICE_TRAIN_BATCH_SIZE \
-    --n_humaneval_evaluations_per_iteration $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION
+    --n_humaneval_evaluations_per_iteration $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION \
+    --run_evaluation False

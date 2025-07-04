@@ -39,7 +39,7 @@ def read_top_n(dataset_path, n=100):
 
 def main():
     # Default path assumes the script is run from the root of the project directory
-    default_path = '../data/sorted_haskell_dataset'
+    default_path = '../data/sorted_blastwind_haskell_dataset'
     
     parser = argparse.ArgumentParser(description="Read top N rows from the sorted Haskell dataset.")
     parser.add_argument(
