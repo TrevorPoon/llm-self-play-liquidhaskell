@@ -1,0 +1,27 @@
+compute_environment: SLURM                         # Running on a Slurm cluster
+debug: false                                      # Disable verbose debug traces 
+distributed_type: FSDP                            # Fully Sharded Data Parallel :
+downcast_bf16: 'no'                                # Do not downcast BF16 automatically
+deepspeed_config: {}                              # Required empty dict if not using DeepSpeed 
+dynamo_backend: INDUCTOR                          # Dynamo backend choice (unchanged)
+fsdp_config:
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP   # Auto-wrap policy :contentReference[oaicite:10]{index=10}
+  fsdp_backward_prefetch: BACKWARD_PRE            # Backward prefetch strategy :contentReference[oaicite:11]{index=11}
+  fsdp_forward_prefetch: false                    # Forward prefetch (added) :contentReference[oaicite:12]{index=12}
+  fsdp_offload_params: false                      # Offload parameters (unchanged)
+  fsdp_sharding_strategy: FULL_SHARD              # Use FULL_SHARD strategy :contentReference[oaicite:13]{index=13}
+  fsdp_state_dict_type: FULL_STATE_DICT           # State dict type (unchanged)
+  fsdp_transformer_layer_cls_to_wrap: ''          # Layers to wrap (unchanged)
+machine_rank: 0                                   # Rank of this node (single machine) :contentReference[oaicite:14]{index=14}
+main_process_ip: null                             # Handled automatically for single node :contentReference[oaicite:15]{index=15}
+main_process_port: null                           # Handled automatically for single node :contentReference[oaicite:16]{index=16}
+main_training_function: main                      # Entry-point function
+mixed_precision: bf16                             # Use BF16 mixed precision
+num_machines: 1                                   # Single-machine setup
+num_processes: 4                                  # Number of processes (GPUs)
+rdzv_backend: static                              # Static rendezvous :contentReference[oaicite:17]{index=17}
+same_network: true                                # Machines on same network :contentReference[oaicite:18]{index=18}
+tpu_env: []                                       # Disable TPU support :contentReference[oaicite:19]{index=19}
+tpu_use_cluster: false                            # Disable TPU cluster mode :contentReference[oaicite:20]{index=20}
+tpu_use_sudo: false                               # Disable TPU sudo mode :contentReference[oaicite:21]{index=21}
+use_cpu: false                                    # Do not run on CPU only

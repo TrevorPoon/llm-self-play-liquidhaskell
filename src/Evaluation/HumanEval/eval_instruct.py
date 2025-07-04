@@ -459,6 +459,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
     if args.evaluation_only:
         evaluation_only(args)
     else:

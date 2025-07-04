@@ -162,7 +162,7 @@ def validate_dataset(args):
     logger.info(f"Successfully compiled programs with inputs: {len(valid_programs)}")
     
     if valid_programs:
-        output_dir = os.path.join(args.output_dir, "successfully_compiled_sorted_haskell_dataset")
+        output_dir = os.path.join(args.output_dir, "successfully_compiled_sorted_blastwind_haskell_dataset")
         os.makedirs(output_dir, exist_ok=True)
         
         # Create a new Hugging Face Dataset from the list of dictionaries
@@ -190,7 +190,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(os.path.dirname(script_dir))
 
-    default_dataset_path = os.path.join(parent_dir, 'data', 'sorted_haskell_dataset')
+    default_dataset_path = os.path.join(parent_dir, 'data', 'sorted_blastwind_haskell_dataset')
     default_output_dir = os.path.join(parent_dir, 'data')
 
     parser.add_argument('--dataset_path', type=str, default=default_dataset_path,

@@ -3,7 +3,7 @@
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard       # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
-#SBATCH --mem=96000
+#SBATCH --mem=192000
 #SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-finetune-%j.out
 
@@ -60,7 +60,7 @@ export BNB_CUDA_VERSION=125
 
 #INPUTS
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-DATASET_NAME="../data/successfully_compiled_sorted_haskell_dataset"
+DATASET_NAME="../data/successfully_compiled_sorted_blastwind_haskell_dataset"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=1
 NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
 PER_DEVICE_TRAIN_BATCH_SIZE=1

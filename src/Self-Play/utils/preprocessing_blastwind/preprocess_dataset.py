@@ -5,7 +5,7 @@ import os
 def main():
     parser = argparse.ArgumentParser(description="Preprocess and sort Haskell code dataset from Hugging Face.")
     parser.add_argument('--dataset_name', type=str, default='blastwind/github-code-haskell-file', help="Hugging Face dataset name.")
-    parser.add_argument('--output_dir', type=str, default='../../data/sorted_haskell_dataset', help="Directory to save the sorted dataset.")
+    parser.add_argument('--output_dir', type=str, default='../../data/sorted_blastwind_haskell_dataset', help="Directory to save the sorted dataset.")
     args = parser.parse_args()
 
     # Check if output directory exists.
