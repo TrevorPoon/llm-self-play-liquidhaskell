@@ -42,10 +42,19 @@ export BNB_CUDA_VERSION=125
 source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 # --- Job Configuration ---
-export MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-export DATASET_PATH="../data/sft_tokenized_haskell_dataset" # Path from prepare_data.py
-export OUTPUT_DIR="output/$MODEL_NAME"  
-export LEARNING_RATE=1e-5
+MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+DATASET_PATH="../data/sft_tokenized_haskell_dataset" # Path from prepare_data.py
+DATASET_FRACTION=0.3
+
+# Hyperparameters
+NUM_TRAIN_EPOCHS=3
+LEARNING_RATE=2e-4
+PER_DEVICE_TRAIN_BATCH_SIZE=4 # 4 is the max for A40s
+PER_DEVICE_EVAL_BATCH_SIZE=PER_DEVICE_TRAIN_BATCH_SIZE
+GRADIENT_ACCUMULATION_STEPS=8
+EVAL_ACCUMULATION_STEPS=GRADIENT_ACCUMULATION_STEPS
+
+OUTPUT_DIR="output/${MODEL_NAME}_dataset_fraction_${DATASET_FRACTION}_epochs_${NUM_TRAIN_EPOCHS}_learning_rate_${LEARNING_RATE}_batch_${PER_DEVICE_TRAIN_BATCH_SIZE}_grad_steps_${GRADIENT_ACCUMULATION_STEPS}"  
 
 
 # Ensure log directory exists
@@ -60,10 +69,11 @@ accelerate launch train.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_path "$DATASET_PATH" \
     --output_dir "$OUTPUT_DIR" \
-    --num_train_epochs 3 \
-    --per_device_train_batch_size 2 \
-    --gradient_accumulation_steps 8 \
+    --num_train_epochs $NUM_TRAIN_EPOCHS \
+    --per_device_train_batch_size $PER_DEVICE_TRAIN_BATCH_SIZE \
+    --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
     --learning_rate $LEARNING_RATE \
     --save_steps 100 \
     --logging_steps 10 \
-    --dataset_is_tokenized
+    --dataset_is_tokenized \
+    --dataset_fraction $DATASET_FRACTION

@@ -12,6 +12,9 @@ from transformers import (
 from utils import load_model_for_training
 
 def main():
+    # Recommended by torchdynamo logs for dealing with tensor.item() graph breaks
+    torch._dynamo.config.capture_scalar_outputs = True
+
     parser = argparse.ArgumentParser(description="Fine-tune a model on the Haskell dataset.")
     
     # Model and Data Arguments
@@ -19,6 +22,7 @@ def main():
     parser.add_argument('--dataset_path', type=str, required=True, help="Path to the processed dataset directory.")
     parser.add_argument('--dataset_is_tokenized', action='store_true', help="Flag to indicate if the dataset is already tokenized.")
     parser.add_argument('--output_dir', type=str, default='./sft-output', help="Directory to save the final adapter and any checkpoints.")
+    parser.add_argument('--dataset_fraction', type=float, default=1.0, help="Fraction of the dataset to use for training and validation (e.g., 0.1 for 10%).")
     
     # LoRA Arguments
     parser.add_argument('--lora_r', type=int, default=8, help="LoRA r.")
@@ -27,14 +31,16 @@ def main():
 
     # Training Arguments
     parser.add_argument('--num_train_epochs', type=int, default=3, help="Number of training epochs.")
-    parser.add_argument('--per_device_train_batch_size', type=int, default=1, help="Batch size per device during training.")
+    parser.add_argument('--per_device_train_batch_size', type=int, default=4, help="Batch size per device during training.")
+    parser.add_argument('--per_device_eval_batch_size', type=int, default=4, help="Batch size per device during evaluation.")
     parser.add_argument('--gradient_accumulation_steps', type=int, default=8, help="Number of gradient accumulation steps.")
+    parser.add_argument('--eval_accumulation_steps', type=int, default=8, help="Number of evaluation steps to accumulate predictions for before moving to CPU.")
     parser.add_argument('--learning_rate', type=float, default=2e-4, help="Learning rate for fine-tuning.")
     parser.add_argument('--warmup_ratio', type=float, default=0.03, help="Warmup ratio for the learning rate scheduler.")
     parser.add_argument('--lr_scheduler_type', type=str, default="cosine", help="Learning rate scheduler type.")
     parser.add_argument('--logging_steps', type=int, default=10, help="Log every X updates steps.")
     parser.add_argument('--save_steps', type=int, default=100, help="Save checkpoint every X updates steps.")
-    # parser.add_argument('--early_stopping_patience', type=int, default=2, help="Number of evaluation steps with no improvement to wait before stopping.")
+    
     
     args = parser.parse_args()
 
@@ -45,6 +51,16 @@ def main():
     # --- Load Datasets ---
     print(f"Loading dataset from {args.dataset_path}")
     processed_dataset = load_from_disk(args.dataset_path)
+
+    # --- Optional: Subsample the dataset for quick tests ---
+    if args.dataset_fraction < 1.0:
+        print(f"Using {args.dataset_fraction * 100:.0f}% of the training and validation datasets.")
+        
+        train_subset_size = int(len(processed_dataset['train']) * args.dataset_fraction)
+        processed_dataset['train'] = processed_dataset['train'].select(range(train_subset_size))
+        
+        eval_subset_size = int(len(processed_dataset['validation']) * args.dataset_fraction)
+        processed_dataset['validation'] = processed_dataset['validation'].select(range(eval_subset_size))
 
     if args.dataset_is_tokenized:
         print("Dataset is pre-tokenized. Loading tokenizer from dataset directory.")
@@ -77,22 +93,24 @@ def main():
     
     # --- Training ---
     print("Initializing model for training...")
-    model, _ = load_model_for_training(
+    peft_model, _ = load_model_for_training(
         args.model_name_or_path,
         args.lora_r,
         args.lora_alpha,
         args.lora_dropout,
         tokenizer
     )
-    model.enable_input_require_grads()
+    peft_model.enable_input_require_grads()
     # Recommended for gradient checkpointing
-    model.config.use_cache = False
+    peft_model.config.use_cache = False
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         num_train_epochs=args.num_train_epochs,
         per_device_train_batch_size=args.per_device_train_batch_size,
+        per_device_eval_batch_size=args.per_device_eval_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
+        eval_accumulation_steps=args.eval_accumulation_steps,
         gradient_checkpointing=True,
         learning_rate=args.learning_rate,
         logging_dir=f'{args.output_dir}/logs',
@@ -103,10 +121,9 @@ def main():
         bf16=True,
         tf32=True,
         torch_compile=True,
-        save_total_limit=3,
-        load_best_model_at_end=True,
+        save_total_limit=10,
+        load_best_model_at_end=False,
         metric_for_best_model="eval_loss",
-        # early_stopping_patience=args.early_stopping_patience,
         lr_scheduler_type=args.lr_scheduler_type,
         warmup_ratio=args.warmup_ratio,
         report_to="tensorboard",
@@ -114,7 +131,7 @@ def main():
     )
 
     trainer = Trainer(
-        model=model,
+        model=peft_model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
@@ -124,6 +141,12 @@ def main():
 
     print("Starting training...")
     trainer.train()
+
+    # Manually load the best model adapter
+    if trainer.state.best_model_checkpoint:
+        print(f"Loading best model from {trainer.state.best_model_checkpoint}")
+        adapter_name = list(trainer.model.peft_config.keys())[0]
+        trainer.model.load_adapter(trainer.state.best_model_checkpoint, adapter_name=adapter_name)
 
     print("Saving final LoRA adapter...")
     final_adapter_path = os.path.join(args.output_dir, "final_adapter")

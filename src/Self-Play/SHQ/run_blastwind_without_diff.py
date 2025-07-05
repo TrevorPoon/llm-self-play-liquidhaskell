@@ -511,7 +511,7 @@ class SInQ:
             lora_alpha=self.args.lora_alpha,
             lora_dropout=self.args.lora_dropout,
             task_type=TaskType.CAUSAL_LM,
-            target_modules=["q_proj", "v_proj"]
+            target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
         )
 
         logger.info("Creating a new PeftModel for training from base model.")

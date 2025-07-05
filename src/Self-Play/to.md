@@ -5,9 +5,8 @@ lm_eval
 MBPP
 
 #SFT
-How to sft reasoning model
-sft w/o reasoning, is there a better lora adapter method? 
-lora size compared to 1.5B? 
+Synthetic Dataset
+lr and epochs experiment
 
 #SHQ
 remove check compile
