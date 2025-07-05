@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard
+#SBATCH --partition=PGR-Standard-Noble
 #SBATCH --mem=80000
 #SBATCH --time=1-00:00:00                 # 2 hours should be sufficient
 #SBATCH --output=log/slurm-sft-tokenize-data-%j.out

@@ -15,6 +15,6 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 python -u validate_dataset.py \
-    --dataset_path "../../data/sorted_haskell_dataset" \
-    --output_dir "../../data" \
+    --dataset_path "../../data/sorted_blastwind_haskell_dataset" \
+    --output_dir "../../data/compiled_sorted_blastwind_haskell_dataset" \
     --timeout 20.0

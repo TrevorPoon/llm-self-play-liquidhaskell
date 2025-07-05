@@ -11,8 +11,8 @@ def main():
     parser.add_argument('--adapter_path', type=str, required=True, help="Path to the trained LoRA adapter directory.")
     parser.add_argument('--prompt', type=str, required=True, help="The instruction prompt to generate code from.")
     
-    parser.add_argument('--max_new_tokens', type=int, default=256, help="Maximum number of new tokens to generate.")
-    parser.add_argument('--temperature', type=float, default=0.1, help="Temperature for sampling.")
+    parser.add_argument('--max_new_tokens', type=int, default=4096, help="Maximum number of new tokens to generate.")
+    parser.add_argument('--temperature', type=float, default=0.6, help="Temperature for sampling.")
     parser.add_argument('--top_p', type=float, default=0.9, help="Top-p for sampling.")
 
     args = parser.parse_args()

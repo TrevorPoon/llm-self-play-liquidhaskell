@@ -99,10 +99,11 @@ import Text.Read (readMaybe)
             )
             if compile_process.returncode != 0:
                 # We can optionally log the error for debugging
-                logger.warning(f"GHC type-check error:\n\n{compile_process.stderr}")
+                # logger.warning(f"GHC type-check error:\n\n{compile_process.stderr}")
                 return False
             else:
-                print(f"GHC type-check success:\n\n{compile_process.stdout}")
+                # print(f"GHC type-check success:\n\n{compile_process.stdout}")
+                pass
         return True
 
     def __del__(self):
@@ -142,8 +143,8 @@ def validate_dataset(args):
         if not code:
             continue
             
-        if not has_input_arguments(code):
-            continue
+        # if not has_input_arguments(code):
+        #     continue
         
         programs_with_inputs += 1
 
