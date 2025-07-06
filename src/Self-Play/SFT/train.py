@@ -2,14 +2,74 @@
 import os
 import argparse
 import torch
+import subprocess
 from datasets import load_from_disk
 from transformers import (
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,
-    AutoTokenizer
+    AutoTokenizer,
+    TrainerCallback
 )
 from utils import load_model_for_training
+
+class MemoryUsageCallback(TrainerCallback):
+    """
+    A TrainerCallback that logs GPU memory usage during training.
+    """
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        
+        if state.is_world_process_zero and torch.cuda.is_available():
+            allocated = torch.cuda.memory_allocated() / 1024**3
+            reserved = torch.cuda.memory_reserved() / 1024**3
+            max_allocated = torch.cuda.max_memory_allocated() / 1024**3
+            
+            if logs is not None:
+                logs['memory_allocated_gb'] = round(allocated, 4)
+                logs['memory_reserved_gb'] = round(reserved, 4)
+                logs['max_memory_allocated_gb'] = round(max_allocated, 4)
+
+class HumanEvalOnSaveCallback(TrainerCallback):
+    """
+    A TrainerCallback that runs the HumanEval evaluation script via sbatch on each save.
+    """
+    def __init__(self, model_name, n_humaneval_evaluations):
+        self.model_name = model_name
+        self.n_humaneval_evaluations = n_humaneval_evaluations
+        self.eval_working_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../Evaluation/HumanEval'))
+        self.eval_script_path = os.path.join(self.eval_working_dir, 'eval_script/eval_adapter.sh')
+
+        print("--- HumanEval Callback Initialized ---")
+        print(f"  Evaluation script path: {self.eval_script_path}")
+        print(f"  Evaluation working directory: {self.eval_working_dir}")
+        print("------------------------------------")
+
+    def on_save(self, args, state, control, **kwargs):
+        if state.is_world_process_zero:
+            checkpoint_dir = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
+            adapter_path_abs = os.path.abspath(checkpoint_dir)
+
+            print(f"\n--- Submitting HumanEval script for adapter: {adapter_path_abs} ---")
+
+            try:
+                # Submit Haskell evaluation
+                hs_command = ['sbatch', self.eval_script_path, adapter_path_abs, "hs", self.model_name, str(self.n_humaneval_evaluations)]
+                print(f"  Running command: {' '.join(hs_command)}")
+                subprocess.run(hs_command, check=True, cwd=self.eval_working_dir)
+                print(f"  Successfully submitted Haskell evaluation script.")
+
+                # Submit Python evaluation
+                # py_command = ['sbatch', self.eval_script_path, adapter_path_abs, "python", self.model_name, str(self.n_humaneval_evaluations)]
+                # print(f"  Running command: {' '.join(py_command)}")
+                # subprocess.run(py_command, check=True, cwd=self.eval_working_dir)
+                # print(f"  Successfully submitted Python evaluation script.")
+
+            except subprocess.CalledProcessError as e:
+                print(f"  ERROR: Failed to submit evaluation script. Error: {e}")
+            except FileNotFoundError:
+                print(f"  ERROR: 'sbatch' command not found. Make sure you are in a Slurm environment.")
+            
+            print("-------------------------------------------------------------------\n")
 
 def main():
     # Recommended by torchdynamo logs for dealing with tensor.item() graph breaks
@@ -41,6 +101,10 @@ def main():
     parser.add_argument('--logging_steps', type=int, default=10, help="Log every X updates steps.")
     parser.add_argument('--save_steps', type=int, default=100, help="Save checkpoint every X updates steps.")
     
+    # HumanEval Arguments
+    parser.add_argument('--run_humaneval_evaluation', action='store_true', help="Flag to run HumanEval evaluation on each save.")
+    parser.add_argument('--n_humaneval_evaluations', type=int, default=4, help="Number of HumanEval problems to evaluate for each language.")
+    parser.add_argument('--log_memory_usage', action='store_true', help="Flag to log GPU memory usage during training.")
     
     args = parser.parse_args()
 
@@ -78,13 +142,13 @@ def main():
         # --- Tokenize Dataset ---
         def tokenize_function(examples):
             # We tokenize the 'text' field which contains our formatted prompt
-            return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=4096)
+            # Padding is now handled dynamically by the DataCollatorForLanguageModeling.
+            return tokenizer(examples["text"], truncation=True, max_length=4096)
 
         print("Tokenizing dataset...")
         tokenized_dataset = processed_dataset.map(
             tokenize_function, 
             batched=True, 
-            num_proc=os.cpu_count(), 
             remove_columns=["text"]
         )
 
@@ -115,13 +179,14 @@ def main():
         learning_rate=args.learning_rate,
         logging_dir=f'{args.output_dir}/logs',
         logging_steps=args.logging_steps,
-        eval_strategy="epoch",
-        save_strategy="epoch",
+        eval_strategy="steps",
+        eval_steps=args.save_steps,
+        save_strategy="steps",
         save_steps=args.save_steps,
         bf16=True,
         tf32=True,
         torch_compile=True,
-        save_total_limit=10,
+        save_total_limit=None,
         load_best_model_at_end=False,
         metric_for_best_model="eval_loss",
         lr_scheduler_type=args.lr_scheduler_type,
@@ -130,13 +195,24 @@ def main():
         ddp_find_unused_parameters=False
     )
 
+    callbacks = []
+    if args.run_humaneval_evaluation:
+        callbacks.append(HumanEvalOnSaveCallback(
+            model_name=args.model_name_or_path,
+            n_humaneval_evaluations=args.n_humaneval_evaluations
+        ))
+    
+    if args.log_memory_usage:
+        callbacks.append(MemoryUsageCallback())
+
     trainer = Trainer(
         model=peft_model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
-        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False)
+        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
+        callbacks=callbacks
     )
 
     print("Starting training...")

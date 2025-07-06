@@ -2,7 +2,7 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard-Noble
-#SBATCH --mem=80000
+#SBATCH --mem=515000
 #SBATCH --time=1-00:00:00                 # 2 hours should be sufficient
 #SBATCH --output=log/slurm-sft-tokenize-data-%j.out
 
@@ -53,7 +53,8 @@ echo "Running data tokenization script..."
 python tokenize_data.py \
     --dataset_name "$SOURCE_DATASET_NAME" \
     --model_name_or_path "$MODEL_NAME" \
-    --output_dir "$TOKENIZED_DATA_DIR"
+    --output_dir "$TOKENIZED_DATA_DIR" \
+    --interleaved_split
 
 echo "Data tokenization complete. Processed data saved to $TOKENIZED_DATA_DIR"
 

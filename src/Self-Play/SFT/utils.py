@@ -37,8 +37,7 @@ def load_model_for_training(
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
-        device_map={"": torch.cuda.current_device()} # Ensures model is on the correct device for FSDP
+        attn_implementation="flash_attention_2"
     )
 
     # --- LoRA Configuration ---
@@ -49,7 +48,9 @@ def load_model_for_training(
         lora_alpha=lora_alpha,
         lora_dropout=lora_dropout,
         task_type="CAUSAL_LM",
-        target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+        # Fine-tune only MLP blocks (gate_proj, up_proj, down_proj) to teach Haskell syntax without disturbing reasoning circuitry
+        # Freeze attention projections (q_proj, k_proj, v_proj, o_proj) to preserve the model’s chain-of-thought and long-range dependency skills
+        target_modules=["gate_proj", "up_proj", "down_proj"]
     )
     
     model = get_peft_model(model, lora_config)
