@@ -1,11 +1,32 @@
 #!/bin/bash
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
+#SBATCH --partition=PGR-Standard-Noble    # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                   
-#SBATCH --mem=96000
+#SBATCH --mem=515000
 #SBATCH --time=0-168:00:00
 #SBATCH --output=log/slurm-eval-adapter-%j.out
+
+# Find CUDA
+if [[ -z "$CUDA_HOME" ]]; then
+  if command -v nvcc &>/dev/null; then
+    CUDA_HOME="$(dirname "$(dirname "$(which nvcc)")")"
+  else
+    CUDA_HOME="$(ls -d /usr/local/cuda-* /opt/cuda-* 2>/dev/null | sort -V | tail -n1)"
+  fi
+fi
+
+if [[ ! -d "$CUDA_HOME" ]]; then
+  echo "ERROR: cannot locate CUDA_HOME ($CUDA_HOME)" >&2
+  exit 1
+fi
+echo "CUDA_HOME: $CUDA_HOME"
+
+# Set library paths
+export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
+export LIBRARY_PATH=${CUDA_HOME}/lib64:$LIBRARY_PATH
+export CPATH=${CUDA_HOME}/include:$CPATH
+export PATH=${CUDA_HOME}/bin:${PATH}
 
 mkdir -p /disk/scratch/$(whoami)
 export TMPDIR=/disk/scratch/$(whoami)/
@@ -46,6 +67,6 @@ for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
     --use_vllm
 done
 
-# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.05_epochs_5_learning_rate_2e-4_batch_4_grad_steps_8/final_adapter hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 16
+# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_5e-4_batch_4_grad_steps_8/checkpoint-1000 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 4
 
 

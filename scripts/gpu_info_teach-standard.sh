@@ -1,41 +1,53 @@
 #!/bin/sh
-#SBATCH -N 1	  # nodes requested
-#SBATCH -n 1	  # tasks requested
+#SBATCH -N 1
+#SBATCH -n 1
 #SBATCH --partition=Teach-Standard
-#SBATCH --gres=gpu:8
-#SBATCH --mem=48000  # memory in Mb
-#SBATCH --time=0-08:00:00
-#SBATCH --output=log/slurm/slurm-%j.out   # %j = Job ID
+#SBATCH --gres=gpu:a6000:2                  # specifically four A40 GPUs
+#SBATCH --mem=96000
+#SBATCH --time=1-00:00:00
+#SBATCH --exclusive              # entire node exclusively yours
+#SBATCH --output=log/slurm-sft-train-%j.out
 
+# --- Environment Setup ---
+# Find CUDA
+if [[ -z "$CUDA_HOME" ]]; then
+  if command -v nvcc &>/dev/null; then
+    CUDA_HOME="$(dirname "$(dirname "$(which nvcc)")")"
+  else
+    CUDA_HOME="$(ls -d /usr/local/cuda-* /opt/cuda-* 2>/dev/null | sort -V | tail -n1)"
+  fi
+fi
 
-export CUDA_HOME=/opt/cuda-9.0.176.1/
+if [[ ! -d "$CUDA_HOME" ]]; then
+  echo "ERROR: cannot locate CUDA_HOME ($CUDA_HOME)" >&2
+  exit 1
+fi
+echo "CUDA_HOME: $CUDA_HOME"
 
-export CUDNN_HOME=/opt/cuDNN-7.0/
-
-export STUDENT_ID=$(whoami)
-
-export LD_LIBRARY_PATH=${CUDNN_HOME}/lib64:${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
-
-export LIBRARY_PATH=${CUDNN_HOME}/lib64:$LIBRARY_PATH
-
-export CPATH=${CUDNN_HOME}/include:$CPATH
-
+# Set library paths
+export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
+export LIBRARY_PATH=${CUDA_HOME}/lib64:$LIBRARY_PATH
+export CPATH=${CUDA_HOME}/include:$CPATH
 export PATH=${CUDA_HOME}/bin:${PATH}
 
-export PYTHON_PATH=$PATH
-
+# Set temporary directory for scratch space
+export STUDENT_ID=$(whoami)
 mkdir -p /disk/scratch/${STUDENT_ID}
-
 export TMPDIR=/disk/scratch/${STUDENT_ID}/
 export TMP=/disk/scratch/${STUDENT_ID}/
 
-mkdir -p ${TMP}/datasets/
-export DATASET_DIR=${TMP}/datasets/
+# Set BNB_CUDA_VERSION to match CUDA version
+export BNB_CUDA_VERSION=125
+
+# Activate Conda environment
+source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 free -h > log/Teach_standard_memory_info.txt
 
 nvidia-smi > log/Teach_standard_gpu_info.txt
 
 source /home/${STUDENT_ID}/miniconda3/bin/activate llm_sp
+
+nvcc --version > log/Teach_standard_nvcc_version.txt
 
 python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU count: {torch.cuda.device_count()}'); [print(f'GPU {i}: {torch.cuda.get_device_name(i)}') for i in range(torch.cuda.device_count())]" > log/Teach_standard_cuda_device.txt

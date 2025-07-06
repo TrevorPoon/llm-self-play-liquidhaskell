@@ -1,0 +1,15 @@
+{
+    "timestamp": "20250706_013656",
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+    "language": "hs",
+    "max_new_tokens": 32768,
+    "evaluation_results": {
+        "pass@1": 0.6463414634146342
+    },
+    "failed_code_extractions": 0,
+    "use_openrouter": false,
+    "use_vllm": true,
+    "tokenizer_path": null,
+    "adapter_path": null,
+    "gpu_memory_utilization": 0.8
+}

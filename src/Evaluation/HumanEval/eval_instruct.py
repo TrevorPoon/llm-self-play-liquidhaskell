@@ -124,7 +124,7 @@ def build_deepseekcoder_instruction(language: str, question: str):
         <think>
         """.strip()
 
-def generate_one_openrouter(example, lang, client, model_name, max_new_tokens):
+def generate_one_openrouter(example, lang, client, model_name, max_new_tokens, temperature, top_p, top_k):
     system_prompt, user_prompt = build_openrouter_instruct(language_settings[lang]['full_name'], example['prompt'])
     
     print(f"\n[DEBUG][generate_one_openrouter] Task ID: {example.get('task_id', 'N/A')}")
@@ -138,8 +138,8 @@ def generate_one_openrouter(example, lang, client, model_name, max_new_tokens):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.6,
-            top_p=0.95,
+            temperature=temperature,
+            top_p=top_p,
             max_tokens=max_new_tokens,
         )
         output = completion.choices[0].message.content
@@ -154,7 +154,7 @@ def generate_one_openrouter(example, lang, client, model_name, max_new_tokens):
     print(f"[DEBUG][generate_one_openrouter] Extraction Code for Task ID {example.get('task_id', 'N/A')}:\n{gen_example.get('generation', 'N/A')}")
     return gen_example, success
 
-def generate_one(example, lang, tokenizer, model, max_new_tokens):
+def generate_one(example, lang, tokenizer, model, max_new_tokens, temperature, top_p, top_k):
     prompt = build_deepseekcoder_instruction(language_settings[lang]['full_name'], example['prompt'])
     inputs = tokenizer.apply_chat_template(
         [{'role': 'user', 'content': prompt }],
@@ -188,9 +188,9 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens):
             outputs = model.generate(
                 inputs,
                 max_length=inputs.shape[-1] + max_new_tokens,
-                temperature=0.6,
-                top_p=0.95,
-                top_k=20,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
                 min_p=0,
                 pad_token_id=stop_id,
                 eos_token_id=stop_id,
@@ -223,6 +223,10 @@ def save_results(args, result_data, failed_extractions=0):
         "model": args.model,
         "language": args.language,
         "max_new_tokens": args.max_new_tokens,
+        "temperature": args.temperature,
+        "top_p": args.top_p,
+        "top_k": args.top_k,
+        "presence_penalty": args.presence_penalty,
         "evaluation_results": result_data,
         "failed_code_extractions": failed_extractions,
         "use_openrouter": args.use_openrouter,
@@ -243,7 +247,11 @@ def generate_main(args):
     saved_path = args.output_path
     temp_dir = args.temp_dir
     max_new_tokens = args.max_new_tokens
+    temperature = args.temperature
+    top_p = args.top_p
+    top_k = args.top_k
     presence_penalty = args.presence_penalty
+    
     os.makedirs(temp_dir, exist_ok=True)
     problem_file = os.path.join(data_abs_dir, f"humaneval-{lang}.jsonl")
 
@@ -270,7 +278,7 @@ def generate_main(args):
         failed_extraction_count = 0
         for ex in tqdm(examples, desc='Generating with OpenRouter'):
             print(f"\n[DEBUG][generate_main] Processing Task ID: {ex.get('task_id', 'N/A')}")
-            gen_example, extraction_successful = generate_one_openrouter(ex, lang, client, model_name_or_path, max_new_tokens)
+            gen_example, extraction_successful = generate_one_openrouter(ex, lang, client, model_name_or_path, max_new_tokens, temperature, top_p, top_k)
             if not extraction_successful:
                 failed_extraction_count += 1
             generated_examples.append(gen_example)
@@ -296,9 +304,9 @@ def generate_main(args):
             tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path or model_name_or_path)
 
             sampling_params = SamplingParams(
-                temperature=0.6,
-                top_p=0.95,
-                top_k=20,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
                 max_tokens=max_new_tokens,
                 stop=tokenizer.eos_token,
                 presence_penalty=presence_penalty,
@@ -356,7 +364,7 @@ def generate_main(args):
             failed_extraction_count = 0  # Initialize counter
             for ex in tqdm(examples, desc='Generating'):
                 print(f"\n[DEBUG][generate_main] Processing Task ID: {ex.get('task_id', 'N/A')}")
-                gen_example, extraction_successful = generate_one(ex, args.language, tokenizer, model, max_new_tokens)
+                gen_example, extraction_successful = generate_one(ex, args.language, tokenizer, model, max_new_tokens, temperature, top_p, top_k)
                 if not extraction_successful:
                     failed_extraction_count += 1
                 generated_examples.append(gen_example)
@@ -444,6 +452,11 @@ if __name__ == '__main__':
     parser.add_argument('--temp_dir', type=str, help="temp dir for evaluation", default="tmp")
     parser.add_argument('--max_new_tokens', type=int, help="max new tokens", default=4096)
     parser.add_argument('--evaluation_only', action='store_true', help="if only evaluate the output file")
+
+    # Sampling parameters
+    parser.add_argument('--temperature', type=float, default=0.6, help="Temperature for sampling.")
+    parser.add_argument('--top_p', type=float, default=0.95, help="Top-p for sampling.")
+    parser.add_argument('--top_k', type=int, default=20, help="Top-k for sampling.")
     parser.add_argument('--presence_penalty', type=float, default=1.5, help="Presence penalty for sampling.")
     
     # OpenRouter specific arguments
@@ -453,7 +466,7 @@ if __name__ == '__main__':
 
     # vLLM specific arguments
     parser.add_argument('--adapter_path', type=str, default=None, help="Path to LoRA adapter weights, for use with vLLM.")
-    parser.add_argument('--gpu_memory_utilization', type=float, default=0.8, help="The fraction of GPU memory to be used for the vLLM KV cache.")
+    parser.add_argument('--gpu_memory_utilization', type=float, default=0.9, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     
 
     args = parser.parse_args()
