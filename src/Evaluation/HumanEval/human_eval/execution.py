@@ -625,7 +625,7 @@ def check_correctness(
                         result.append("passed")
                     else:
                         error_message = exec_result.stderr.decode() if exec_result.stderr else "Unknown execution error"
-                        result.append(f"failed: {error_message}")
+                        result.append(f"failed: execution error: {error_message}")
                         print(f"[DEBUG][unsafe_execute] Haskell execution failed for {task_id}. Error: {error_message}")
 
             except TimeoutException:

@@ -39,6 +39,7 @@ export TMP=/disk/scratch/${STUDENT_ID}/
 
 # Set BNB_CUDA_VERSION to match CUDA version
 export BNB_CUDA_VERSION=125
+export HF_HUB_OFFLINE=1
 
 # Activate Conda environment
 source /home/$(whoami)/miniconda3/bin/activate llm_sp
@@ -46,12 +47,12 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 # --- Job Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_PATH="../data/sft_tokenized_haskell_dataset" # Path from prepare_data.py
-DATASET_FRACTION=0.5
+DATASET_FRACTION=0.3
 
 # Hyperparameters
 NUM_TRAIN_EPOCHS=10
-LEARNING_RATE=5e-4
-PER_DEVICE_TRAIN_BATCH_SIZE=4 # 4 is the max for A40s
+LEARNING_RATE=1e-4 
+PER_DEVICE_TRAIN_BATCH_SIZE=4 # 4 is the max for A40s for 4096 tokens 
 PER_DEVICE_EVAL_BATCH_SIZE=PER_DEVICE_TRAIN_BATCH_SIZE
 GRADIENT_ACCUMULATION_STEPS=8
 EVAL_ACCUMULATION_STEPS=GRADIENT_ACCUMULATION_STEPS
@@ -80,5 +81,5 @@ accelerate launch --config_file accelerate_config.yaml train.py \
     --dataset_fraction $DATASET_FRACTION \
     --dataset_is_tokenized \
     --run_humaneval_evaluation \
-    --n_humaneval_evaluations 3 \
+    --n_humaneval_evaluations 4 \
     --log_memory_usage

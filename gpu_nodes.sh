@@ -9,18 +9,20 @@ sinfo -N -o "%N" | tail -n +2 | xargs -I{} bash -c \
 
 echo "===================================================================================================="
 
-sinfo -Nel
+sinfo -Ne --format="%N %G %P %t %c %m %E"
+
+
 
 echo "===================================================================================================="
 
-# To inspect a single node:
-scontrol show node node01 | grep -i Gres
+# # To inspect a single node:
+# scontrol show node node01 | grep -i Gres
 
-# To do all nodes in one go:
-for n in $(sinfo -h -N -o "%N"); do
-  echo “=== $n ===”
-  scontrol show node $n | grep -i Gres
-done
+# # To do all nodes in one go:
+# for n in $(sinfo -h -N -o "%N"); do
+#   echo “=== $n ===”
+#   scontrol show node $n | grep -i Gres
+# done
 
 
 

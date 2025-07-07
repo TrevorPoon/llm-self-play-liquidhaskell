@@ -7,6 +7,7 @@ import random
 import logging
 import argparse
 import subprocess
+import shutil
 from tqdm import tqdm
 from peft import get_peft_model, LoraConfig, TaskType, PeftModel
 import vllm
@@ -279,10 +280,21 @@ class SInQ:
 
         self.base_model = None # Lazy load to save VRAM
 
+        self.initial_adapter_path = args.initial_adapter_path
+        if self.initial_adapter_path:
+            dest_path = os.path.join(self.args.output_dir, "initial_adapter_base")
+            if os.path.exists(self.initial_adapter_path):
+                if not os.path.exists(dest_path):
+                    logger.info(f"Copying initial adapter from {self.initial_adapter_path} to {dest_path}")
+                    shutil.copytree(self.initial_adapter_path, dest_path)
+            else:
+                logger.warning(f"Initial adapter path specified but not found: {self.initial_adapter_path}")
+                self.initial_adapter_path = None # Reset if not found
+
         self.executor = CodeExecutor(timeout=args.timeout)
         self.programs = self.load_initial_programs(args.dataset_name)
-        self.alice_adapter_path = None
-        self.bob_adapter_path = None
+        self.alice_adapter_path = self.initial_adapter_path
+        self.bob_adapter_path = self.initial_adapter_path
         self.cumulative_alice_training_data = []
 
     def _initialize_vllm(self):
@@ -514,8 +526,21 @@ class SInQ:
             target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
         )
 
-        logger.info("Creating a new PeftModel for training from base model.")
-        peft_model = get_peft_model(self.base_model, lora_config)
+        current_adapter_to_load = None
+        if model_type == "alice":
+            current_adapter_to_load = self.alice_adapter_path
+        elif model_type == "bob":
+            current_adapter_to_load = self.bob_adapter_path
+
+        if current_adapter_to_load and os.path.exists(current_adapter_to_load):
+            logger.info(f"Loading adapter from {current_adapter_to_load} to continue fine-tuning.")
+            peft_model = PeftModel.from_pretrained(self.base_model, current_adapter_to_load, is_trainable=True)
+        else:
+            if current_adapter_to_load:
+                logger.warning(f"Adapter path {current_adapter_to_load} not found. Creating a new adapter.")
+            logger.info("Creating a new PeftModel for training from base model.")
+            peft_model = get_peft_model(self.base_model, lora_config)
+
         peft_model.enable_input_require_grads()
 
         # Recommended for gradient checkpointing
@@ -807,6 +832,7 @@ def main():
     parser.add_argument('--difficulty_threshold', type=float, default=0.0, help="Difficulty threshold for filtering Alice's training data.")
     parser.add_argument('--n_humaneval_evaluations_per_iteration', type=int, default=1, help="Number of evaluations to run per iteration.")
     parser.add_argument('--run_evaluation', type=bool, default=True, help="Whether to run evaluation after each iteration.")
+    parser.add_argument('--initial_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter to continue fine-tuning from.")
     
     args = parser.parse_args()
 

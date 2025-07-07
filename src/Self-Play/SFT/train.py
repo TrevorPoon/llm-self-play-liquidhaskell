@@ -68,8 +68,8 @@ class HumanEvalOnSaveCallback(TrainerCallback):
                 print(f"  ERROR: Failed to submit evaluation script. Error: {e}")
             except FileNotFoundError:
                 print(f"  ERROR: 'sbatch' command not found. Make sure you are in a Slurm environment.")
-            
-            print("-------------------------------------------------------------------\n")
+                
+                print("-------------------------------------------------------------------\n")
 
 def main():
     # Recommended by torchdynamo logs for dealing with tensor.item() graph breaks
@@ -100,6 +100,7 @@ def main():
     parser.add_argument('--lr_scheduler_type', type=str, default="cosine", help="Learning rate scheduler type.")
     parser.add_argument('--logging_steps', type=int, default=10, help="Log every X updates steps.")
     parser.add_argument('--save_steps', type=int, default=100, help="Save checkpoint every X updates steps.")
+    parser.add_argument('--saving_strategy', type=str, default="epoch", help="Saving strategy.")
     
     # HumanEval Arguments
     parser.add_argument('--run_humaneval_evaluation', action='store_true', help="Flag to run HumanEval evaluation on each save.")
@@ -165,8 +166,6 @@ def main():
         tokenizer
     )
     peft_model.enable_input_require_grads()
-    # Recommended for gradient checkpointing
-    peft_model.config.use_cache = False
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -179,9 +178,9 @@ def main():
         learning_rate=args.learning_rate,
         logging_dir=f'{args.output_dir}/logs',
         logging_steps=args.logging_steps,
-        eval_strategy="steps",
+        eval_strategy=args.saving_strategy,
         eval_steps=args.save_steps,
-        save_strategy="steps",
+        save_strategy=args.saving_strategy,
         save_steps=args.save_steps,
         bf16=True,
         tf32=True,

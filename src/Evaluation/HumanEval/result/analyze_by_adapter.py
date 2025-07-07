@@ -7,17 +7,17 @@ import os
 
 # Directory containing this script
 results_dir = Path(__file__).parent
-base_dir = results_dir / 'base'
+base_dir = results_dir / 'base_vllm'
 
 # Collect all JSON files, distinguishing between base and adapter runs
 all_json_files = []
 
 # Add files from the main results directory (adapter runs)
 for f in results_dir.glob('*.json'):
-    if not f.parent.name == 'base': # Exclude 'base' subfolder here
+    if not f.parent.name == 'base_vllm': # Exclude 'base_vllm' subfolder here
         all_json_files.append((f, 'adapter'))
 
-# Add files from the 'base' subfolder
+# Add files from the 'base_vllm' subfolder
 for f in base_dir.glob('*.json'):
     all_json_files.append((f, 'base'))
 
@@ -29,11 +29,13 @@ for fpath, run_type in all_json_files:
             data = json.load(f)
             language = data.get('language')
             pass_at_1 = data.get('evaluation_results', {}).get('pass@1')
+            reasoning_trace_count = data.get('reasoning_trace_count')
             
             if language and pass_at_1 is not None:
                 record = {
                     'language': language,
                     'pass@1': pass_at_1,
+                    'reasoning_trace_count': reasoning_trace_count,
                     'type': run_type
                 }
                 if run_type == 'adapter':
@@ -58,23 +60,36 @@ if not all_records:
 records_df = pd.DataFrame(all_records)
 
 for language in records_df['language'].unique():
-    lang_df = records_df[records_df['language'] == language]
+    lang_df = records_df[records_df['language'] == language].copy()
     
+    has_reasoning_trace = 'reasoning_trace_count' in lang_df.columns and not lang_df['reasoning_trace_count'].isnull().all()
+    if has_reasoning_trace:
+        lang_df['reasoning_trace_count'] = lang_df['reasoning_trace_count'].fillna(0)
+
     # Separate base and adapter dataframes for the current language
     base_lang_df = lang_df[lang_df['type'] == 'base']
     adapter_lang_df = lang_df[lang_df['type'] == 'adapter']
 
     # Summarize base results
     base_summary = base_lang_df.groupby('iteration')['pass@1'].agg(['min', 'max', 'mean', 'count']).reset_index()
+    if has_reasoning_trace:
+        base_rtc_summary = base_lang_df.groupby('iteration')['reasoning_trace_count'].agg(mean_rtc='mean').reset_index()
+        base_summary = pd.merge(base_summary, base_rtc_summary, on='iteration', how='left')
 
     # Summarize adapter results
     adapter_summary = adapter_lang_df.groupby('iteration')['pass@1'].agg(['min', 'max', 'mean', 'count']).reset_index()
+    if has_reasoning_trace:
+        adapter_rtc_summary = adapter_lang_df.groupby('iteration')['reasoning_trace_count'].agg(mean_rtc='mean').reset_index()
+        adapter_summary = pd.merge(adapter_summary, adapter_rtc_summary, on='iteration', how='left')
     adapter_summary = adapter_summary.sort_values(by='iteration')
 
     # Combine base and adapter summaries for plotting
-    # Ensure 'iteration' is the first column and is consistent
     combined_summary = pd.concat([base_summary, adapter_summary], ignore_index=True)
-    
+    if has_reasoning_trace:
+        if 'mean_rtc' not in combined_summary.columns:
+            combined_summary['mean_rtc'] = 0
+        combined_summary['mean_rtc'] = combined_summary['mean_rtc'].fillna(0)
+
     # Plotting
     plt.style.use('seaborn-v0_8-whitegrid')
     plt.rcParams.update({
@@ -106,6 +121,15 @@ for language in records_df['language'].unique():
         mean_percentage = f"{row['mean']:.1%}"
         ax.text(x_positions[i], row['mean'] + 0.05, mean_percentage, ha='center', va='bottom', fontsize=12, color='dimgray')
 
+    if has_reasoning_trace:
+        ax2 = ax.twinx()
+        ax2.plot(x_positions, combined_summary['mean_rtc'], marker='^', color='green', linestyle='--', label='Mean Reasoning Trace Count')
+        for i, row in combined_summary.iterrows():
+            ax2.text(x_positions[i], row['mean_rtc'] + 0.5, f"{row['mean_rtc']:.0f}", ha='center', va='bottom', fontsize=10, color='darkgreen')
+        ax2.set_ylabel("Reasoning Trace Count")
+        max_rtc = combined_summary['mean_rtc'].max()
+        ax2.set_ylim(0, max_rtc * 1.2 if max_rtc > 0 else 10)
+
     ax.set_xlabel("Iteration (adapter) / Base")
     ax.set_ylabel("Pass@1 Rate")
     ax.set_title(f"Pass@1 Rate by Adapter Iteration with Base Benchmark for {language}")
@@ -118,6 +142,10 @@ for language in records_df['language'].unique():
         plt.Line2D([0], [0], marker='o', color='w', label='Min/Max Pass@1', markerfacecolor='#1f77b4', markersize=10),
         plt.Line2D([0], [0], marker='s', color='w', label='Mean Pass@1', markerfacecolor='#6a9bd8', markersize=10),
     ]
+    if has_reasoning_trace:
+        legend_elements.append(
+            plt.Line2D([0], [0], marker='^', color='w', label='Mean Reasoning Trace Count', markerfacecolor='green', markersize=8)
+        )
     ax.legend(handles=legend_elements, frameon=True, shadow=True, borderpad=1, loc='upper left')
     ax.grid(True, linestyle='--', alpha=0.6)
     plt.tight_layout()

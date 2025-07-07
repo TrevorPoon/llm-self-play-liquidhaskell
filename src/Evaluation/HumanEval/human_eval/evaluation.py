@@ -299,13 +299,22 @@ def evaluate_functional_correctness(
             print(f"[DEBUG][evaluate_functional_correctness] Result for {result['task_id']} completion {result['completion_id']}: {result['result']}")
 
     # Calculate pass@k.
-    total, correct = [], []
+    total, correct, compilation_count, execution_count = [], [], [], []
     for result in results.values():
         passed = [r[1]["passed"] for r in result]
+        compilation_error = [1 for r in result if "failed: compilation error" in r[1]["result"]]
+        execution_error = [1 for r in result if "failed: execution error" in r[1]["result"]]
+
         total.append(len(passed))
         correct.append(sum(passed))
+        compilation_count.append(len(compilation_error))
+        execution_count.append(len(execution_error))
+
     total = np.array(total)
     correct = np.array(correct)
+    compilation_count = np.array(compilation_count)
+    execution_count = np.array(execution_count)
+
     if evaluate_pass_at_k:
         ks = k
         pass_at_k = {f"pass@{k}": estimate_pass_at_k(total, correct, k).mean()
@@ -323,4 +332,11 @@ def evaluate_functional_correctness(
         print("\n[DEBUG][evaluate_functional_correctness] Evaluation Summary (pass@k not applicable):")
         print(f"[DEBUG][evaluate_functional_correctness]   Total Samples Evaluated: {np.sum(total)}")
         print(f"[DEBUG][evaluate_functional_correctness]   Total Correct Samples: {np.sum(correct)}")
-    return pass_at_k
+    
+    # Calculate number of compilation count and execution count
+    compilation_count = int(np.sum(compilation_count))
+    execution_count = int(np.sum(execution_count))
+    print(f"[DEBUG][evaluate_functional_correctness]   Total Compilation Errors: {compilation_count}")
+    print(f"[DEBUG][evaluate_functional_correctness]   Total Execution Errors: {execution_count}")
+
+    return pass_at_k, compilation_count, execution_count

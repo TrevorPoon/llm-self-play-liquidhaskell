@@ -2,7 +2,9 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard-Noble    # only nodes with A40s
-#SBATCH --gres=gpu:a40:4                   
+#SBATCH --gres=gpu:a40:4
+#SBATCH --cpus-per-task=64
+#SBATCH --exclusive                      # Request exclusive node access for consistent performance
 #SBATCH --mem=515000
 #SBATCH --time=0-168:00:00
 #SBATCH --output=log/slurm-eval-adapter-%j.out
@@ -28,6 +30,11 @@ export LIBRARY_PATH=${CUDA_HOME}/lib64:$LIBRARY_PATH
 export CPATH=${CUDA_HOME}/include:$CPATH
 export PATH=${CUDA_HOME}/bin:${PATH}
 
+export HF_HUB_OFFLINE=1
+export TORCHDYNAMO_VERBOSE=1
+export VLLM_WORKER_MULTIPROC_METHOD=spawn # Required for vLLM
+export VLLM_ENABLE_V1_MULTIPROCESSING=1
+
 mkdir -p /disk/scratch/$(whoami)
 export TMPDIR=/disk/scratch/$(whoami)/
 
@@ -35,10 +42,6 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 
 ADAPTER_PATH="$1"  #TODO: add model path
-if [ -z "$ADAPTER_PATH" ]; then
-    echo "Error: Model path argument is required."
-    exit 1
-fi
 MODEL_NAME=$(basename "$ADAPTER_PATH")
 
 echo "Adapter path: $ADAPTER_PATH"
@@ -55,9 +58,10 @@ echo "Model: $MODEL"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION="$4"
 echo "Number of HumanEval evaluations per iteration: $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION"
 
+
 for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
-  echo "--- Starting Evaluation Run $i ---"
-  CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_instruct.py \
+  echo "Running evaluation $i of $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION..."
+  CUDA_VISIBLE_DEVICES=0 python eval_instruct.py \
     --model "$MODEL" \
     --adapter_path "$ADAPTER_PATH" \
     --output_path "$OUTPUT_DIR/${LANG}.$MODEL.${MODEL_NAME}.jsonl" \
@@ -67,6 +71,7 @@ for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
     --use_vllm
 done
 
-# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_5e-4_batch_4_grad_steps_8/checkpoint-1000 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 4
+
+# sbatch eval_script/eval_adapter.sh "" hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
 
 

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from dotenv import load_dotenv
 import openai
 from datetime import datetime # Import datetime for timestamping results
+import random
 
 from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
@@ -19,6 +20,22 @@ data_abs_dir = Path(__file__).parent / "data"
 from utils.utils import extract_generation_code, language_settings
 from transformers import AutoTokenizer, AutoModelForCausalLM, LogitsProcessor, LogitsProcessorList
 from human_eval.evaluation import evaluate_functional_correctness
+
+
+def check_reasoning_trace(output):
+    """
+    Checks if a reasoning trace is present.
+    A reasoning trace is considered present if '</think>' is in the output
+    and there is some non-whitespace text before it.
+    """
+    if '</think>' not in output:
+        return False
+
+    # Find the content before the first '</think>'
+    pre_think_content = output.split('</think>', 1)[0]
+
+    # Check if there is any non-whitespace content
+    return bool(pre_think_content.strip())
 
 
 class EndThinkBlockProcessor(LogitsProcessor):
@@ -206,7 +223,7 @@ def generate_one(example, lang, tokenizer, model, max_new_tokens, temperature, t
     print(f"[DEBUG][generate_one] Extraction Code for Task ID {example.get('task_id', 'N/A')}:\n{gen_example.get('generation', 'N/A')}")
     return gen_example, success
 
-def save_results(args, result_data, failed_extractions=0):
+def save_results(args, result_data, failed_extractions=0, reasoning_trace_count=None, compilation_error_count=0, execution_error_count=0):
     """
     Saves the evaluation results, model, and generation parameters to a JSON file.
     """
@@ -229,10 +246,15 @@ def save_results(args, result_data, failed_extractions=0):
         "presence_penalty": args.presence_penalty,
         "evaluation_results": result_data,
         "failed_code_extractions": failed_extractions,
+        "compilation_error_count": compilation_error_count,
+        "execution_error_count": execution_error_count,
         "use_openrouter": args.use_openrouter,
         "use_vllm": args.use_vllm,
         "tokenizer_path": args.tokenizer_path
     }
+    if reasoning_trace_count is not None:
+        save_data["reasoning_trace_count"] = reasoning_trace_count
+
     if args.use_vllm:
         save_data["adapter_path"] = args.adapter_path
         save_data["gpu_memory_utilization"] = args.gpu_memory_utilization
@@ -250,6 +272,7 @@ def generate_main(args):
     temperature = args.temperature
     top_p = args.top_p
     top_k = args.top_k
+    min_p = args.min_p
     presence_penalty = args.presence_penalty
     
     os.makedirs(temp_dir, exist_ok=True)
@@ -299,6 +322,7 @@ def generate_main(args):
                 gpu_memory_utilization=args.gpu_memory_utilization,
                 max_model_len=args.max_new_tokens,
                 trust_remote_code=True,
+                seed=args.random_seed,
             )
             
             tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path or model_name_or_path)
@@ -307,9 +331,11 @@ def generate_main(args):
                 temperature=temperature,
                 top_p=top_p,
                 top_k=top_k,
+                min_p=min_p,
                 max_tokens=max_new_tokens,
                 stop=tokenizer.eos_token,
                 presence_penalty=presence_penalty,
+                seed=args.random_seed,
             )
 
             prompts = [
@@ -372,6 +398,15 @@ def generate_main(args):
     print("Generate all over!!!")
     print(f"[DEBUG][generate_main] Total failed code extractions: {failed_extraction_count}")
 
+    # --- Reasoning Trace Check ---
+    reasoning_trace_count = 0
+    for ex in generated_examples:
+        raw_output = ex.get('output', '')
+        if check_reasoning_trace(raw_output):
+            reasoning_trace_count += 1
+    print(f"[INFO] Reasoning trace count: {reasoning_trace_count}/{len(generated_examples)}")
+    # ---------------------------
+
     # Ensure the directory for the output file exists
     output_dir = os.path.dirname(saved_path)
     if output_dir: # Check if dirname is not empty (e.g. for relative paths in current dir)
@@ -383,19 +418,21 @@ def generate_main(args):
         print(f"Save {len(generated_examples)} processed examples into {saved_path} over!")
     
     print(f"[DEBUG][generate_main] Starting evaluation for {lang}...")
-    result = evaluate_functional_correctness(
+    result, compilation_error_count, execution_error_count = evaluate_functional_correctness(
         input_file=saved_path,
         tmp_dir=temp_dir,
-        n_workers=8,
+        n_workers=os.cpu_count(),
         timeout=120.0,
         problem_file=problem_file,
         language=lang
     )
     print(f"\n[DEBUG][generate_main] Final evaluation result for {lang} on {model_name_or_path}: {result}")
     print(f"Total failed code extractions: {failed_extraction_count}") # Print the count
+    print(f"[DEBUG][generate_main] Compilation count: {compilation_error_count}")
+    print(f"[DEBUG][generate_main] Execution count: {execution_error_count}")
     
     # Save the results
-    save_results(args, result, failed_extraction_count)
+    save_results(args, result, failed_extraction_count, reasoning_trace_count, compilation_error_count, execution_error_count)
 
 def evaluation_only(args):
     lang = args.language
@@ -430,18 +467,19 @@ def evaluation_only(args):
         print(f"Save {len(processed_examples)} processed examples into {processed_path} over!")
 
     print(f"[DEBUG][evaluation_only] Starting evaluation for {lang}...")
-    result = evaluate_functional_correctness(
+    result, compilation_error_count, execution_error_count = evaluate_functional_correctness(
         input_file=processed_path,
         tmp_dir=temp_dir,
-        n_workers=8,
+        n_workers=os.cpu_count(),
         timeout=120.0,
         problem_file=problem_file,
         language=lang
     )
     print(f"\n[DEBUG][evaluation_only] Final evaluation result for {lang}: {result}")
-    
+    print(f"[DEBUG][evaluation_only] Compilation count: {compilation_error_count}")
+    print(f"[DEBUG][evaluation_only] Execution count: {execution_error_count}")
     # Save the results
-    save_results(args, result) # No failed_extractions count for evaluation_only
+    save_results(args, result, compilation_error_count, execution_error_count) # No failed_extractions count for evaluation_only
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -458,11 +496,15 @@ if __name__ == '__main__':
     parser.add_argument('--top_p', type=float, default=0.95, help="Top-p for sampling.")
     parser.add_argument('--top_k', type=int, default=20, help="Top-k for sampling.")
     parser.add_argument('--presence_penalty', type=float, default=1.5, help="Presence penalty for sampling.")
+    parser.add_argument('--min_p', type=float, default=0, help="Min-p for sampling.")
     
     # OpenRouter specific arguments
     parser.add_argument('--use_openrouter', action='store_true', help="use OpenRouter API for generation")
     parser.add_argument('--openrouter_api_key', type=str, default=None, help="OpenRouter API key. Can also be set via OPENROUTER_API_KEY env var.")
     parser.add_argument('--use_vllm', action='store_true', help="Use vLLM for local generation")
+
+    # Random Seed
+    parser.add_argument('--random_seed', type=int, default=random.randint(1, 100000), help="Random seed for reproducibility.")
 
     # vLLM specific arguments
     parser.add_argument('--adapter_path', type=str, default=None, help="Path to LoRA adapter weights, for use with vLLM.")
