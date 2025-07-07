@@ -50,7 +50,7 @@ def load_model_for_training(
         task_type="CAUSAL_LM",
         # Fine-tune only MLP blocks (gate_proj, up_proj, down_proj) to teach Haskell syntax without disturbing reasoning circuitry
         # Freeze attention projections (q_proj, k_proj, v_proj, o_proj) to preserve the model’s chain-of-thought and long-range dependency skills
-        target_modules=["gate_proj", "up_proj", "down_proj"]
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     )
     
     model = get_peft_model(model, lora_config)

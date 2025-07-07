@@ -12,11 +12,14 @@ export TMPDIR=/disk/scratch/$(whoami)/
 
 source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
+export VLLM_WORKER_MULTIPROC_METHOD=spawn # Required for vLLM
+export VLLM_ENABLE_V1_MULTIPROCESSING=1
+
 LANG="hs"
 OUTPUT_DIR="output"
 MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_instruct.py \
+CUDA_VISIBLE_DEVICES=0 python eval_instruct.py \
   --model "$MODEL" \
   --output_path "$OUTPUT_DIR/${LANG}.$MODEL.jsonl" \
   --language $LANG \

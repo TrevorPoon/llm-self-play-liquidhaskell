@@ -1,4 +1,6 @@
 
+hs vllm base run
+
 # Evaluation
 livecodebench
 lm_eval
@@ -15,7 +17,3 @@ batch size experiment
 lr experiment
 
 
-
-utilize gpu for multi gen in multi gpus
-
-eval_instruct result/adapter_path
