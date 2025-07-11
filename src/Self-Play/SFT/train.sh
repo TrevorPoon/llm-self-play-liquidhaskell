@@ -1,12 +1,10 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
+#SBATCH --partition=PGR-Standard     # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
-#SBATCH --cpus-per-task=64
 #SBATCH --mem=515000
 #SBATCH --time=7-00:00:00
-#SBATCH --exclusive              # entire node exclusively yours
 #SBATCH --output=log/slurm-sft-train-%j.out
 
 # --- Environment Setup ---
@@ -51,7 +49,7 @@ DATASET_FRACTION=0.3
 
 # Hyperparameters
 NUM_TRAIN_EPOCHS=10
-LEARNING_RATE=1e-4 
+LEARNING_RATE=2e-4 
 PER_DEVICE_TRAIN_BATCH_SIZE=4 # 4 is the max for A40s for 4096 tokens 
 PER_DEVICE_EVAL_BATCH_SIZE=PER_DEVICE_TRAIN_BATCH_SIZE
 GRADIENT_ACCUMULATION_STEPS=8

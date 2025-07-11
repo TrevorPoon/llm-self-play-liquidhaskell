@@ -23,16 +23,8 @@ from human_eval.evaluation import evaluate_functional_correctness
 
 
 def check_reasoning_trace(output):
-    """
-    Checks if a reasoning trace is present.
-    A reasoning trace is considered present if '</think>' is in the output
-    and there is some non-whitespace text before it.
-    """
-    if '</think>' not in output:
-        return False
-
-    # Find the content before the first '</think>'
-    pre_think_content = output.split('</think>', 1)[0]
+    # Find the content before the first ```haskell
+    pre_think_content = output.split('```haskell', 1)[0]
 
     # Check if there is any non-whitespace content
     return bool(pre_think_content.strip())

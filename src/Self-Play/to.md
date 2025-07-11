@@ -1,5 +1,6 @@
 
-hs vllm base run
+hs vllm base run -- manual review
+all vllm baseline
 
 # Evaluation
 livecodebench
