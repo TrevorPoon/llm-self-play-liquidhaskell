@@ -1,19 +1,20 @@
 #!/bin/bash
 
-ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_1e-4_batch_4_grad_steps_8
+ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_reasoning_dataset_adapter_output_deepseek-ai_DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_1e-4_batch_4_grad_steps_8_checkpoint-5742_fraction_1_epochs_10_learning_rate_1e-4_batch_4_grad_steps_8
 TRIALS=4
 
 # Haskell HumanEval
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-638 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-1276 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-1914 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-2552 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-3190 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-3828 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-4466 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-5104 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-5742 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
-sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-6380 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-425 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-850 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-1275 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-1700 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-2125 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-2550 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-2975 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-3400 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-3825 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-4250 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS
+
 
 # Haskell HumanEval
 # sbatch eval_script/eval_adapter.sh $ADAPTER_PATH/checkpoint-1000 hs  deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B $TRIALS 

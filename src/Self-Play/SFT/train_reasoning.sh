@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=515000
 #SBATCH --time=7-00:00:00
-#SBATCH --exclude=crannog05,crannog07
 #SBATCH --output=log/slurm-sft-train-reasoning-%j.out
 
 # --- Environment Setup ---
@@ -49,15 +48,23 @@ MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_PATH="../data/sft_tokenized_reasoning_dataset" # Path from prepare_data.py
 DATASET_FRACTION=1
 
+# Optional: Path to an existing adapter to continue fine-tuning
+ADAPTER_PATH="output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_1e-4_batch_4_grad_steps_8/checkpoint-5742"
+echo "ADAPTER_PATH: $ADAPTER_PATH"
+
+ADAPTER_PATH_NAME=$(echo "$ADAPTER_PATH" | tr '/' '_')
+echo "ADAPTER_PATH_NAME: $ADAPTER_PATH_NAME"
+
+
 # Hyperparameters
 NUM_TRAIN_EPOCHS=10
-LEARNING_RATE=5e-4 
+LEARNING_RATE=1e-4 
 PER_DEVICE_TRAIN_BATCH_SIZE=4 # 4 is the max for A40s for 4096 tokens 
 PER_DEVICE_EVAL_BATCH_SIZE=PER_DEVICE_TRAIN_BATCH_SIZE
 GRADIENT_ACCUMULATION_STEPS=8
 EVAL_ACCUMULATION_STEPS=GRADIENT_ACCUMULATION_STEPS
 
-OUTPUT_DIR="output/${MODEL_NAME}_reasoning_dataset_fraction_${DATASET_FRACTION}_epochs_${NUM_TRAIN_EPOCHS}_learning_rate_${LEARNING_RATE}_batch_${PER_DEVICE_TRAIN_BATCH_SIZE}_grad_steps_${GRADIENT_ACCUMULATION_STEPS}"  
+OUTPUT_DIR="output/${MODEL_NAME}_reasoning_dataset_adapter_${ADAPTER_PATH_NAME}_fraction_${DATASET_FRACTION}_epochs_${NUM_TRAIN_EPOCHS}_learning_rate_${LEARNING_RATE}_batch_${PER_DEVICE_TRAIN_BATCH_SIZE}_grad_steps_${GRADIENT_ACCUMULATION_STEPS}"  
 
 
 # Ensure log directory exists
@@ -82,4 +89,5 @@ accelerate launch --config_file accelerate_config.yaml train.py \
     --dataset_is_tokenized \
     --run_humaneval_evaluation \
     --n_humaneval_evaluations 4 \
-    --log_memory_usage
+    --log_memory_usage \
+    --adapter_path "$ADAPTER_PATH"

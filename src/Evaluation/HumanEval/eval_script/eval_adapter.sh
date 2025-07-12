@@ -4,7 +4,7 @@
 #SBATCH --partition=PGR-Standard    # only nodes with A40s
 #SBATCH --gres=gpu:a40:1
 #SBATCH --mem=120000
-#SBATCH --time=0-01:00:00
+#SBATCH --time=0-02:00:00
 #SBATCH --output=log/slurm-eval-adapter-%j.out
 
 # Find CUDA
@@ -59,7 +59,7 @@ echo "Number of HumanEval evaluations per iteration: $NUM_HUMANEVAL_EVALUATIONS_
 
 for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
   echo "Running evaluation $i of $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION..."
-  CUDA_VISIBLE_DEVICES=0 python eval_instruct.py \
+  python eval_instruct.py \
     --model "$MODEL" \
     --adapter_path "$ADAPTER_PATH" \
     --output_path "$OUTPUT_DIR/${LANG}.$MODEL.${MODEL_NAME}.jsonl" \

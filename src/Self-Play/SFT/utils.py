@@ -1,7 +1,7 @@
 # Shared utility functions 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, PeftModel # Added PeftModel
 from typing import Optional
 
 def load_model_for_training(
@@ -9,7 +9,8 @@ def load_model_for_training(
     lora_r: int,
     lora_alpha: int,
     lora_dropout: float,
-    tokenizer: Optional[AutoTokenizer] = None
+    tokenizer: Optional[AutoTokenizer] = None,
+    adapter_path: Optional[str] = None # Added adapter_path
 ):
     """
     Loads a model and tokenizer for training, applying LoRA configuration.
@@ -39,21 +40,22 @@ def load_model_for_training(
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2"
     )
+    model.to('cuda')
 
     # --- LoRA Configuration ---
-    # Target modules can vary by model architecture.
-    # For Llama-like models, these are common targets.
     lora_config = LoraConfig(
         r=lora_r,
         lora_alpha=lora_alpha,
         lora_dropout=lora_dropout,
         task_type="CAUSAL_LM",
-        # Fine-tune only MLP blocks (gate_proj, up_proj, down_proj) to teach Haskell syntax without disturbing reasoning circuitry
-        # Freeze attention projections (q_proj, k_proj, v_proj, o_proj) to preserve the model’s chain-of-thought and long-range dependency skills
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     )
     
-    model = get_peft_model(model, lora_config)
+    if adapter_path: # Load existing adapter
+        print(f"Loading existing adapter from {adapter_path}...")
+        model = PeftModel.from_pretrained(model, adapter_path, is_trainable=True)
+    else: # Create new PEFT model
+        model = get_peft_model(model, lora_config)
     
     print("LoRA configured model ready for training.")
     model.print_trainable_parameters()

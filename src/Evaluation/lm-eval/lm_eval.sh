@@ -2,9 +2,9 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:4                    # specifically four A40 GPUs
-#SBATCH --mem=192000
-#SBATCH --time=0-168:00:00
+#SBATCH --gres=gpu:a40:1                    # specifically four A40 GPUs
+#SBATCH --mem=100000
+#SBATCH --time=0-01:00:00
 #SBATCH --output=log/slurm-eval-lm-eval-%j.out
 
 mkdir -p /disk/scratch/$(whoami)
@@ -27,12 +27,13 @@ export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
 export HF_ALLOW_CODE_EVAL=1
 export CUDA_VISIBLE_DEVICES=0
+export HF_ALLOW_CODE_EVAL=1
 
 export HF_HUB_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 
 lm_eval --model hf \
     --model_args pretrained=$MODEL_NAME \
-    --tasks mbpp \
+    --tasks mbpp
 
 

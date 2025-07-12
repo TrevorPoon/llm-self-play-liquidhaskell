@@ -53,16 +53,18 @@ class HumanEvalOnSaveCallback(TrainerCallback):
 
             try:
                 # Submit Haskell evaluation
-                hs_command = ['sbatch', self.eval_script_path, adapter_path_abs, "hs", self.model_name, str(self.n_humaneval_evaluations)]
-                print(f"  Running command: {' '.join(hs_command)}")
-                subprocess.run(hs_command, check=True, cwd=self.eval_working_dir)
-                print(f"  Successfully submitted Haskell evaluation script.")
+                # hs_command = ['sbatch', self.eval_script_path, adapter_path_abs, "hs", self.model_name, str(self.n_humaneval_evaluations)]
+                # print(f"  Running command: {' '.join(hs_command)}")
+                # subprocess.run(hs_command, check=True, cwd=self.eval_working_dir)
+                # print(f"  Successfully submitted Haskell evaluation script.")
 
-                # Submit Python evaluation
+                # # Submit Python evaluation
                 # py_command = ['sbatch', self.eval_script_path, adapter_path_abs, "python", self.model_name, str(self.n_humaneval_evaluations)]
                 # print(f"  Running command: {' '.join(py_command)}")
                 # subprocess.run(py_command, check=True, cwd=self.eval_working_dir)
                 # print(f"  Successfully submitted Python evaluation script.")
+
+                pass
 
             except subprocess.CalledProcessError as e:
                 print(f"  ERROR: Failed to submit evaluation script. Error: {e}")
@@ -106,6 +108,7 @@ def main():
     parser.add_argument('--run_humaneval_evaluation', action='store_true', help="Flag to run HumanEval evaluation on each save.")
     parser.add_argument('--n_humaneval_evaluations', type=int, default=4, help="Number of HumanEval problems to evaluate for each language.")
     parser.add_argument('--log_memory_usage', action='store_true', help="Flag to log GPU memory usage during training.")
+    parser.add_argument('--adapter_path', type=str, default=None, help="Path to an existing adapter to continue fine-tuning.")
     
     args = parser.parse_args()
 
@@ -163,7 +166,8 @@ def main():
         args.lora_r,
         args.lora_alpha,
         args.lora_dropout,
-        tokenizer
+        tokenizer,
+        args.adapter_path # Pass the adapter_path here
     )
     peft_model.enable_input_require_grads()
 
@@ -191,7 +195,8 @@ def main():
         lr_scheduler_type=args.lr_scheduler_type,
         warmup_ratio=args.warmup_ratio,
         report_to="tensorboard",
-        ddp_find_unused_parameters=False
+        ddp_find_unused_parameters=False,
+        weight_decay=0.01 # Added for regularization to combat overfitting
     )
 
     callbacks = []
