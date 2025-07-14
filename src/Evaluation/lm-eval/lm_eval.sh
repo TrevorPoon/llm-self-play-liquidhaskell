@@ -19,7 +19,7 @@ fi
 echo "Model name: $MODEL_NAME"
 
 ADAPTER_PATH="$2"  #TODO: add model path
-echo "Adapter path: $MODEL_PATH"
+echo "Adapter path: $ADAPTER_PATH"
 
 OUTPUT_DIR="results"
 
@@ -29,8 +29,8 @@ export HF_ALLOW_CODE_EVAL=1
 export CUDA_VISIBLE_DEVICES=0
 export HF_ALLOW_CODE_EVAL=1
 
-export HF_HUB_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
+export HF_HUB_OFFLINE=0
+export HF_DATASETS_OFFLINE=0
 
 lm_eval --model hf \
     --model_args pretrained=$MODEL_NAME \

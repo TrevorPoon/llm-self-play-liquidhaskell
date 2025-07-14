@@ -15,12 +15,30 @@ from transformers import AutoTokenizer
 
 
 def load_and_prepare_prompts(num_samples: int):
-    """Loads prompts from sdiazlor/python-reasoning-dataset, replaces 'Python' with 'Haskell'."""
-    print("Loading and preparing prompts from Hugging Face dataset...")
+    """Loads prompts from nvidia/OpenCodeInstruct, filters, sorts, and replaces 'Python' with 'Haskell'."""
+    print("Loading and preparing prompts from Hugging Face dataset (nvidia/OpenCodeInstruct)...")
     try:
-        dataset = load_dataset("sdiazlor/python-reasoning-dataset", split="train")
-        prompts = dataset['prompt']
-        print("Replacing 'Python' with 'Haskell' in prompts...")
+        dataset = load_dataset("nvidia/OpenCodeInstruct", split="train")
+
+        # Filter the dataset
+        print("Filtering dataset by domain='generic' and generation_algorithm='self-instruct'...")
+        filtered_dataset = dataset.filter(
+            lambda x: x['domain'] == 'generic' and x['generation_algorithm'] == 'self-instruct'
+        )
+        print(f"Dataset filtered. Original size: {len(dataset)}, Filtered size: {len(filtered_dataset)}")
+
+        # Sort the dataset
+        print("Sorting dataset by 'average_test_score' in descending order...")
+        sorted_dataset = filtered_dataset.sort("average_test_score", reverse=True)
+        print("Dataset sorted.")
+
+        # Get the first 100,000 samples or fewer if not enough
+        num_to_take_from_filtered = min(100000, len(sorted_dataset))
+        prompts = sorted_dataset['input'][:num_to_take_from_filtered]
+
+        print(f"First 100 prompts: {prompts[:100]}")
+
+        print(f"Loaded {len(prompts)} prompts after filtering and sorting.")
         modified_prompts = [re.sub(r'python', 'Haskell', p, flags=re.IGNORECASE) for p in prompts]
         random.shuffle(modified_prompts)
         num_to_take = min(num_samples, len(modified_prompts))
@@ -102,14 +120,18 @@ def main():
     parser = argparse.ArgumentParser(description="Generate a synthetic Haskell dataset using a local VLLM instance.")
     parser.add_argument('--num_samples', type=int, default=500, help="Number of samples to generate.")
     parser.add_argument('--output_dir', type=str, default='../data', help="Directory to save the dataset.")
-    parser.add_argument('--output_filename_arrow', type=str, default='synthetic_liquid_haskell_dataset.arrow', help="Filename for the output Arrow dataset.")
-    parser.add_argument('--output_filename_jsonl', type=str, default='synthetic_liquid_haskell_dataset.jsonl', help="Filename for the output JSONL dataset.")
+    parser.add_argument('--output_filename_arrow', type=str, default='synthetic_liquid_haskell_dataset_OpenCode_Instruct.arrow', help="Filename for the output Arrow dataset.")
+    parser.add_argument('--output_filename_jsonl', type=str, default='synthetic_liquid_haskell_dataset_OpenCode_Instruct.jsonl', help="Filename for the output JSONL dataset.")
     parser.add_argument('--upload_to_hf', action='store_true', help="Flag to upload the dataset to Hugging Face Hub.")
     parser.add_argument('--hf_repo_name', type=str, default="synthetic-liquid-haskell-dataset", help="The name of the Hugging Face repository.")
     parser.add_argument('--hf_username', type=str, help="Your Hugging Face username (required if uploading).")
     parser.add_argument('--model', type=str, default="deepseek-ai/DeepSeek-R1-Distill-Llama-70B", help="The name of the model to use for generation (via VLLM).")
     parser.add_argument('--gpu_memory_utilization', type=float, default=0.8, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     parser.add_argument('--max_new_tokens', type=int, default=4096, help="Maximum number of new tokens to generate per sample.")
+    parser.add_argument('--max_model_len', type=int, default=8192, help="Maximum sequence length for the model.")
+    parser.add_argument('--quantization', type=str, default=None, help="Quantization method to use (e.g., 'awq', 'bnb').")
+    parser.add_argument('--dtype', type=str, default='bfloat16', help="Data type to use for the model (e.g., 'bfloat16').")
+    parser.add_argument('--pipeline_parallel_size', type=int, default=1, help="Number of pipeline parallelism stages (GPUs). Set to 1 to disable.")
     
     args = parser.parse_args()
 
@@ -119,13 +141,38 @@ def main():
     # --- 1. Configure VLLM ---
     print(f"Loading model {args.model} with vLLM...")
     num_gpus = torch.cuda.device_count()
-    print(f"Initializing vLLM with tensor_parallel_size={num_gpus}")
+    
+    # If quantization is enabled, disable tensor parallelism to avoid ValueError with BitsAndBytes.
+    # If pipeline_parallel_size is explicitly set, use it. Otherwise, default to num_gpus for pipeline.
+    if args.quantization:
+        print(f"Quantization '{args.quantization}' enabled. Forcing tensor_parallel_size=1.")
+        tensor_parallel_size = 1
+        if args.pipeline_parallel_size == 1 and num_gpus > 1: # If default and multiple GPUs, suggest using all for pipeline
+            print(f"Suggestion: With quantization, consider setting --pipeline_parallel_size={{num_gpus}} to utilize all GPUs.")
+    else:
+        # If no quantization, default to tensor parallelism across all GPUs for efficiency
+        # unless pipeline_parallel_size is explicitly set.
+        if args.pipeline_parallel_size > 1:
+            print(f"Pipeline parallelism requested (--pipeline_parallel_size={{args.pipeline_parallel_size}}). Setting tensor_parallel_size=1.")
+            tensor_parallel_size = 1
+        else:
+            print(f"No quantization or pipeline parallelism specified. Defaulting to tensor_parallel_size={{num_gpus}}.")
+            tensor_parallel_size = num_gpus
+
+    # Ensure pipeline_parallel_size is set based on explicit argument, or default to 1 if not used.
+    pipeline_parallel_size = args.pipeline_parallel_size
+
+    print(f"Initializing vLLM with tensor_parallel_size={tensor_parallel_size} and pipeline_parallel_size={pipeline_parallel_size}")
     
     llm = LLM(
         model=args.model,
-        tensor_parallel_size=num_gpus,
+        tensor_parallel_size=tensor_parallel_size,
+        pipeline_parallel_size=pipeline_parallel_size,
         gpu_memory_utilization=args.gpu_memory_utilization,
         trust_remote_code=True,
+        quantization=args.quantization,
+        dtype=args.dtype,
+        max_model_len=args.max_model_len,
     )
     
     tokenizer = AutoTokenizer.from_pretrained(args.model)

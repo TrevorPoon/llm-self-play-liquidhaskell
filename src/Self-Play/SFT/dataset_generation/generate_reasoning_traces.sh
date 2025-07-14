@@ -45,7 +45,7 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 # The source dataset containing Haskell code
 SOURCE_DATASET_PATH="../../data/sorted_blastwind_haskell_dataset"
 # The fraction of the source dataset to process
-DATA_FRACTION=0.5
+DATA_FRACTION=0.3
 # Model for generation
 MODEL_NAME="unsloth/DeepSeek-R1-Distill-Llama-70B-bnb-4bit" # unsloth/DeepSeek-R1-Distill-Llama-70B-bnb-4bit
 # VLLM configuration

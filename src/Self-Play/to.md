@@ -1,6 +1,6 @@
 
 hs vllm base run -- manual review
-all vllm baseline
+plain haskell 0.5 data_fraction run 5e-4
 
 # Evaluation
 livecodebench

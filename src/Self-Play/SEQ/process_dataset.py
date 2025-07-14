@@ -4,20 +4,33 @@ import os
 import tempfile
 import shutil
 import re
+import argparse
 
 def process_haskell_code(haskell_code_content):
-    """
-    Processes a single Liquid Haskell code block by writing it to a temporary file,
-    running Liquid Haskell, and capturing the output.
-    Returns a tuple (success_status, liquid_summary, full_output).
-    """
     temp_dir = tempfile.mkdtemp()
     haskell_file_name = "MyTest.hs"
     haskell_file_path = os.path.join(temp_dir, haskell_file_name)
 
     try:
+        has_module_decl = haskell_code_content.strip().startswith("module")
+        
+        final_haskell_code = haskell_code_content
+        if not has_module_decl:
+            header = """
+module MyTempModule where
+
+import Prelude
+import Data.List
+import Data.Char
+import Data.Maybe
+import Text.Read (readMaybe)
+"""
+            final_haskell_code = header.strip() + "\n\n" + haskell_code_content
+
+            print(f"Final Haskell code: {final_haskell_code}")
+
         with open(haskell_file_path, "w") as f:
-            f.write(haskell_code_content)
+            f.write(final_haskell_code)
 
         liquid_command = ["ghc", "-fplugin=LiquidHaskell", haskell_file_name]
 
@@ -26,31 +39,32 @@ def process_haskell_code(haskell_code_content):
 
         process = subprocess.run(
             liquid_command,
-            check=False,  # Do not raise CalledProcessError, we want to capture stdout/stderr
+            check=False,
             capture_output=True,
             text=True,
             cwd=temp_dir,
             env=env
         )
 
-        print(f"Process: {process}")
-        print(f"Process.stdout: {process.stdout}")
-        print(f"Process.stderr: {process.stderr}")
-
         full_output = process.stdout + process.stderr
+        
+        print(f"Liquid command output: {full_output}")
+        print("="*100)
+
         liquid_summary = "LIQUID_SUMMARY_NOT_FOUND"
         for line in process.stdout.splitlines():
             if "LIQUID:" in line:
                 liquid_summary = line.strip()
                 break
-        
-        if process.returncode != 0:
-            return "compilation_error", liquid_summary, full_output
-        elif "LIQUID: SAFE" in liquid_summary:
+    
+
+        if "LIQUID: SAFE" in liquid_summary:
             return "LIQUID:SAFE", liquid_summary, full_output
-        elif "LIQUID: UNSAFE" in liquid_summary or "LIQUID_SUMMARY_NOT_FOUND" in liquid_summary:
-            return "liquid_output_error", liquid_summary, full_output
-        else: # Catch any other unexpected success from ghc
+        elif "LIQUID: UNSAFE" in liquid_summary:
+            return "liquid_unsafe_error", liquid_summary, full_output
+        elif process.returncode != 0:
+            return "compilation_error", liquid_summary, full_output
+        else:
             return "unknown_error", liquid_summary, full_output
 
     except Exception as e:
@@ -59,61 +73,72 @@ def process_haskell_code(haskell_code_content):
         shutil.rmtree(temp_dir)
 
 def main():
-    dataset_path = "../data/synthetic_liquid_haskell_dataset/synthetic_liquid_haskell_dataset.jsonl"
+    parser = argparse.ArgumentParser(description="Run LiquidHaskell check on completions.")
+    parser.add_argument("--row", type=int, default=None, help="Specify a single row index to run.")
+    parser.add_argument("--file", type=str, default="../data/synthetic_liquid_haskell_dataset/synthetic_liquid_haskell_dataset.jsonl", help="Path to dataset file")
+    args = parser.parse_args()
+
+    dataset_path = args.file
+    single_row = args.row
 
     stats = {
         "total_completions": 0,
         "code_extraction_failure": 0,
         "compilation_error": 0,
-        "liquid_output_error": 0, # Includes LIQUID: UNSAFE and LIQUID_SUMMARY_NOT_FOUND
+        "liquid_unsafe_error": 0,
         "LIQUID:SAFE": 0,
-        "execution_error": 0, # For unexpected Python errors during processing
+        "execution_error": 0,
     }
 
     print(f"Processing dataset from: {dataset_path}")
 
     with open(dataset_path, 'r') as f:
-        for line in f:
-            stats["total_completions"] += 1
-            data = json.loads(line)
-            completion = data.get('completion', '')
+        lines = f.readlines()
 
-            # Regex to find the last ```haskell ... ``` block
-            # This regex looks for the last occurrence of ```haskell, then any characters (non-greedy)
-            # until the next ```. The re.DOTALL flag is important for matching across newlines.
-            match = re.findall(r'```haskell\n(.*?)\n```', completion, re.DOTALL)
-            
-            haskell_code = None
-            if match:
-                haskell_code = match[-1].strip() # Get the last match and strip whitespace
+    if single_row is not None:
+        if 0 <= single_row < len(lines):
+            lines = [lines[single_row]]
+        else:
+            print(f"Row index {single_row} is out of range. Dataset has {len(lines)} rows.")
+            return
 
-            print(f"Haskell Code: {haskell_code}")
+    for idx, line in enumerate(lines):
+        stats["total_completions"] += 1
+        data = json.loads(line)
+        completion = data.get('completion', '')
 
-            if not haskell_code:
-                stats["code_extraction_failure"] += 1
-                continue
+        match = re.findall(r'```haskell\n(.*?)\n```', completion, re.DOTALL)
+        haskell_code = match[-1].strip() if match else None
 
-            status, liquid_summary, full_output = process_haskell_code(haskell_code)
-            
-            if status == "compilation_error":
-                stats["compilation_error"] += 1
-            elif status == "liquid_output_error":
-                stats["liquid_output_error"] += 1
-            elif status == "LIQUID:SAFE":
-                stats["LIQUID:SAFE"] += 1
-            elif status == "execution_error":
-                stats["execution_error"] += 1
-            else:
-                # This should ideally not be hit if all cases are covered
-                print(f"Unexpected status: {status} for completion: {completion[:100]}...")
-    
+        if not haskell_code:
+            stats["code_extraction_failure"] += 1
+            print(f"⚠️ Code block not found for row {idx}")
+            continue
+
+        status, liquid_summary, full_output = process_haskell_code(haskell_code)
+
+        if status == "compilation_error":
+            stats["compilation_error"] += 1
+            print(f"🟨 🟥 Compilation Error for row {idx}")
+        elif status == "liquid_unsafe_error":
+            stats["liquid_unsafe_error"] += 1
+            print(f"🟨 🟥 Liquid Output Error for row {idx}")
+        elif status == "LIQUID:SAFE":
+            stats["LIQUID:SAFE"] += 1
+            print(f"🟨 🟢 LIQUID:SAFE for row {idx}")
+        elif status == "execution_error":
+            stats["execution_error"] += 1
+            print(f"🟨 🟥 Execution Error for row {idx}")
+        else:
+            print(f"Unexpected status: {status} for row {idx}")
+
     print("\n--- Summary ---")
     print(f"Total Completions Processed: {stats['total_completions']}")
     print(f"Code Extraction Failures: {stats['code_extraction_failure']}")
     print(f"Compilation Errors: {stats['compilation_error']}")
-    print(f"Liquid Output Errors (UNSAFE/Not Found): {stats['liquid_output_error']}")
+    print(f"Liquid Output Errors (UNSAFE/Not Found): {stats['liquid_unsafe_error']}")
     print(f"LIQUID:SAFE Checks: {stats['LIQUID:SAFE']}")
     print(f"Unexpected Execution Errors: {stats['execution_error']}")
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -171,6 +171,11 @@ def main():
     )
     peft_model.enable_input_require_grads()
 
+    # Save initial adapter as checkpoint-0
+    initial_adapter_path = os.path.join(args.output_dir, "checkpoint-0")
+    peft_model.save_pretrained(initial_adapter_path)
+    print(f"Initial adapter saved to {initial_adapter_path}")
+
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         num_train_epochs=args.num_train_epochs,

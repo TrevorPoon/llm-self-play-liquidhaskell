@@ -512,3 +512,5 @@ if __name__ == '__main__':
     else:
         generate_main(args)
     pass
+
+    torch.cuda.empty_cache()

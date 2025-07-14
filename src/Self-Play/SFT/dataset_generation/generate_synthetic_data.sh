@@ -1,10 +1,12 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard-Noble
-#SBATCH --gres=gpu:a40:4
-#SBATCH --mem=192000
-#SBATCH --time=7-00:00:00                 
+#SBATCH --partition=PGR-Standard     # only nodes with A40s
+#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=250000
+#SBATCH --exclude=crannog04
+#SBATCH --time=7-00:00:00          
 #SBATCH --output=log/slurm-sft-generate-data-%j.out
 
 # This script runs the data generation process directly, using vLLM to load the model
@@ -45,9 +47,13 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 # --- Job Configuration ---
 NUM_SAMPLES=500
-MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
-GPU_MEM_UTIL=0.8
+MODEL_NAME="unsloth/DeepSeek-R1-Distill-Llama-70B-bnb-4bit"
+GPU_MEM_UTIL=0.9
 MAX_NEW_TOKENS=4096
+MAX_MODEL_LEN=8192
+DTYPE="bfloat16"
+QUANTIZATION="bitsandbytes"
+PIPELINE_PARALLEL_SIZE=2
 OUTPUT_DIR="../data/synthetic_liquid_haskell_dataset"
 OUTPUT_FILENAME_ARROW="synthetic_liquid_haskell_dataset.arrow"
 OUTPUT_FILENAME_JSONL="synthetic_liquid_haskell_dataset.jsonl"
@@ -73,7 +79,11 @@ CMD="python generate_synthetic_data.py \
     --output_filename_arrow \"$OUTPUT_FILENAME_ARROW\" \
     --output_filename_jsonl \"$OUTPUT_FILENAME_JSONL\" \
     --gpu_memory_utilization $GPU_MEM_UTIL \
-    --max_new_tokens $MAX_NEW_TOKENS"
+    --max_new_tokens $MAX_NEW_TOKENS \
+    --max_model_len $MAX_MODEL_LEN \
+    --dtype $DTYPE \
+    --quantization $QUANTIZATION \
+    --pipeline_parallel_size $PIPELINE_PARALLEL_SIZE"
 
 # Add Hugging Face flags if the upload is enabled
 if [ "$UPLOAD_TO_HF" = true ]; then

@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
+#SBATCH --partition=PGR-Standard     # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=515000
@@ -49,7 +49,7 @@ DATASET_PATH="../data/sft_tokenized_reasoning_dataset" # Path from prepare_data.
 DATASET_FRACTION=1
 
 # Optional: Path to an existing adapter to continue fine-tuning
-ADAPTER_PATH="output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_1e-4_batch_4_grad_steps_8/checkpoint-5742"
+ADAPTER_PATH="output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_5e-4_batch_4_grad_steps_8/checkpoint-5500"
 echo "ADAPTER_PATH: $ADAPTER_PATH"
 
 ADAPTER_PATH_NAME=$(echo "$ADAPTER_PATH" | tr '/' '_')
@@ -58,7 +58,7 @@ echo "ADAPTER_PATH_NAME: $ADAPTER_PATH_NAME"
 
 # Hyperparameters
 NUM_TRAIN_EPOCHS=10
-LEARNING_RATE=1e-4 
+LEARNING_RATE=1e-5 
 PER_DEVICE_TRAIN_BATCH_SIZE=4 # 4 is the max for A40s for 4096 tokens 
 PER_DEVICE_EVAL_BATCH_SIZE=PER_DEVICE_TRAIN_BATCH_SIZE
 GRADIENT_ACCUMULATION_STEPS=8
