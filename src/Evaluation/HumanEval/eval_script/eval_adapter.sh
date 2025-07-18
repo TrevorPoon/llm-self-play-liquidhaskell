@@ -4,7 +4,7 @@
 #SBATCH --partition=PGR-Standard    # only nodes with A40s
 #SBATCH --gres=gpu:a40:1
 #SBATCH --mem=120000
-#SBATCH --time=1-00:00:00
+#SBATCH --time=0-16:00:00
 #SBATCH --output=log/slurm-eval-adapter-%j.out
 
 # Find CUDA
@@ -31,7 +31,6 @@ export PATH=${CUDA_HOME}/bin:${PATH}
 export HF_HUB_OFFLINE=1
 export TORCHDYNAMO_VERBOSE=1
 export VLLM_WORKER_MULTIPROC_METHOD=spawn # Required for vLLM
-export VLLM_ENABLE_V1_MULTIPROCESSING=1
 
 mkdir -p /disk/scratch/$(whoami)
 export TMPDIR=/disk/scratch/$(whoami)/

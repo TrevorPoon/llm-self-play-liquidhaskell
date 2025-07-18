@@ -5,7 +5,6 @@
 #SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=250000
-#SBATCH --exclude=crannog04
 #SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-sft-generate-reasoning-%j.out
 
@@ -43,7 +42,7 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 # --- Job Configuration ---
 # The source dataset containing Haskell code
-SOURCE_DATASET_PATH="../../data/sorted_blastwind_haskell_dataset"
+SOURCE_DATASET_PATH="../../data/SINQ_sorted_blastwind_haskell_dataset"
 # The fraction of the source dataset to process
 DATA_FRACTION=0.3
 # Model for generation

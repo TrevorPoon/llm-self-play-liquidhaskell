@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard     # only nodes with A40s
+#SBATCH --partition=PGR-Standard    # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
 #SBATCH --mem=515000
 #SBATCH --time=7-00:00:00
@@ -46,16 +46,17 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_PATH="../data/sft_tokenized_haskell_dataset" # Path from prepare_data.py
 DATASET_FRACTION=0.3
+NAME="lm_head"
 
 # Hyperparameters
 NUM_TRAIN_EPOCHS=10
-LEARNING_RATE=2e-4 
+LEARNING_RATE=5e-4 
 PER_DEVICE_TRAIN_BATCH_SIZE=4 # 4 is the max for A40s for 4096 tokens 
 PER_DEVICE_EVAL_BATCH_SIZE=PER_DEVICE_TRAIN_BATCH_SIZE
 GRADIENT_ACCUMULATION_STEPS=8
 EVAL_ACCUMULATION_STEPS=GRADIENT_ACCUMULATION_STEPS
 
-OUTPUT_DIR="output/${MODEL_NAME}_dataset_fraction_${DATASET_FRACTION}_epochs_${NUM_TRAIN_EPOCHS}_learning_rate_${LEARNING_RATE}_batch_${PER_DEVICE_TRAIN_BATCH_SIZE}_grad_steps_${GRADIENT_ACCUMULATION_STEPS}"  
+OUTPUT_DIR="output/${MODEL_NAME}_${NAME}_dataset_fraction_${DATASET_FRACTION}_epochs_${NUM_TRAIN_EPOCHS}_learning_rate_${LEARNING_RATE}_batch_${PER_DEVICE_TRAIN_BATCH_SIZE}_grad_steps_${GRADIENT_ACCUMULATION_STEPS}"  
 
 
 # Ensure log directory exists

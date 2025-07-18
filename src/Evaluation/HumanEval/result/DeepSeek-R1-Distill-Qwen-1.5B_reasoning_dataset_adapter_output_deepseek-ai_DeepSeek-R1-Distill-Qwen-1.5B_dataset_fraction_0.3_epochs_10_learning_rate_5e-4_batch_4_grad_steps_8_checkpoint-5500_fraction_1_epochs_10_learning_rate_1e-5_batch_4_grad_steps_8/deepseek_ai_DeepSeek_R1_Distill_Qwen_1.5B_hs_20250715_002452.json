@@ -1,0 +1,22 @@
+{
+    "timestamp": "20250715_002452",
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+    "language": "hs",
+    "max_new_tokens": 32768,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "presence_penalty": 1.5,
+    "evaluation_results": {
+        "pass@1": 0.06097560975609756
+    },
+    "failed_code_extractions": 3,
+    "compilation_error_count": 135,
+    "execution_error_count": 19,
+    "use_openrouter": false,
+    "use_vllm": true,
+    "tokenizer_path": null,
+    "reasoning_trace_count": 163,
+    "adapter_path": "/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_reasoning_dataset_adapter_output_deepseek-ai_DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.3_epochs_10_learning_rate_5e-4_batch_4_grad_steps_8_checkpoint-5500_fraction_1_epochs_10_learning_rate_1e-5_batch_4_grad_steps_8/checkpoint-0",
+    "gpu_memory_utilization": 0.95
+}

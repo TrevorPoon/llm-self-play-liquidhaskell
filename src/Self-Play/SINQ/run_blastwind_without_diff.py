@@ -114,6 +114,7 @@ class CodeExecutor:
         imports = ""
 
         imports = """
+import Prelude
 import Data.List
 import Data.Char
 import Data.Maybe
@@ -301,7 +302,7 @@ class SInQ:
         logger.info("Initializing vLLM model...")
         self.vllm_model = vllm.LLM(
             model=self.model_name,
-            tensor_parallel_size=torch.cuda.device_count(),
+            tensor_parallel_size=args.tensor_parallel_size,
             trust_remote_code=True,
             enable_lora=True,
             gpu_memory_utilization=self.args.gpu_memory_utilization,
@@ -328,6 +329,7 @@ class SInQ:
                     dataset_iterator = dataset
                 else:
                     num_to_take = min(num_to_take, len(dataset))
+                    logger.info(f"Initial programs: {len(dataset)}")
                     logger.info(f"Loading {num_to_take} initial programs.")
                     dataset_iterator = dataset.select(range(num_to_take))
             else:
@@ -503,7 +505,7 @@ class SInQ:
             self.base_model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
-                device_map="cuda"
+                device_map="auto"
             )
 
     def finetune_model(self, dataset, model_type, iteration):
@@ -724,6 +726,9 @@ class SInQ:
             logger.info(f"  - Easy examples (d < {self.args.difficulty_threshold}): {len(easy_examples)}")
             logger.info(f"  - Sampled easy examples: {len(sampled_easies)}")
             logger.info(f"  - Alice training data size this iteration: {len(new_alice_training_data)}")
+            logger.info(f"  - Average difficulty of hard examples: {sum([ex['difficulty'] for ex in hard_examples]) / len(hard_examples):.2f}")
+            logger.info(f"  - Average difficulty of easy examples: {sum([ex['difficulty'] for ex in easy_examples]) / len(easy_examples):.2f}")
+            logger.info(f"  - Average difficulty of all examples: {sum([ex['difficulty'] for ex in candidate_examples]) / len(candidate_examples):.2f}")
             logger.info(f"  - Cumulative Alice training data size: {len(self.cumulative_alice_training_data)}")
             logger.info(f"  - Bob training data size: {len(bob_training_data)}")
             logger.info("  - 🟥 🟥 🟥 Warning counts: 🟥 🟥 🟥")
@@ -823,16 +828,17 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=2e-5, help="Learning rate for fine-tuning.")
     parser.add_argument('--num_train_epochs', type=int, default=5, help="Number of training epochs.")
     parser.add_argument('--per_device_train_batch_size', type=int, default=1, help="Batch size per device during training.")
-    parser.add_argument('--gradient_accumulation_steps', type=int, default=4, help="Number of gradient accumulation steps.")
+    parser.add_argument('--gradient_accumulation_steps', type=int, default=2, help="Number of gradient accumulation steps.")
     parser.add_argument('--lora_r', type=int, default=8, help="LoRA r.")
     parser.add_argument('--lora_alpha', type=int, default=16, help="LoRA alpha.")
     parser.add_argument('--lora_dropout', type=float, default=0.05, help="LoRA dropout.")
-    parser.add_argument('--gpu_memory_utilization', type=float, default=0.8, help="The fraction of GPU memory to be used for the vLLM KV cache.")
+    parser.add_argument('--gpu_memory_utilization', type=float, default=0.95, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     parser.add_argument('--num_initial_programs', type=int, default=None, help="Number of initial programs to load.")
     parser.add_argument('--difficulty_threshold', type=float, default=0.0, help="Difficulty threshold for filtering Alice's training data.")
     parser.add_argument('--n_humaneval_evaluations_per_iteration', type=int, default=1, help="Number of evaluations to run per iteration.")
-    parser.add_argument('--run_evaluation', type=bool, default=True, help="Whether to run evaluation after each iteration.")
+    parser.add_argument('--run_evaluation', action='store_true', help="Whether to run evaluation after each iteration.")
     parser.add_argument('--initial_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter to continue fine-tuning from.")
+    parser.add_argument('--tensor_parallel_size', type=int, default=1, help="Number of tensor parallel processes.")
     
     args = parser.parse_args()
 

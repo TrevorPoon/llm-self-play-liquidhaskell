@@ -73,6 +73,7 @@ class CodeExecutor:
         body = textwrap.dedent(main_body).rstrip()
 
         imports = """
+import Prelude
 import Data.List
 import Data.Char
 import Data.Maybe

@@ -5,7 +5,6 @@
 #SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=250000
-#SBATCH --exclude=crannog04
 #SBATCH --time=7-00:00:00          
 #SBATCH --output=log/slurm-sft-generate-data-%j.out
 
@@ -41,22 +40,22 @@ export TMP=/disk/scratch/${STUDENT_ID}/
 
 # Set BNB_CUDA_VERSION to match CUDA version
 export BNB_CUDA_VERSION=125
+export VLLM_WORKER_MULTIPROC_METHOD=spawn # Required for vLLM
 
 # Activate Conda environment
 source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 # --- Job Configuration ---
-NUM_SAMPLES=500
-MODEL_NAME="unsloth/DeepSeek-R1-Distill-Llama-70B-bnb-4bit"
+NUM_SAMPLES=10000
+# MODEL_NAME="unsloth/DeepSeek-R1-Distill-Llama-70B-bnb-4bit"
+MODEL_NAME="unsloth/DeepSeek-R1-Distill-Llama-70B-GGUF"
 GPU_MEM_UTIL=0.9
 MAX_NEW_TOKENS=4096
 MAX_MODEL_LEN=8192
 DTYPE="bfloat16"
-QUANTIZATION="bitsandbytes"
-PIPELINE_PARALLEL_SIZE=2
-OUTPUT_DIR="../data/synthetic_liquid_haskell_dataset"
-OUTPUT_FILENAME_ARROW="synthetic_liquid_haskell_dataset.arrow"
-OUTPUT_FILENAME_JSONL="synthetic_liquid_haskell_dataset.jsonl"
+OUTPUT_DIR="../../data/synthetic_liquid_haskell_dataset_nvidia"
+OUTPUT_FILENAME_ARROW="synthetic_liquid_haskell_dataset_nvidia.arrow"
+OUTPUT_FILENAME_JSONL="synthetic_liquid_haskell_dataset_nvidia.jsonl"
 
 # --- Optional: Hugging Face Upload ---
 # To enable, uncomment the following lines and set your details.
@@ -72,18 +71,18 @@ mkdir -p $OUTPUT_DIR
 echo "Running data generation script..."
 
 # Base command
-CMD="python generate_synthetic_data.py \
+CUDA_VISIBLE_DEVICES=0,1 python generate_synthetic_data.py \
     --num_samples $NUM_SAMPLES \
-    --model \"$MODEL_NAME\" \
-    --output_dir \"$OUTPUT_DIR\" \
-    --output_filename_arrow \"$OUTPUT_FILENAME_ARROW\" \
-    --output_filename_jsonl \"$OUTPUT_FILENAME_JSONL\" \
+    --model $MODEL_NAME \
+    --output_dir $OUTPUT_DIR \
+    --output_filename_arrow $OUTPUT_FILENAME_ARROW \
+    --output_filename_jsonl $OUTPUT_FILENAME_JSONL \
     --gpu_memory_utilization $GPU_MEM_UTIL \
     --max_new_tokens $MAX_NEW_TOKENS \
     --max_model_len $MAX_MODEL_LEN \
-    --dtype $DTYPE \
-    --quantization $QUANTIZATION \
-    --pipeline_parallel_size $PIPELINE_PARALLEL_SIZE"
+    --dtype $DTYPE
+    # --quantization $QUANTIZATION \
+    # --pipeline_parallel_size $PIPELINE_PARALLEL_SIZE
 
 # Add Hugging Face flags if the upload is enabled
 if [ "$UPLOAD_TO_HF" = true ]; then

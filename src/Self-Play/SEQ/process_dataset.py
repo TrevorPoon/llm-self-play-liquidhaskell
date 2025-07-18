@@ -5,6 +5,7 @@ import tempfile
 import shutil
 import re
 import argparse
+from tqdm import tqdm
 
 def process_haskell_code(haskell_code_content):
     temp_dir = tempfile.mkdtemp()
@@ -75,11 +76,17 @@ import Text.Read (readMaybe)
 def main():
     parser = argparse.ArgumentParser(description="Run LiquidHaskell check on completions.")
     parser.add_argument("--row", type=int, default=None, help="Specify a single row index to run.")
-    parser.add_argument("--file", type=str, default="../data/synthetic_liquid_haskell_dataset/synthetic_liquid_haskell_dataset.jsonl", help="Path to dataset file")
+    parser.add_argument("--file", type=str, default="../data/synthetic_liquid_haskell_dataset_nvidia/synthetic_liquid_haskell_dataset_nvidia.jsonl", help="Path to dataset file")
+    parser.add_argument("--output_file", type=str, default="safe_completions.jsonl", help="Path to output JSONL file for LIQUID:SAFE completions.")
     args = parser.parse_args()
 
     dataset_path = args.file
     single_row = args.row
+    output_path = args.output_file
+
+    output_file = None
+    if output_path:
+        output_file = open(output_path, 'w')
 
     stats = {
         "total_completions": 0,
@@ -101,8 +108,10 @@ def main():
         else:
             print(f"Row index {single_row} is out of range. Dataset has {len(lines)} rows.")
             return
+        
+    lines = lines[:100]
 
-    for idx, line in enumerate(lines):
+    for idx, line in tqdm(enumerate(lines), total=len(lines), desc="Processing completions"):
         stats["total_completions"] += 1
         data = json.loads(line)
         completion = data.get('completion', '')
@@ -126,6 +135,8 @@ def main():
         elif status == "LIQUID:SAFE":
             stats["LIQUID:SAFE"] += 1
             print(f"🟨 🟢 LIQUID:SAFE for row {idx}")
+            if output_file:
+                output_file.write(json.dumps(data) + '\n')
         elif status == "execution_error":
             stats["execution_error"] += 1
             print(f"🟨 🟥 Execution Error for row {idx}")
@@ -139,6 +150,9 @@ def main():
     print(f"Liquid Output Errors (UNSAFE/Not Found): {stats['liquid_unsafe_error']}")
     print(f"LIQUID:SAFE Checks: {stats['LIQUID:SAFE']}")
     print(f"Unexpected Execution Errors: {stats['execution_error']}")
+
+    if output_file:
+        output_file.close()
 
 if __name__ == "__main__":
     main()

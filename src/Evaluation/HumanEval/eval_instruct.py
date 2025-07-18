@@ -426,6 +426,12 @@ def generate_main(args):
     # Save the results
     save_results(args, result, failed_extraction_count, reasoning_trace_count, compilation_error_count, execution_error_count)
 
+    if args.use_vllm:
+        llm.shutdown()
+    else:
+        del model
+        del tokenizer
+
 def evaluation_only(args):
     lang = args.language
     temp_dir = args.temp_dir
@@ -500,7 +506,7 @@ if __name__ == '__main__':
 
     # vLLM specific arguments
     parser.add_argument('--adapter_path', type=str, default=None, help="Path to LoRA adapter weights, for use with vLLM.")
-    parser.add_argument('--gpu_memory_utilization', type=float, default=0.9, help="The fraction of GPU memory to be used for the vLLM KV cache.")
+    parser.add_argument('--gpu_memory_utilization', type=float, default=0.95, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     
 
     args = parser.parse_args()

@@ -129,9 +129,7 @@ def main():
     parser.add_argument('--gpu_memory_utilization', type=float, default=0.8, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     parser.add_argument('--max_new_tokens', type=int, default=4096, help="Maximum number of new tokens to generate per sample.")
     parser.add_argument('--max_model_len', type=int, default=8192, help="Maximum sequence length for the model.")
-    parser.add_argument('--quantization', type=str, default=None, help="Quantization method to use (e.g., 'awq', 'bnb').")
-    parser.add_argument('--dtype', type=str, default='bfloat16', help="Data type to use for the model (e.g., 'bfloat16').")
-    parser.add_argument('--pipeline_parallel_size', type=int, default=1, help="Number of pipeline parallelism stages (GPUs). Set to 1 to disable.")
+    parser.add_argument('--dtype', type=str, default='bfloat16', help="Data type to use for the model (e.g., 'bfloat16').") # bfloat16, fp8, fp16, fp32
     
     args = parser.parse_args()
 
@@ -142,35 +140,15 @@ def main():
     print(f"Loading model {args.model} with vLLM...")
     num_gpus = torch.cuda.device_count()
     
-    # If quantization is enabled, disable tensor parallelism to avoid ValueError with BitsAndBytes.
-    # If pipeline_parallel_size is explicitly set, use it. Otherwise, default to num_gpus for pipeline.
-    if args.quantization:
-        print(f"Quantization '{args.quantization}' enabled. Forcing tensor_parallel_size=1.")
-        tensor_parallel_size = 1
-        if args.pipeline_parallel_size == 1 and num_gpus > 1: # If default and multiple GPUs, suggest using all for pipeline
-            print(f"Suggestion: With quantization, consider setting --pipeline_parallel_size={{num_gpus}} to utilize all GPUs.")
-    else:
-        # If no quantization, default to tensor parallelism across all GPUs for efficiency
-        # unless pipeline_parallel_size is explicitly set.
-        if args.pipeline_parallel_size > 1:
-            print(f"Pipeline parallelism requested (--pipeline_parallel_size={{args.pipeline_parallel_size}}). Setting tensor_parallel_size=1.")
-            tensor_parallel_size = 1
-        else:
-            print(f"No quantization or pipeline parallelism specified. Defaulting to tensor_parallel_size={{num_gpus}}.")
-            tensor_parallel_size = num_gpus
+    tensor_parallel_size = num_gpus
 
-    # Ensure pipeline_parallel_size is set based on explicit argument, or default to 1 if not used.
-    pipeline_parallel_size = args.pipeline_parallel_size
-
-    print(f"Initializing vLLM with tensor_parallel_size={tensor_parallel_size} and pipeline_parallel_size={pipeline_parallel_size}")
+    print(f"Initializing vLLM with tensor_parallel_size={tensor_parallel_size}")
     
     llm = LLM(
         model=args.model,
         tensor_parallel_size=tensor_parallel_size,
-        pipeline_parallel_size=pipeline_parallel_size,
         gpu_memory_utilization=args.gpu_memory_utilization,
         trust_remote_code=True,
-        quantization=args.quantization,
         dtype=args.dtype,
         max_model_len=args.max_model_len,
     )
@@ -180,7 +158,9 @@ def main():
     sampling_params = SamplingParams(
         temperature=0.6,
         top_p=0.95,
+        top_k=20,
         max_tokens=args.max_new_tokens,
+        presence_penalty=1.5,
     )
     
     # --- 2. Load and Prepare Prompts ---

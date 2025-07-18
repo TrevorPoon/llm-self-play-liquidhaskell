@@ -4,7 +4,7 @@
 #SBATCH --partition=Teach-Standard    
 #SBATCH --gres=gpu:1                
 #SBATCH --mem=12000
-#SBATCH --time=0-02:00:00
+#SBATCH --time=3-08:00:00
 #SBATCH --output=log/slurm-seq-process-dataset-%j.out
 
 # --- Environment Setup ---
