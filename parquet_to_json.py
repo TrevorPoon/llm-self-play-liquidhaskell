@@ -34,8 +34,8 @@ def parquet_to_jsonl(parquet_file, jsonl_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert a Parquet file to a JSONL file.")
-    parser.add_argument("parquet_input", help="Path to the input Parquet file.")
-    parser.add_argument("jsonl_output", help="Path to the output JSONL file.")
+    parser.add_argument("--parquet_input", default="HumanEval-hs.parquet", help="Path to the input Parquet file.")
+    parser.add_argument("--jsonl_output", default="HumanEval-hs.jsonl", help="Path to the output JSONL file.")
     
     args = parser.parse_args()
 

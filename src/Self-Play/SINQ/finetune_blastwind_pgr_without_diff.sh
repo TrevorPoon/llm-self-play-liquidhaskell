@@ -2,8 +2,8 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
-#SBATCH --mem=256000
+#SBATCH --gres=gpu:a40:1                  # specifically four A40 GPUs
+#SBATCH --mem=128000
 #SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-finetune-%j.out
 
@@ -42,10 +42,10 @@ export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
 
 # INPUTS
-MODEL_NAME="TheBloke/deepseek-coder-33B-instruct-GGUF"
-DATASET_NAME="../data/SINQ_compiled_sorted_blastwind_haskell_dataset_with_input"
-NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=4
-NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
+MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+DATASET_NAME="../data/SINQ_without_validated_sorted_blastwind_haskell_dataset_hf"
+NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=8
+NUM_INITIAL_PROGRAMS=0 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter"
 
@@ -56,7 +56,7 @@ CUDA_VISIBLE_DEVICES=0,1 python -u run_blastwind_without_diff.py \
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \
     --initial_adapter_path "$INITIAL_ADAPTER_PATH" \
-    --n_iterations 1  \
+    --n_iterations 3  \
     --n_samples 10 \
     --timeout 20 \
     --max_tokens 32768 \
@@ -69,4 +69,4 @@ CUDA_VISIBLE_DEVICES=0,1 python -u run_blastwind_without_diff.py \
     --num_initial_programs $NUM_INITIAL_PROGRAMS \
     --per_device_train_batch_size 1 \
     --n_humaneval_evaluations_per_iteration $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION \
-    --tensor_parallel_size 2
+    --tensor_parallel_size 1

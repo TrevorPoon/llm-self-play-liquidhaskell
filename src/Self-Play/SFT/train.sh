@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard    # only nodes with A40s
+#SBATCH --partition=PGR-Standard-Noble    # only nodes with A40s
 #SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
 #SBATCH --mem=515000
 #SBATCH --time=7-00:00:00

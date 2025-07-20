@@ -302,7 +302,7 @@ class SInQ:
         logger.info("Initializing vLLM model...")
         self.vllm_model = vllm.LLM(
             model=self.model_name,
-            tensor_parallel_size=args.tensor_parallel_size,
+            tensor_parallel_size=self.args.tensor_parallel_size,
             trust_remote_code=True,
             enable_lora=True,
             gpu_memory_utilization=self.args.gpu_memory_utilization,
@@ -726,9 +726,9 @@ class SInQ:
             logger.info(f"  - Easy examples (d < {self.args.difficulty_threshold}): {len(easy_examples)}")
             logger.info(f"  - Sampled easy examples: {len(sampled_easies)}")
             logger.info(f"  - Alice training data size this iteration: {len(new_alice_training_data)}")
-            logger.info(f"  - Average difficulty of hard examples: {sum([ex['difficulty'] for ex in hard_examples]) / len(hard_examples):.2f}")
-            logger.info(f"  - Average difficulty of easy examples: {sum([ex['difficulty'] for ex in easy_examples]) / len(easy_examples):.2f}")
-            logger.info(f"  - Average difficulty of all examples: {sum([ex['difficulty'] for ex in candidate_examples]) / len(candidate_examples):.2f}")
+            logger.info(f"  - Average difficulty of hard examples: {sum([ex['difficulty'] for ex in hard_examples]) / len(hard_examples) if hard_examples else 0:.2f}")   
+            logger.info(f"  - Average difficulty of easy examples: {sum([ex['difficulty'] for ex in easy_examples]) / len(easy_examples) if easy_examples else 0:.2f}")
+            logger.info(f"  - Average difficulty of all examples: {sum([ex['difficulty'] for ex in candidate_examples]) / len(candidate_examples) if candidate_examples else 0:.2f}")
             logger.info(f"  - Cumulative Alice training data size: {len(self.cumulative_alice_training_data)}")
             logger.info(f"  - Bob training data size: {len(bob_training_data)}")
             logger.info("  - 🟥 🟥 🟥 Warning counts: 🟥 🟥 🟥")

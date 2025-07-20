@@ -56,6 +56,7 @@ def get_function_name(question: str, lang: str):
 
     func_name = func_lines[-1].split('{')[0].strip()
     func_prefix = "\n".join(func_lines[:-1])
+
     return func_name, func_prefix
 
 def extract_generation_code(example: str, lang_code: str, verbose: bool=True):
@@ -81,32 +82,35 @@ def extract_generation_code(example: str, lang_code: str, verbose: bool=True):
             main_start = code_block.index(setting['main'])
             code_block = code_block[:main_start]
         
-        func_name, func_prefix = get_function_name(question, lang)
+        # func_name, func_prefix = get_function_name(question, lang)
 
-        try:
-            start = code_block.lower().index(func_name.lower())
-            indent = 0
-            while start - indent >= 0 and code_block[start - indent-1] == ' ':
-                indent += 1
+        # try:
+        #     start = code_block.lower().index(func_name.lower())
+        #     indent = 0
+        #     while start - indent >= 0 and code_block[start - indent-1] == ' ':
+        #         indent += 1
             
-            try:
-                end = code_block.rindex('\n' + ' '*indent + '}')
-            except:
-                end = len(code_block)
-        except:
-            start = 0
-            try:
-                end = code_block.rindex('\n' + ' '*indent + '}')
-            except:
-                end = len(code_block)
+        #     try:
+        #         end = code_block.rindex('\n' + ' '*indent + '}')
+        #     except:
+        #         end = len(code_block)
+        # except:
+        #     start = 0
+        #     try:
+        #         end = code_block.rindex('\n' + ' '*indent + '}')
+        #     except:
+        #         end = len(code_block)
+        
 
-        body = code_block[start:end]
-        print(f"[DEBUG][extract_generation_code] Body:\n---\n{body}\n---")
+        # body = code_block[start:end]
+        # print(f"[DEBUG][extract_generation_code] Body:\n---\n{body}\n---")
 
-        if lang_code.lower() in ['php', 'ts', 'js']:
-            body += '\n' + ' '*indent + '}'
+        # if lang_code.lower() in ['php', 'ts', 'js']:
+        #     body += '\n' + ' '*indent + '}'
     
-        generation = func_prefix + '\n' + body + '\n'
+        # generation = func_prefix + '\n' + body + '\n'
+
+        generation = code_block
         print(f"[DEBUG][extract_generation_code] Generation:\n---\n{generation}\n---")
         example['generation'] = generation
 

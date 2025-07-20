@@ -114,7 +114,8 @@ def build_openrouter_instruct(language: str, question: str):
         """
     return system_prompt, user_prompt.strip()
 
-def build_deepseekcoder_instruction(language: str, question: str):
+def build_deepseekcoder_instruction(language: str, question: str, test: list):
+
     # New instruction format incorporating the <think> block
     return f"""Below is an instruction that describes a task.
         Write a response that appropriately completes the request.
@@ -129,9 +130,15 @@ def build_deepseekcoder_instruction(language: str, question: str):
         {question.strip()}
         ```
 
+        ### Your code should pass these tests:
+        ```{language.lower()}
+        {str(test).strip()}
+        ```
+
         ### Response:
         <think>
         """.strip()
+
 
 def generate_one_openrouter(example, lang, client, model_name, max_new_tokens, temperature, top_p, top_k):
     system_prompt, user_prompt = build_openrouter_instruct(language_settings[lang]['full_name'], example['prompt'])
@@ -164,7 +171,7 @@ def generate_one_openrouter(example, lang, client, model_name, max_new_tokens, t
     return gen_example, success
 
 def generate_one(example, lang, tokenizer, model, max_new_tokens, temperature, top_p, top_k):
-    prompt = build_deepseekcoder_instruction(language_settings[lang]['full_name'], example['prompt'])
+    prompt = build_deepseekcoder_instruction(language_settings[lang]['full_name'], example['prompt'], example['test'])
     inputs = tokenizer.apply_chat_template(
         [{'role': 'user', 'content': prompt }],
         return_tensors="pt",
@@ -331,9 +338,12 @@ def generate_main(args):
             )
 
             prompts = [
-                build_deepseekcoder_instruction(language_settings[lang]['full_name'], ex['prompt'])
+                build_deepseekcoder_instruction(language_settings[lang]['full_name'], ex['prompt'], ex['test'])
                 for ex in examples
             ]
+
+            # for prompt in prompts:
+            #     print(f"[DEBUG][generate_main] Prompt sent to model:\n{prompt}")
             
             print(f"Generating completions for {len(prompts)} prompts...")
             lora_request = None
@@ -416,7 +426,8 @@ def generate_main(args):
         n_workers=os.cpu_count(),
         timeout=120.0,
         problem_file=problem_file,
-        language=lang
+        language=lang,
+        is_mbpp=True
     )
     print(f"\n[DEBUG][generate_main] Final evaluation result for {lang} on {model_name_or_path}: {result}")
     print(f"Total failed code extractions: {failed_extraction_count}") # Print the count
@@ -426,16 +437,10 @@ def generate_main(args):
     # Save the results
     save_results(args, result, failed_extraction_count, reasoning_trace_count, compilation_error_count, execution_error_count)
 
-    if args.use_vllm:
-        llm.shutdown()
-    else:
-        del model
-        del tokenizer
-
 def evaluation_only(args):
     lang = args.language
     temp_dir = args.temp_dir
-    problem_file = os.path.join(data_abs_dir, f"humaneval-{lang}.jsonl") # Added problem_file definition
+    problem_file = os.path.join(data_abs_dir, f"mbpp-{lang}.jsonl") # Added problem_file definition
 
     print(f"\n[DEBUG][evaluation_only] Language: {lang}")
     print(f"[DEBUG][evaluation_only] Temporary directory: {temp_dir}")
@@ -471,7 +476,8 @@ def evaluation_only(args):
         n_workers=os.cpu_count(),
         timeout=120.0,
         problem_file=problem_file,
-        language=lang
+        language=lang,
+        is_mbpp=True
     )
     print(f"\n[DEBUG][evaluation_only] Final evaluation result for {lang}: {result}")
     print(f"[DEBUG][evaluation_only] Compilation count: {compilation_error_count}")

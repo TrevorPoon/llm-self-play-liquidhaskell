@@ -37,7 +37,7 @@ def check_correctness(
 
     def unsafe_execute(tmp_dir):
         random_id = random.randint(1, 100000)
-        print(f"[DEBUG][unsafe_execute] Code_Start!!!: \n {sample['test_code']} \n Code_End!!!")
+        print(f"[DEBUG][unsafe_execute] Task_id: {task_id} Code_Start!!!: \n {sample['test_code']} \n Code_End!!!")
 
         if "python" in language_type.lower():
             with create_tempdir():

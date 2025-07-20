@@ -426,12 +426,6 @@ def generate_main(args):
     # Save the results
     save_results(args, result, failed_extraction_count, reasoning_trace_count, compilation_error_count, execution_error_count)
 
-    if args.use_vllm:
-        llm.shutdown()
-    else:
-        del model
-        del tokenizer
-
 def evaluation_only(args):
     lang = args.language
     temp_dir = args.temp_dir

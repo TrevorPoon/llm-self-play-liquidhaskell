@@ -69,6 +69,6 @@ for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
 done
 
 
-# sbatch eval_script/eval_adapter.sh "" hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_lm_head_dataset_fraction_0.3_epochs_10_learning_rate_5e-4_batch_4_grad_steps_8/checkpoint-6380 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 8
 
 

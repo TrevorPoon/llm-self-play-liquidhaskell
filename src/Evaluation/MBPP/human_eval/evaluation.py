@@ -129,14 +129,18 @@ def process_humaneval_test(sample, problems, example_test=False, is_mbpp=False, 
     Processes a sample for evaluation.
     """
     task_id = sample["task_id"]
-    if is_mbpp:
-        return sample["generation"] + "\n" + "\n".join(problems[task_id]["test"])
+    # if is_mbpp:
+    #     return sample["generation"] + "\n" + "\n".join(problems[task_id]["test"])
 
     prompt = sample["prompt"]
     if example_test and "example_test" in problems[task_id] and problems[task_id]["example_test"] != "":
         test = problems[task_id]["example_test"]
     else:
         test = problems[task_id]["test"]
+        if language == 'python':
+            test = "\n".join(test)
+        else:
+            test = "".join(test)
     code = sample["generation"]
 
     # Pre-process for different languages
@@ -266,15 +270,13 @@ def evaluate_functional_correctness(
             print("[DEBUG][evaluate_functional_correctness] Reading samples...")
             for sample in tqdm(sample_jsonl):
                 task_id = sample["task_id"]
-                if not is_mbpp:
-                    lang = language
+                lang = language
                 if not is_mbpp and lang == "javascript":
                     lang = "js"
-                if is_mbpp:
-                    lang = "python"
                 tmp_dir_ = os.path.join(tmp_dir, lang, "evaluation")
                 sample["task_id"] = task_id
                 sample["test_code"] = process_humaneval_test(sample, problems, example_test, is_mbpp, language)
+
                 if sample["test_code"] is None:
                     continue
                 if "completion_id" in sample:
