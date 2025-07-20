@@ -47,6 +47,10 @@ def load_and_prepare_prompts(num_samples: int):
         # random.shuffle(prompts_data) # We want to keep the sorting order
         num_to_take = min(num_samples, len(prompts_data))
         print(f"Loaded {len(prompts_data)} entries, will use {num_to_take} for generation.")
+
+
+        print(f"Prompts data: {prompts_data[:100]}")
+
         return prompts_data[:num_to_take]
     except Exception as e:
         print(f"Failed to load or process dataset: {e}")
@@ -189,7 +193,8 @@ def main():
     )
     
     # --- 2. Load and Prepare Prompts ---
-    prompts_for_generation = load_and_prepare_prompts(args.num_samples)
+    print(f"Loading and preparing {args.num_samples} prompts...")
+    prompts_for_generation = list(load_and_prepare_prompts(args.num_samples))
     if not prompts_for_generation:
         print("No prompts were loaded. Exiting.")
         return
