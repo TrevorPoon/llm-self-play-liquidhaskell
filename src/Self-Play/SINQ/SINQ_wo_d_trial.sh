@@ -2,8 +2,7 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
-#SBATCH --mem=256000
+#SBATCH --gres=gpu:a40:1                  # specifically four A40 GPUs
 #SBATCH --time=1-00:00:00
 #SBATCH --output=log/slurm-finetune-%j.out
 
@@ -40,18 +39,19 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # INPUTS
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_10000_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=8
-NUM_INITIAL_PROGRAMS=0 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter"
 
 OUTPUT_DIR="output/SINQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_without_difficulty_prediction"
 
-CUDA_VISIBLE_DEVICES=0,1 python -u SINQ_wo_d.py \
+CUDA_VISIBLE_DEVICES=0 python -u SINQ_wo_d.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \

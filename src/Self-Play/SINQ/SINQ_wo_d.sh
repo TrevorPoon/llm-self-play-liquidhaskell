@@ -2,8 +2,7 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:1                  # specifically four A40 GPUs
-#SBATCH --mem=128000
+#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
 #SBATCH --time=1-00:00:00
 #SBATCH --output=log/slurm-finetune-%j.out
 
@@ -40,10 +39,11 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # INPUTS
-MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-DATASET_NAME="../data/SINQ_without_validated_sorted_blastwind_haskell_dataset_hf"
+MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_10000_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=8
 NUM_INITIAL_PROGRAMS=0 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""

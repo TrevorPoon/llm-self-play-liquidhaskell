@@ -2,8 +2,7 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard       # only nodes with A40s
-#SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
-#SBATCH --mem=192000
+#SBATCH --gres=gpu:a40:2                 # specifically four A40 GPUs
 #SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-finetune-%j.out
 
@@ -55,8 +54,8 @@ export DATASET_DIR=${TMP}/datasets/
 source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
-
 export BNB_CUDA_VERSION=125
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 #INPUTS
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
