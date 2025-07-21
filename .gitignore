@@ -5,6 +5,8 @@ code_generation_lite/
 src/HumanEval/result/*.json
 sorted_haskell_dataset/
 data/
+.arrow/
+.parquet/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

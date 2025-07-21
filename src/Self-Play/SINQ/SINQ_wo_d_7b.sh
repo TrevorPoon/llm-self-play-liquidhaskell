@@ -2,10 +2,10 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:2                 # specifically four A40 GPUs
+#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
 #SBATCH --mem=256000
-#SBATCH --time=7-00:00:00
-#SBATCH --output=log/slurm-seq-finetune-%j.out
+#SBATCH --time=1-00:00:00
+#SBATCH --output=log/slurm-finetune-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -43,15 +43,15 @@ export BNB_CUDA_VERSION=125
 
 # INPUTS
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
-DATASET_NAME="../data/synthetic_haskell_dataset_nvidia_10000/synthetic_haskell_dataset_nvidia.jsonl"
-NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=4
+DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_10000_hf"
+NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=8
 NUM_INITIAL_PROGRAMS=0 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter"
 
-OUTPUT_DIR="output/SHQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_without_difficulty_prediction"
+OUTPUT_DIR="output/SINQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_without_difficulty_prediction"
 
-CUDA_VISIBLE_DEVICES=0,1 python -u SEQ.py \
+CUDA_VISIBLE_DEVICES=0,1 python -u SINQ_wo_d.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \

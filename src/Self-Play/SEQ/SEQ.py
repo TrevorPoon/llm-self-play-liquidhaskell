@@ -43,79 +43,6 @@ ALICE_EQUIV_PROMPT = textwrap.dedent("""
        ```haskell
        <your Q>
        ```
-
-       **Claim (Refinement):**
-
-       ```haskell
-       {{-@ assume equiv :: <args> -> {{ P <args> == Q <args> }} @-}}
-       equiv :: <types> -> ()
-       equiv <args> = ()
-       ```
-
-    Here are a few examples:
-
-    --- Example 1 ---
-    Program `P`:
-    ```haskell
-    add1 :: Int -> Int
-    add1 x = x + 1
-    ```
-    <think>
-    We replace `x + 1` with the Prelude function `succ`.
-    </think>
-    **Generated Program `Q`:**
-    ```haskell
-    add1' :: Int -> Int
-    add1' x = succ x
-    ```
-    **Claim (Refinement):**
-    ```haskell
-    {{-@ assume equiv_add1 :: x:Int -> {{ add1 x == add1' x }} @-}}
-    equiv_add1 :: Int -> ()
-    equiv_add1 _ = ()
-    ```
-
-    --- Example 2 ---
-    Program `P`:
-    ```haskell
-    multiply :: Int -> Int -> Int
-    multiply x y = x * y
-    ```
-    <think>
-    We exploit commutativity of `(*)` and swap the arguments.
-    </think>
-    **Generated Program `Q`:**
-    ```haskell
-    multiply' :: Int -> Int -> Int
-    multiply' x y = y * x
-    ```
-    **Claim (Refinement):**
-    ```haskell
-    {{-@ assume equiv_mul :: x:Int -> y:Int -> {{ multiply x y == multiply' x y }} @-}}
-    equiv_mul :: Int -> Int -> ()
-    equiv_mul _ _ = ()
-    ```
-
-    --- Example 3 ---
-    Program `P`:
-    ```haskell
-    isEven :: Int -> Bool
-    isEven n = n `mod` 2 == 0
-    ```
-    <think>
-    We simply alias the built-in `even`.
-    </think>
-    **Generated Program `Q`:**
-    ```haskell
-    isEven' :: Int -> Bool
-    isEven' = even
-    ```
-    **Claim (Refinement):**
-    ```haskell
-    {{-@ assume equiv_even :: x:Int -> {{ isEven x == isEven' x }} @-}} 
-    equiv_even :: Int -> ()
-    equiv_even _ = ()
-    ```
 """).strip()
 
 ALICE_USER_PROMPT = textwrap.dedent("""
@@ -133,7 +60,7 @@ ALICE_USER_PROMPT = textwrap.dedent("""
     You are also given the type `t` of the argument of the function in `P`. This is required to make sure Liquid Haskell can check the equivalence.
     `t` = {t}
 
-    Please ensure `Q` is *syntactically correct* and *semantically equivalent* to `P`. Also, `Q` MUST be *different* from `P`. Avoid trivial changes like reordering commutative operations unless it is part of a larger, more significant transformation. Focus on generating genuinely distinct but equivalent programs. For example, if `P` is `add1 x = x + 1`, a good `Q` would be `add1 x = succ x`, not `add1 x = 1 + x`. Also, write a Liquid Haskell claim that states that `Q` refines `P`.
+    Please ensure `Q` is *syntactically correct* and *semantically equivalent* to `P`. Also, `Q` MUST be *different* from `P`. Avoid trivial changes like reordering commutative operations unless it is part of a larger, more significant transformation. Focus on generating genuinely distinct but equivalent programs. For example, if `P` is `add1 x = x + 1`, a good `Q` would be `add1 x = succ x`, not `add1 x = 1 + x`.
     You **must** present your response in the following format:
 
     ```
@@ -141,16 +68,11 @@ ALICE_USER_PROMPT = textwrap.dedent("""
     ```haskell
     -- ONLY the code for program Q here
     ```
-
-    **Claim (Refinement):**
-    ```haskell
-    -- ONLY the Liquid Haskell refinement claim here, e.g., {{-@ assume refined_function :: ... @-}} or {{-@ (\% x -> (refined_function x) == (original_function x)) @-}}
-    ```
     """).strip()
 
 BOB_SYSTEM_PROMPT = textwrap.dedent("""
     You are a Haskell equivalence checker. Given P and Q:
-      1. If ∀x. P x == Q x, output “Equivalent.”
+      1. If ∀x. P x == Q x, output "Equivalent."
       2. Otherwise, output a concrete counterexample x and the two outputs.
 """).strip()
 
@@ -187,7 +109,7 @@ ALICE_PROOF_SFT_PROMPT = textwrap.dedent("""
 
 BOB_COUNTEREXAMPLE_SFT_PROMPT = textwrap.dedent("""
     You are a Haskell equivalence checker. Given P and Q:
-      1. If ∀x. P x == Q x, output “Equivalent.”
+      1. If ∀x. P x == Q x, output "Equivalent."
       2. Otherwise, output a concrete counterexample x and the two outputs.
 
     Program `P`:
@@ -206,7 +128,8 @@ BOB_COUNTEREXAMPLE_SFT_PROMPT = textwrap.dedent("""
 
 class CodeExecutor:
     """A wrapper for executing Haskell code and comparing results."""
-    def __init__(self, timeout: float = 20.0):
+    def __init__(self, sinq_instance, timeout: float = 20.0):
+        self.sinq = sinq_instance
         self.timeout = timeout
         self.tmp_dir = tempfile.mkdtemp(prefix="haskell_executor_")
 
@@ -301,11 +224,21 @@ main = do
         logger.info(f"Output P: {out_p}")
         logger.info(f"Output Q: {out_q}")
 
+        # Case 1: Both succeeded but outputs are different
+        if status_p == "success" and status_q == "success":
+            return out_p != out_q
 
-        # If both succeeded but outputs are different, they diverge
-        if status_p == "success" and status_q == "success" and out_p != out_q:
+        # Case 2: One succeeded, the other didn't (implies divergence)
+        if (status_p == "success" and status_q != "success") or \
+           (status_q == "success" and status_p != "success"):
             return True
 
+        # Case 3: Both failed, but in different ways (implies divergence)
+        # This covers cases like one compile error, one runtime error, or one timeout, etc.
+        if status_p != "success" and status_q != "success" and status_p != status_q:
+            return True
+
+        # If none of the above, they do not diverge (e.g., both compile_error, or both runtime_timeout)
         return False
 
 
@@ -336,7 +269,56 @@ main = do
                 return False
         return True
 
-    def verify_equivalence(self, program_p: str, program_q: str, refinement_stub: str):
+    def generate_proof_body(self, program_p: str, program_q: str, func_name_p: str, func_name_q: str, arg_type: str, error_msg: str = None) -> str:
+        """
+        Ask Alice to fill in the proof. If error_msg is set, include it so she can fix mistakes.
+        Returns just the body (the lines after '=').
+        """
+        program_p_content = textwrap.dedent(program_p)
+        program_q_content = textwrap.dedent(program_q)
+        # 1. Build a prompt that shows the reflected P and Q,
+        #    and that asks for a sequence of ===, ?lemmas, and *** QED.
+        proof_prompt = textwrap.dedent(f"""
+        You are an expert Haskell/Liquid Haskell prover.
+        Below are two reflected definitions:
+
+        ```haskell
+        {{-@ reflect {func_name_p} @-}}
+        {program_p_content}
+
+        {{-@ reflect {func_name_q} @-}}
+        {program_q_content}
+        ```
+
+        Please write the body of
+
+        ```haskell
+        lemma_{func_name_p}_equiv :: x:{arg_type} -> {{ {func_name_p} x == {func_name_q} x }}
+        lemma_{func_name_p}_equiv x
+          =   /* PROOF BODY HERE */
+        ```
+
+        Use `===` for equational steps, `? someLemma …` for hints, and end with `*** QED`.
+
+        {f"If Liquid Haskell failed with:\n```\n{error_msg}\n```\nplease fix your proof accordingly." if error_msg else ""}
+        """).strip()
+
+        # Call your LLM (Alice) with this as a single-turn prompt:
+        response = self.sinq.call_alice_for_proof(proof_prompt)
+        logger.info(f"Alice's raw proof generation response: {response}")
+
+        # Check if Alice returned the full function definition
+        match = re.search(r"lemma_.*?_equiv x\s*=\s*(.*)", response, re.DOTALL)
+        if match:
+            body = match.group(1).strip()
+            logger.info(f"Extracted proof body from full definition:\n{body}")
+            return body
+        else:
+            # Assume the entire response is the proof body
+            logger.info("Assuming entire response is the proof body.")
+            return response.strip()
+
+    def verify_equivalence(self, program_p: str, program_q: str):
         """Verifies semantic equivalence using Liquid Haskell."""
         logger.info("Verifying equivalence with Liquid Haskell...")
 
@@ -356,103 +338,113 @@ main = do
 
         # Create temporary files for Original.hs and Variant.hs
         original_file_path = os.path.join(self.tmp_dir, "Original.hs")
+        dedented_program_p = textwrap.dedent(program_p).strip()
         with open(original_file_path, "w") as f_p:
-            dedented_program_p = textwrap.dedent(program_p)
             content_p = "module Original where\n" \
                         f"{{-@ reflect {func_name_p} @-}}\n" \
                         f"{dedented_program_p}"
             f_p.write(content_p)
         
         variant_file_path = os.path.join(self.tmp_dir, "Variant.hs")
+        dedented_program_q = textwrap.dedent(program_q).strip()
         with open(variant_file_path, "w") as f_q:
-            dedented_program_q = textwrap.dedent(program_q)
             content_q = "module Variant where\n" \
                         f"{{-@ reflect {func_name_q} @-}}\n" \
                         f"{dedented_program_q}"
             f_q.write(content_q)
 
-        # Adjust refinement stub for the specific function name and type
-        # Replace {t} with the actual argument type found
-        # Replace p and q with func_name_p and func_name_q
-        refinement_stub_adjusted = refinement_stub.replace('{t}', arg_type_p)
-        refinement_stub_adjusted = refinement_stub_adjusted.replace('p x', f'{func_name_p} x')
-        refinement_stub_adjusted = refinement_stub_adjusted.replace('q x', f'{func_name_q} x')
-
         # Create the Equiv.hs file
         equiv_code_template = textwrap.dedent("""
-{{-@ LIQUID "--reflection" @-}}
-module Equiv where
-import Original ({func_name_p})
-import Variant  ({func_name_q})
+            {{-@ LIQUID "--reflection" @-}}
+            {{-@ LIQUID "--ple" @-}}
+            module Equiv where
+            import Original ({func_name_p})
+            import Variant  ({func_name_q})
+            import Language.Haskell.Liquid.ProofCombinators
 
-{{-@ reflect {func_name_p} @-}}
-{program_p_content}
+            {{-@ reflect {func_name_p} @-}}
+            {program_p_content}
 
-{{-@ reflect {func_name_q} @-}}
-{program_q_content}
+            {{-@ reflect {func_name_q} @-}}
+            {program_q_content}
 
--- user-provided refinement stub
-{refinement_stub_adjusted}
-""")
-        equiv_code = equiv_code_template.format(
-            func_name_p=func_name_p,
-            func_name_q=func_name_q,
-            program_p_content=dedented_program_p,
-            program_q_content=dedented_program_q,
-            refinement_stub_adjusted=refinement_stub_adjusted
-        )
-
-        equiv_file_path = os.path.join(self.tmp_dir, "Equiv.hs")
-        with open(equiv_file_path, 'w') as f_equiv:
-            f_equiv.write(equiv_code)
+            -- Alice’s detailed proof of equivalence
+            {{-@ lemma_{func_name_p}_equiv :: x:{arg_type_p} -> {{ {func_name_p} x == {func_name_q} x }} @-}}
+            lemma_{func_name_p}_equiv :: {arg_type_p} -> Proof
+            lemma_{func_name_p}_equiv x
+              =   {proof_body}
+        """)
         
-        try:
-            # Invoke Liquid Haskell
-            env = os.environ.copy()
-            env['PATH'] = f"{os.path.expanduser('~')}/.local/bin:{env['PATH']}"
+        # 1. Fill the initial proof_body with a stub
+        proof_body = f"{func_name_p} x === {func_name_q} x *** QED"
+        MAX_PROOF_ATTEMPTS = 3 # Set a limit for proof attempts
+
+        for attempt in range(MAX_PROOF_ATTEMPTS):
+            logger.info(f"--- Proof attempt {attempt + 1}/{MAX_PROOF_ATTEMPTS} ---")
             
-            lh_process = subprocess.run(
-                [
-                    'ghc',
-                    '-fplugin=LiquidHaskell',
-                    equiv_file_path
-                ],
-                capture_output=True, text=True, timeout=self.timeout,
-                cwd=self.tmp_dir # Run in temporary directory to resolve module imports
+            # 2. Render Equiv.hs with proof_body
+            equiv_code = equiv_code_template.format(
+                func_name_p=func_name_p,
+                func_name_q=func_name_q,
+                program_p_content=dedented_program_p,
+                program_q_content=dedented_program_q,
+                arg_type_p=arg_type_p,
+                proof_body=proof_body
             )
+
+            equiv_file_path = os.path.join(self.tmp_dir, "Equiv.hs")
+            with open(equiv_file_path, 'w') as f_equiv:
+                f_equiv.write(equiv_code)
             
-            logger.info(f"Equiv.hs: \n{equiv_code}")
-            logger.info(f"Liquid Haskell process output: \n{lh_process.stdout}")
-            
-            if lh_process.returncode == 0:
-                # Success: LH proof accepted
-                logger.info("✅ Liquid Haskell proof accepted.")
-                return "proved", lh_process.stdout, None
-            else:
-                # Error: LH proof refuted, try to extract counterexample
-                logger.warning(f"❌ Liquid Haskell proof refuted:\n{lh_process.stderr}")
-                counterexample_match = re.search(r"Counterexample: (.*)", lh_process.stderr)
-                counterexample = counterexample_match.group(1).strip() if counterexample_match else None
-                return "refuted", lh_process.stderr, counterexample
-        except subprocess.TimeoutExpired:
-            logger.warning("Liquid Haskell verification timed out.")
-            return "lh_timeout", "Liquid Haskell verification timed out", None
-        except Exception as e:
-            logger.error(f"An unexpected error occurred during Liquid Haskell verification: {e}")
-            return "lh_error", str(e), None
-        finally:
-            # Clean up temp files immediately after running Liquid Haskell
-            for f_path in [original_file_path, variant_file_path, equiv_file_path]:
-                try:
-                    if os.path.exists(f_path):
-                        os.remove(f_path)
-                    # Also remove compiled artifacts if they exist
-                    if os.path.exists(f_path.replace('.hs', '.o')):
-                        os.remove(f_path.replace('.hs', '.o'))
-                    if os.path.exists(f_path.replace('.hs', '.hi')):
-                        os.remove(f_path.replace('.hs', '.hi'))
-                except OSError as e:
-                    logger.error(f"Error during temp file cleanup for {f_path}: {e}")
+            try:
+                # 3. Run Liquid Haskell
+                env = os.environ.copy()
+                env['PATH'] = f"{os.path.expanduser('~')}/.local/bin:{env['PATH']}"
+                
+                lh_process = subprocess.run(
+                    [
+                        'ghc',
+                        '-fplugin=LiquidHaskell',
+                        '-package',
+                        'liquid-prelude',
+                        equiv_file_path
+                    ],
+                    capture_output=True, text=True, timeout=self.timeout,
+                    cwd=self.tmp_dir
+                )
+                
+                logger.info(f"Equiv.hs (Attempt {attempt + 1}): \n{equiv_code}")
+                
+                if lh_process.returncode == 0:
+                    logger.info("✅ Liquid Haskell proof accepted.")
+                    return "proved", lh_process.stdout, None
+                
+                # 4. On failure, extract stderr and ask Alice for a new proof_body
+                error_msg = lh_process.stderr
+                logger.warning(f"❌ Liquid Haskell proof refuted (Attempt {attempt + 1}):\n{error_msg}")
+                
+                if attempt < MAX_PROOF_ATTEMPTS - 1:
+                    logger.info("Asking Alice for a new proof body...")
+                    proof_body = self.generate_proof_body(
+                        program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg
+                    )
+                else:
+                    logger.warning(f"Max proof attempts ({MAX_PROOF_ATTEMPTS}) reached. Final refutation.")
+                    counterexample_match = re.search(r"Counterexample: (.*)", error_msg)
+                    counterexample = counterexample_match.group(1).strip() if counterexample_match else None
+                    return "refuted", error_msg, counterexample
+
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Liquid Haskell verification timed out (Attempt {attempt + 1}).")
+                # If it times out on the last attempt, return timeout
+                if attempt == MAX_PROOF_ATTEMPTS - 1:
+                    return "lh_timeout", "Liquid Haskell verification timed out", None
+            except Exception as e:
+                logger.error(f"An unexpected error occurred during Liquid Haskell verification: {e}")
+                return "lh_error", str(e), None
+
+        # This part should ideally not be reached if the loop handles all cases
+        return "refuted", "Max proof attempts reached without success.", None
 
 
 # --- SInQ Self-Play and Fine-tuning ---
@@ -515,7 +507,7 @@ class SInQ:
                 logger.warning(f"Initial adapter path specified but not found: {self.initial_adapter_path}")
                 self.initial_adapter_path = None # Reset if not found
 
-        self.executor = CodeExecutor(timeout=args.timeout)
+        self.executor = CodeExecutor(self, timeout=args.timeout)
         self.programs = self.load_initial_programs(args.dataset_name)
         self.alice_adapter_path = self.initial_adapter_path
         self.bob_adapter_path = self.initial_adapter_path
@@ -602,32 +594,24 @@ class SInQ:
                 logger.warning("🟥 --- Alice parsing failed: Could not find 'Generated Program Q' block ---")
 
                 logger.warning(f"To solve this, please check the full output from Alice below and see why it failed to parse:\n{text}")
-                return None, None, None
+                return None, None
             program_q = program_q_match.group(1).strip()
-
-            # Extract refinement stub - make it more permissive to capture the whole block
-            refinement_stub_match = re.search(r"\*\*Claim \(Refinement\):\*\*\s*```haskell\n(.*?)\n```", text, re.DOTALL)
-            if not refinement_stub_match:
-                logger.warning("🟥 --- Alice parsing failed: Could not find 'Claim (Refinement)' block ---")
-                logger.warning(f"To solve this, please check the full output from Alice below and see why it failed to parse:\n{text}")
-                return None, None, None
-            refinement_stub = refinement_stub_match.group(1).strip()
             
-            if not program_q or not refinement_stub:
-                logger.warning("🟥 --- Alice parsing failed: `Q` or `Refinement Stub` is empty after parsing ---")
+            if not program_q:
+                logger.warning("🟥 --- Alice parsing failed: `Q` is empty after parsing ---")
                 logger.warning(f"To solve this, please check the full output from Alice below and see why it failed to parse:\n{text}")
-                return None, None, None
+                return None, None
             
-            return program_q, refinement_stub, text
+            return program_q, text
         except Exception as e:
             logger.error(f"🟥 --- Alice parsing failed with exception: {e} ---")
             logger.error(f"Full output from Alice:\n{text}")
-            return None, None, None
+            return None, None
 
     def parse_bob_output(self, text):
         try:
             # If Bob claims equivalence
-            if "Equivalent" in text:
+            if re.match(r"^Equivalent\.$", text.strip()):
                 return "Equivalent", None, None
             
             # Extract counterexample if programs are inequivalent
@@ -700,11 +684,40 @@ class SInQ:
 
         for output in request_outputs:
             result_text = output.outputs[0].text
-            program_q, refinement_stub, alice_raw_output = self.parse_alice_output(result_text)
-            if program_q and refinement_stub:
-                return program_q, refinement_stub, alice_raw_output
+            program_q, alice_raw_output = self.parse_alice_output(result_text)
+            if program_q:
+                return program_q, alice_raw_output
         
-        return None, None, None
+        return None, None
+
+    def call_alice_for_proof(self, proof_prompt: str) -> str:
+        """Generic method to call Alice with a specified prompt."""
+        logger.info("Calling Alice for proof generation...")
+        
+        messages = [
+            {"role": "system", "content": proof_prompt}
+        ]
+        
+        prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+
+        sampling_params = vllm.SamplingParams(
+            n=1,
+            temperature=self.args.temperature,
+            max_tokens=self.args.max_tokens,
+            top_p=self.args.top_p,
+            top_k=self.args.top_k,
+            presence_penalty=self.args.presence_penalty
+        )
+        
+        request_outputs = self.vllm_model.generate(
+            [prompt],
+            sampling_params,
+            lora_request=LoRARequest("alice_adapter", 1, self.alice_adapter_path) if self.alice_adapter_path else None
+        )
+
+        if request_outputs:
+            return request_outputs[0].outputs[0].text
+        return ""
 
     def run_bob(self, program_p, program_q):
         """
@@ -895,10 +908,10 @@ class SInQ:
                     continue
 
                 # Alice's turn
-                q_candidate, refinement_stub, alice_raw_output = self.run_alice(p_original_prompt, p_original_completion)
+                q_candidate, alice_raw_output = self.run_alice(p_original_prompt, p_original_completion)
                 
-                if not q_candidate or not refinement_stub:
-                    logger.warning("🟨 Alice failed to generate a candidate program or refinement stub.")
+                if not q_candidate:
+                    logger.warning("🟨 Alice failed to generate a candidate program.")
                     warning_counts["alice_generation_fail"] += 1
                     continue
 
@@ -909,15 +922,14 @@ class SInQ:
                     continue
 
                 if not self.executor.check_compiles(q_candidate):
-                    logger.warning("🟨 Candidate Q failed to compile. Skipping example.")
+                    logger.warning("�� Candidate Q failed to compile. Skipping example.")
                     warning_counts["q_compile_fail"] += 1
                     continue
             
                 logger.info(f"Alice's candidate program: \n{q_candidate}")
-                logger.info(f"Alice's refinement stub: \n{refinement_stub}")
 
                 # Phase 2: Embedding & Proving with Liquid Haskell
-                lh_status, lh_output, lh_counterexample = self.executor.verify_equivalence(p_original_completion, q_candidate, refinement_stub)
+                lh_status, lh_output, lh_counterexample = self.executor.verify_equivalence(p_original_completion, q_candidate)
                 
                 record = {
                     "p": p_original_completion,
@@ -1175,7 +1187,14 @@ def main():
         logger.info(f"{arg}: {getattr(args, arg)}")
     
     sinq = SInQ(args)
-    sinq.run_self_play_loop()
+
+    try:
+        sinq.run_self_play_loop()
+    finally:
+        # Explicitly clean up the temporary directory created by CodeExecutor
+        if os.path.exists(sinq.executor.tmp_dir):
+            logger.info(f"Cleaning up temporary directory: {sinq.executor.tmp_dir}")
+            shutil.rmtree(sinq.executor.tmp_dir)
 
 if __name__ == "__main__":
     main()

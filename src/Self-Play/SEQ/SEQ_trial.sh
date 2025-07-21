@@ -2,9 +2,9 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:2                 # specifically four A40 GPUs
-#SBATCH --mem=256000
-#SBATCH --time=7-00:00:00
+#SBATCH --gres=gpu:a40:1                 # specifically four A40 GPUs
+#SBATCH --mem=125000
+#SBATCH --time=0-02:00:00
 #SBATCH --output=log/slurm-seq-finetune-%j.out
 
 # --- Environment Setup ---
@@ -51,12 +51,12 @@ NAME="no_initial_adapter"
 
 OUTPUT_DIR="output/SHQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_without_difficulty_prediction"
 
-CUDA_VISIBLE_DEVICES=0,1 python -u SEQ.py \
+CUDA_VISIBLE_DEVICES=0 python -u SEQ.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \
     --initial_adapter_path "$INITIAL_ADAPTER_PATH" \
-    --n_iterations 3  \
+    --n_iterations 1  \
     --n_samples 10 \
     --timeout 20 \
     --max_tokens 32768 \

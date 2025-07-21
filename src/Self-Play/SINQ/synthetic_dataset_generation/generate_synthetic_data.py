@@ -10,8 +10,10 @@ from tqdm import tqdm
 from huggingface_hub import HfApi, HfFolder
 from datasets import load_dataset
 import torch
-from vllm import LLM, SamplingParams
+from transformers.generation.utils import GenerationMixin
 from transformers import AutoTokenizer
+from vllm import LLM, SamplingParams
+
 
 
 def load_and_prepare_prompts(num_samples: int):
@@ -19,7 +21,8 @@ def load_and_prepare_prompts(num_samples: int):
     print("Loading and preparing prompts from Hugging Face dataset (nvidia/OpenCodeInstruct)...")
     try:
         dataset = load_dataset("nvidia/OpenCodeInstruct", split="train")
-
+        
+        # =========================================
         # Filter the dataset
         print("Filtering dataset by domain='generic' and generation_algorithm='self-instruct'...")
         filtered_dataset = dataset.filter(
@@ -33,13 +36,12 @@ def load_and_prepare_prompts(num_samples: int):
 
         # Sort the dataset by 'output_length' (shortest first) then by 'average_test_score' (descending)
         print("Sorting dataset by 'output_length' (ascending) and then by 'average_test_score' (descending)...")
-        sorted_dataset = filtered_dataset.sort(["output_length", "average_test_score"], reverse=[False, True])
+        dataset = filtered_dataset.sort(["output_length", "average_test_score"], reverse=[False, True])
         print("Dataset sorted.")
+        # =========================================
 
         # Get input, output, and unit_tests
-        prompts_data = sorted_dataset.select_columns(['input', 'output', 'unit_tests']).select(range(len(sorted_dataset)))
-
-        print(f"First 100 prompts (input, output, unit_tests): {prompts_data[:100]}")
+        prompts_data = dataset.select_columns(['input', 'output']).select(range(len(dataset)))
 
         print(f"Loaded {len(prompts_data)} prompts after filtering and sorting.")
         # No need to modify prompts for 'Haskell' here as we want the original Python context
@@ -48,16 +50,15 @@ def load_and_prepare_prompts(num_samples: int):
         num_to_take = min(num_samples, len(prompts_data))
         print(f"Loaded {len(prompts_data)} entries, will use {num_to_take} for generation.")
 
+        print(f"First 5 Prompts data: \n{prompts_data[:5]}")
 
-        print(f"Prompts data: {prompts_data[:100]}")
-
-        return prompts_data[:num_to_take]
+        return prompts_data.select(range(num_to_take))
+    
     except Exception as e:
         print(f"Failed to load or process dataset: {e}")
         return []
 
-
-def build_few_shot_haskell_prompt(problem_idea: str, python_code: str, unit_tests: str):
+def build_few_shot_haskell_prompt(problem_idea: str, python_code: str):
     """
     Constructs a detailed few-shot prompt to guide the model to generate
     Haskell code from a given Python problem, code, and unit tests.
@@ -111,13 +112,6 @@ def square(x):
     return x * x
 ```
 
-**Python Unit Tests:**
-```python
-assert square(2) == 4
-assert square(0) == 0
-assert square(-3) == 9
-```
-
 **Response:**
 ```haskell
 square :: Int -> Int
@@ -134,11 +128,6 @@ Now, complete the following task.
 **Python Code:**
 ```python
 {python_code}
-```
-
-**Python Unit Tests:**
-```python
-{unit_tests}
 ```
 
 **Response:**
@@ -182,7 +171,7 @@ def main():
         max_model_len=args.max_model_len,
     )
     
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     
     sampling_params = SamplingParams(
         temperature=0.6,
@@ -194,7 +183,7 @@ def main():
     
     # --- 2. Load and Prepare Prompts ---
     print(f"Loading and preparing {args.num_samples} prompts...")
-    prompts_for_generation = list(load_and_prepare_prompts(args.num_samples))
+    prompts_for_generation = load_and_prepare_prompts(args.num_samples)
     if not prompts_for_generation:
         print("No prompts were loaded. Exiting.")
         return
@@ -207,7 +196,7 @@ def main():
     full_prompts = []
     original_prompts = []  # To store the original problem statement
     for problem in tqdm(prompts_for_generation, desc="Preparing Prompts"):
-        system_prompt, user_prompt = build_few_shot_haskell_prompt(problem['input'], problem['output'], problem['unit_tests'])
+        system_prompt, user_prompt = build_few_shot_haskell_prompt(problem['input'], problem['output'])
         
         messages = [
             {"role": "system", "content": system_prompt},
@@ -231,11 +220,17 @@ def main():
         print(f"\nProblem: {problem}")
         print(f"Completion: {completion}")
         
-        if completion:
+        # Extract Haskell code from completion
+        haskell_code_match = re.search(r'''```haskell\n(.*?)```''', completion, re.DOTALL)
+        
+        if haskell_code_match:
+            haskell_code = haskell_code_match.group(1).strip()
             dataset.append({
                 "prompt": problem,
-                "completion": completion,
+                "code": haskell_code,
             })
+        else:
+            print(f"No Haskell code found in completion for problem")
 
     if not dataset:
         print("No data was generated. Exiting.")

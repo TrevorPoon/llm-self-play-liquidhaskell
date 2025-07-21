@@ -28,7 +28,8 @@ dependencies:
   - boost-cpp=1.82.0=hdb19cb5_2
   - bzip2=1.0.8=h5eee18b_6
   - c-ares=1.19.1=h5eee18b_0
-  - ca-certificates=2025.6.15=hbd8a1cb_0
+  - ca-certificates=2025.7.14=hbd8a1cb_0
+  - curl=8.12.1=h251f7ec_0
   - cyrus-sasl=2.1.28=h52b45da_1
   - debugpy=1.8.11=py312h6a678d5_0
   - expat=2.6.4=h6a678d5_0
@@ -36,8 +37,11 @@ dependencies:
   - freetype=2.12.1=h4a9f257_0
   - gcc_impl_linux-64=11.2.0=h1234567_1
   - gcc_linux-64=11.2.0=h5c386dc_2
+  - gettext=0.21.0=hedfda30_2
   - gflags=2.2.2=h6a678d5_1
   - giflib=5.2.2=h5eee18b_0
+  - git=2.45.2=pl5402h72990fb_2
+  - git-filter-repo=2.38.0=pyhd8ed1ab_1
   - glog=0.5.0=h6a678d5_1
   - gxx_impl_linux-64=11.2.0=h1234567_1
   - gxx_linux-64=11.2.0=hc2dff05_2
@@ -92,15 +96,15 @@ dependencies:
   - mysql=8.4.0=h29a9f33_1
   - ncurses=6.4=h6a678d5_0
   - nodejs=20.17.0=hb8e3597_0
-  - numpy-base=2.0.1=py312h0da6c21_1
+  - numpy-base=1.26.4=py312h0da6c21_0
   - openjdk=11.0.1=h600c080_1018
   - openjpeg=2.5.2=he7f1fd0_0
   - openldap=2.6.4=h42fbc30_0
   - openssl=3.0.16=h5eee18b_0
   - orc=2.0.1=h2d29ad5_0
   - pcre2=10.42=hebb0a14_1
+  - perl=5.32.1=1_h7f98852_perl5
   - php=8.1.0=h41f38c2_1
-  - pip=25.0=py312h06a4308_0
   - prompt-toolkit=3.0.43=py312h06a4308_0
   - prompt_toolkit=3.0.43=hd3eb1b0_0
   - python=3.12.9=h5148396_0
@@ -121,7 +125,6 @@ dependencies:
   - tbb=2021.8.0=hdb19cb5_0
   - tk=8.6.14=h39e8969_0
   - typescript=5.7.3=h80e38bb_0
-  - typing_extensions=4.12.2=py312h06a4308_0
   - utf8proc=2.6.1=h5eee18b_1
   - wcwidth=0.2.5=pyhd3eb1b0_0
   - wheel=0.45.1=py312h06a4308_0
@@ -146,12 +149,13 @@ dependencies:
   - zstd=1.5.6=hc292b87_0
   - pip:
     - absl-py==2.3.0
-    - accelerate==1.6.0
+    - accelerate==1.8.1
     - aenum==3.1.15
     - aiohappyeyeballs==2.6.1
     - aiohttp==3.12.11
     - aiosignal==1.3.2
     - airportsdata==20250523
+    - alembic==1.16.2
     - annotated-types==0.7.0
     - antlr4-python3-runtime==4.13.2
     - anyio==4.9.0
@@ -160,7 +164,7 @@ dependencies:
     - bitsandbytes==0.47.0.dev0
     - blake3==1.0.5
     - cachetools==6.0.0
-    - certifi==2025.4.26
+    - certifi==2025.6.15
     - chardet==5.2.0
     - charset-normalizer==3.4.1
     - click==8.1.8
@@ -193,6 +197,7 @@ dependencies:
     - fastrlock==0.8.3
     - filelock==3.18.0
     - fire==0.7.0
+    - flash-attn==2.7.3
     - fonttools==4.58.4
     - frozenlist==1.6.2
     - fsspec==2025.3.0
@@ -203,20 +208,22 @@ dependencies:
     - gitpython==3.1.44
     - gmp==0.0.17
     - googleapis-common-protos==1.70.0
+    - greenlet==3.2.3
     - grpcio==1.71.0
     - h11==0.16.0
     - hf-transfer==0.1.9
-    - hf-xet==1.1.2
+    - hf-xet==1.1.5
     - httpcore==1.0.9
     - httptools==0.6.4
     - httpx==0.27.2
-    - huggingface-hub==0.33.0
+    - huggingface-hub==0.33.2
     - idna==3.10
     - importlib-metadata==8.0.0
     - interegular==0.3.3
     - jinja2==3.1.6
     - jiter==0.10.0
     - joblib==1.5.1
+    - jsonlines==4.0.0
     - jsonschema==4.23.0
     - jsonschema-specifications==2025.4.1
     - kiwisolver==1.4.8
@@ -227,8 +234,11 @@ dependencies:
     - lighteval==0.10.0
     - llguidance==0.7.24
     - llvmlite==0.44.0
+    - lm-eval==0.4.9
     - lm-format-enforcer==0.10.11
     - lxml==5.4.0
+    - mako==1.3.10
+    - markdown==3.8.2
     - markdown-it-py==3.0.0
     - markupsafe==3.0.2
     - matplotlib==3.10.3
@@ -242,10 +252,11 @@ dependencies:
     - multidict==6.4.4
     - multiprocess==0.70.16
     - nest-asyncio==1.6.0
-    - networkx==3.4.2
+    - networkx==3.5
     - ninja==1.11.1.4
     - nltk==3.9.1
     - numba==0.61.2
+    - numexpr==2.11.0
     - numpy==1.26.4
     - nvidia-cublas-cu12==12.6.4.1
     - nvidia-cuda-cupti-cu12==12.6.80
@@ -272,14 +283,16 @@ dependencies:
     - opentelemetry-sdk==1.26.0
     - opentelemetry-semantic-conventions==0.47b0
     - opentelemetry-semantic-conventions-ai==0.4.9
+    - optuna==4.4.0
     - outlines==0.1.11
     - outlines-core==0.1.26
     - packaging==25.0
     - pandas==2.3.0
     - partial-json-parser==0.2.1.1.post5
     - pathvalidate==3.2.3
-    - peft==0.15.2
+    - peft==0.3.0
     - pillow==11.2.1
+    - pip==25.1.1
     - pip-system-certs==4.0
     - portalocker==3.1.1
     - prometheus-client==0.22.0
@@ -289,6 +302,8 @@ dependencies:
     - psutil==7.0.0
     - py-cpuinfo==9.0.0
     - pyarrow==20.0.0
+    - pybase64==1.4.1
+    - pybind11==2.13.6
     - pycountry==24.6.1
     - pydantic==2.11.5
     - pydantic-core==2.33.2
@@ -308,7 +323,7 @@ dependencies:
     - ray==2.46.0
     - referencing==0.36.2
     - regex==2024.11.6
-    - requests==2.32.3
+    - requests==2.32.4
     - rich==14.0.0
     - rich-toolkit==0.14.6
     - rouge-score==0.1.2
@@ -316,51 +331,60 @@ dependencies:
     - sacrebleu==2.5.1
     - safetensors==0.5.3
     - scikit-learn==1.7.0
-    - scipy==1.15.3
+    - scipy==1.14.1
     - sentencepiece==0.2.0
-    - setuptools==79.0.1
+    - setuptools==80.9.0
     - setuptools-scm==8.3.1
     - shellingham==1.5.4
     - shtab==1.7.1
     - smmap==5.0.2
     - sniffio==1.3.1
+    - sqlalchemy==2.0.41
+    - sqlitedict==2.1.0
     - starlette==0.46.2
     - string-color==1.2.3
     - sympy==1.14.0
     - tabledata==1.3.4
     - tabulate==0.9.0
     - tcolorpy==0.1.7
+    - tensorboard==2.19.0
+    - tensorboard-data-server==0.7.2
     - termcolor==2.3.0
     - textwrap3==0.9.2
     - threadpoolctl==3.6.0
     - tiktoken==0.9.0
     - tokenizers==0.21.1
     - toolz==1.0.0
-    - torch==2.7.0
+    - torch==2.7.1
     - torchaudio==2.7.0
     - torchvision==0.22.0
     - tqdm==4.67.1
+    - tqdm-multiprocess==0.0.11
     - transformers==4.52.4
-    - triton==3.3.0
+    - triton==3.3.1
     - trl==0.15.2
     - typeguard==4.4.2
     - typepy==1.3.4
     - typer==0.15.4
-    - typing-extensions==4.13.0
+    - typing-extensions==4.14.0
     - typing-inspection==0.4.1
     - tyro==0.9.18
     - tzdata==2025.2
     - unsloth-zoo==2025.3.17
-    - urllib3==2.4.0
+    - urllib3==2.5.0
     - uvicorn==0.34.2
     - uvloop==0.21.0
-    - vllm==0.9.1
+    - vllm==0.9.2+cu126
     - watchfiles==1.0.5
+    - webencodings==0.5.1
     - websockets==15.0.1
+    - werkzeug==3.1.3
+    - word2number==1.1
     - wrapt==1.17.2
     - xformers==0.0.30
     - xgrammar==0.1.19
     - xxhash==3.5.0
     - yarl==1.20.0
     - zipp==3.21.0
+    - zstandard==0.23.0
 prefix: /home/s2652867/.conda/envs/llm_sp

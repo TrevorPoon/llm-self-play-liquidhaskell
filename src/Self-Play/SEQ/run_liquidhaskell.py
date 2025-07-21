@@ -5,22 +5,31 @@ import shutil
 
 # Define the Haskell code with Liquid Haskell annotations
 haskell_code = """
+{-@ LIQUID "--reflection"        @-}
+{-@ LIQUID "--ple"               @-}
+
 module MyTest where
 
-{-@ absVal :: Int -> {v: Int | v >= 0} @-}
-absVal :: Int -> Int
-absVal n
-  | n >= 0    = n
-  | otherwise = -n
+import Language.Haskell.Liquid.ProofCombinators
 
-{-@ safeDivide :: Int -> {v: Int | v /= 0} -> Int @-}
-safeDivide :: Int -> Int -> Int
-safeDivide x y = x `div` y
+-- Alice’s program P
+{-@ reflect double @-}
+double :: Int -> Int
+double x = x + x
 
-{-@ myLength :: [a] -> {v: Int | v >= 0} @-}
-myLength :: [a] -> Int
-myLength [] = 0
-myLength (_:xs) = 1 + myLength xs
+-- Alice proposes Q
+{-@ reflect double' @-}
+double' :: Int -> Int
+double' x = 2 * x
+
+-- Alice must give a proof that ∀x. double x == double' x
+{-@ lemma_double_equiv :: x:Int -> { double x == double' x } @-}
+lemma_double_equiv :: Int -> Proof
+lemma_double_equiv x
+  =   double x
+  === double' x
+  *** QED
+
 """
 
 # Define the Haskell file name
@@ -37,7 +46,7 @@ print(f"Generated {haskell_file_name} in {temp_dir} with Liquid Haskell code.")
 
 # Define the command to run Liquid Haskell directly
 # We need to explicitly set the PATH for Z3
-liquid_command = [f"ghc", "-fplugin=LiquidHaskell", haskell_file_name]
+liquid_command = [f"ghc", "-fplugin=LiquidHaskell", "-package liquid-prelude", haskell_file_name]
 
 print(f"Running: {' '.join(liquid_command)}")
 
