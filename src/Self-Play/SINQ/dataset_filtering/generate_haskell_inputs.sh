@@ -14,6 +14,6 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 
 python generate_haskell_inputs.py \
-    --dataset_name "../../data/synthetic_haskell_dataset_nvidia_10000/synthetic_haskell_dataset_nvidia.jsonl" \
-    --output_dir "../../data/SINQ_synthetic_haskell_dataset_nvidia_10000" \
-    --output_hf_dataset_dir "../../data/SINQ_synthetic_haskell_dataset_nvidia_10000_hf"
+    --dataset_name "../../data/synthetic_haskell_dataset_nvidia_100000/synthetic_haskell_dataset_nvidia.jsonl" \
+    --output_dir "../../data/SINQ_synthetic_haskell_dataset_nvidia_100000" \
+    --output_hf_dataset_dir "../../data/SINQ_synthetic_haskell_dataset_nvidia_100000_hf"

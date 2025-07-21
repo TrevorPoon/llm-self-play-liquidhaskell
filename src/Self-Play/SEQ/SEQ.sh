@@ -49,7 +49,7 @@ NUM_INITIAL_PROGRAMS=0 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter"
 
-OUTPUT_DIR="output/SHQ_finetune_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_without_difficulty_prediction"
+OUTPUT_DIR="output/${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_without_difficulty_prediction"
 
 CUDA_VISIBLE_DEVICES=0,1 python -u SEQ.py \
     --model_name_or_path "$MODEL_NAME" \

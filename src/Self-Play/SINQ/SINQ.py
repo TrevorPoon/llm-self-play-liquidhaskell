@@ -19,8 +19,8 @@ from datasets import load_dataset, load_from_disk
 from torch.utils.data import Dataset
 import re
 
-from utils.execution import time_limit, create_tempdir
-from utils.utils import extract_generation_code, get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage
+from .utils.execution import time_limit, create_tempdir
+from .utils.utils import extract_generation_code, get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

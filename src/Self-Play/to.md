@@ -45,7 +45,16 @@ OpenInstruct -- 📌 TODO
 
 test if deepseekcoder has liquidhaskell ability --  ✅ Done
 
-Finetune on Alice Liquid-Haskell proof -- 📌 TODO
+Finetune on Alice Liquid-Haskell proof ⏳ Running
+
+Ask how to prove, via liquid haskell and do i need Bob
+
+Verification Phase (LLM Re-Prompt)
+• If proof passed, prompt LLM for a human-style proof sketch in comments.
+• If proof failed, prompt LLM for a concrete counterexample input.
+• Collect:
+– Positive example: (spec, original, variant, proof sketch).
+– Negative example: (spec, original, variant, counterexample).
 
 SEQ on synthetic -- 📌 TODO
 

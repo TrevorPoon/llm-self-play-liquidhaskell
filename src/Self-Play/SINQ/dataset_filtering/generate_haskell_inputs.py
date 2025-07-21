@@ -269,14 +269,17 @@ class InputGenerator:
             if status != "success":
                 error_counts[status] += 1
             else:
+                size = len(program_code) 
                 record = {
                     "code": program_code,
                     "input": input_str,
                     "status": status,
-                    "output": output
+                    "output": output,
+                    "size": size
                 }
                 output_jsonl_data.append(record)
 
+        output_jsonl_data = sorted(output_jsonl_data, key=lambda x: x['size']) # Sort by size ascending
         # Write to JSONL file
         with open(output_jsonl_path, 'w') as outfile:
             for record in output_jsonl_data:

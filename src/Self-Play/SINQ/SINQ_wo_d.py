@@ -20,7 +20,6 @@ from datasets import load_dataset, load_from_disk
 from torch.utils.data import Dataset
 import re
 
-from utils.execution import time_limit, create_tempdir
 from utils.utils import extract_generation_code, get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage, strip_comments
 
 # Configure logging
@@ -128,9 +127,9 @@ import Text.Read (readMaybe)
         func_name = get_function_name(program_code)
         arg_type = get_function_arg_type(program_code)
 
-        logger.debug(f"Function name: {func_name}")
-        logger.debug(f"Argument type: {arg_type}")
-        logger.debug(f"Input: {input}")
+        logger.info(f"Function name: {func_name}")
+        logger.info(f"Argument type: {arg_type}")
+        logger.info(f"Input: {input}")
 
         if not func_name or not arg_type:
             logger.warning(f"Could not find function name or argument type in program. Assuming not executable.")
@@ -147,7 +146,7 @@ main = do
 
         program = self._create_haskell_program(program_code, main_body)
 
-        logger.debug(f"Program: \n\n{program}\n\n")
+        logger.info(f"Program: \n\n{program}\n\n")
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.hs', delete=True, dir=self.tmp_dir.name) as f:
             f.write(program)
@@ -188,13 +187,17 @@ main = do
 
     def check_divergence(self, p: str, q: str, x: any) -> bool:
         """Checks if two programs diverge on a given input."""
+        if p == q:
+            logger.warning(f"Programs are the same. Returning False.")
+            return False
+        
         status_p, out_p = self.execute(p, x)
         status_q, out_q = self.execute(q, x)
 
-        logger.debug(f"Status P: {status_p}")
-        logger.debug(f"Status Q: {status_q}")
-        logger.debug(f"Output P: {out_p}")
-        logger.debug(f"Output Q: {out_q}")
+        logger.info(f"Status P: {status_p}")
+        logger.info(f"Status Q: {status_q}")
+        logger.info(f"Output P: {out_p}")
+        logger.info(f"Output Q: {out_q}")
 
 
         # If both succeeded but outputs are different, they diverge
@@ -209,7 +212,7 @@ main = do
         main_body = 'main :: IO ()\nmain = putStrLn "compiles"'
         program = self._create_haskell_program(program_code, main_body)
 
-        logger.debug(f"Program: \n\n{program}\n\n")
+        logger.info(f"Program: \n\n{program}\n\n")
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.hs', delete=True, dir=self.tmp_dir.name) as f:
             f.write(program)
@@ -361,9 +364,9 @@ class SInQ:
 
     def parse_alice_output(self, text):
         try:
-            # logger.debug(f"Alice output: \n\n{text}\n\n")
+            # logger.info(f"Alice output: \n\n{text}\n\n")
             # Extract program Q
-            program_q_match = re.search(r"\*\*Generated Program `Q`:\*\*\s*```(?:[^\n]*?)\s*(.*?)\n```", text, re.DOTALL)
+            program_q_match = re.search(r"\*\*Generated Program `Q`:\*\*\s*```haskell\n(.*?)\n```", text, re.DOTALL)
             if not program_q_match:
                 logger.error("🟥 --- Alice parsing failed: Could not find 'Generated Program Q' block ---")
 
@@ -372,7 +375,7 @@ class SInQ:
             program_q = program_q_match.group(1).strip()
 
             # Extract diverging input x
-            diverging_input_match = re.search(r"\*\*Diverging Input `x`:\*\*\s*```(?:[^\n]*?)\s*(.*?)\n```", text, re.DOTALL)
+            diverging_input_match = re.search(r"\*\*Diverging Input `x`:\*\*\s*```(?:[^\n]*)\n(.*?)\n```", text, re.DOTALL)
             if not diverging_input_match:
                 logger.error("🟥 --- Alice parsing failed: Could not find 'Diverging Input x' block ---")
                 logger.error(f"To solve this, please check the full output from Alice below and see why it failed to parse:\n{text}")
@@ -395,7 +398,7 @@ class SInQ:
     def parse_bob_output(self, text):
         try:
             # Extract diverging input
-            diverging_input_match = re.search(r"\*\*Diverging Input `x`:\*\*\s*```(?:[^\n]*?)\s*(.*?)\n```", text, re.DOTALL)
+            diverging_input_match = re.search(r"\*\*Diverging Input `x`:\*\*\s*```(?:[^\n]*)\n(.*?)\n```", text, re.DOTALL)
             if diverging_input_match:
                 diverging_input = diverging_input_match.group(1).strip()
                 # Remove potential 'x = ' prefix from the diverging input.
@@ -436,7 +439,7 @@ class SInQ:
             lora_request=LoRARequest("alice_adapter", 1, self.alice_adapter_path) if self.alice_adapter_path else None
         )
 
-        logger.debug(f"Length of Alice request_outputs: {len(request_outputs)}")
+        logger.info(f"Length of Alice request_outputs: {len(request_outputs)}")
 
         for output in request_outputs:
             result_text = output.outputs[0].text
@@ -475,7 +478,7 @@ class SInQ:
             lora_request=LoRARequest("bob_adapter", 1, self.bob_adapter_path) if self.bob_adapter_path else None
         )
 
-        logger.debug(f"Length of Bob request_outputs: {len(request_outputs)}")
+        logger.info(f"Length of Bob request_outputs: {len(request_outputs)}")
         
         n_correct = 0
         valid_diverging_inputs = []
@@ -487,7 +490,7 @@ class SInQ:
             result_text = output.text
             diverging_input = self.parse_bob_output(result_text)
 
-            logger.debug(f"Bob's diverging input: {diverging_input}")
+            logger.info(f"Bob's diverging input: {diverging_input}")
             
             if diverging_input:
                 if self.executor.check_divergence(program_p, program_q, diverging_input):
@@ -591,7 +594,7 @@ class SInQ:
             self.bob_adapter_path = adapter_path
         
         torch.cuda.empty_cache()
-        # logger.debug(f"After cleaning up fine-tuning model")
+        # logger.info(f"After cleaning up fine-tuning model")
 
     def run_self_play_loop(self):
         logger.info("Starting self-play loop...")
@@ -616,7 +619,9 @@ class SInQ:
             for j, p_original in enumerate(tqdm(self.programs, desc=f"Iteration {i+1}")):
                 tqdm.write(f"\n--- Processing example {j+1}/{len(self.programs)} in Iteration {i+1} ---")
 
+                p_original = p_original.replace("main :: IO ()", "")
                 p_original = strip_comments(p_original)
+                
                 tqdm.write(f"Original program (P):\n{p_original}")
 
                 if not self.executor.check_compiles(p_original):
@@ -637,7 +642,7 @@ class SInQ:
                     warning_counts["q_compile_fail"] += 1
                     continue
             
-                logger.info(f"Alice's candidate program: {q_candidate}")
+                logger.info(f"Alice's candidate program: \n{q_candidate}")
                 logger.info(f"Alice's diverging input: {x_candidate}")
 
                 is_divergent_alice = self.executor.check_divergence(p_original, q_candidate, x_candidate)

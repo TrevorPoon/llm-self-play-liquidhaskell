@@ -622,17 +622,17 @@ def check_correctness(
                         exec_result = subprocess.run(exec_cmd, timeout=timeout, capture_output=True)
 
                     if exec_result.returncode == 0:
-                        result.append({"status": "passed", "stdout": exec_result.stdout.decode(), "stderr": exec_result.stderr.decode()})
+                        result.append("passed")
                     else:
                         error_message = exec_result.stderr.decode() if exec_result.stderr else "Unknown execution error"
-                        result.append({"status": f"failed: {error_message}", "stdout": exec_result.stdout.decode(), "stderr": error_message})
+                        result.append(f"failed: {error_message}")
                         print(f"[DEBUG][unsafe_execute] Haskell execution failed for {task_id}. Error: {error_message}")
 
             except TimeoutException:
-                result.append({"status": "timed out", "stdout": "", "stderr": "Timed out!"})
+                result.append("timed out")
                 print(f"[DEBUG][unsafe_execute] Haskell execution timed out for {task_id}.")
             except Exception as e:
-                result.append({"status": f"failed: unexpected error: {e}", "stdout": "", "stderr": str(e)})
+                result.append(f"failed: unexpected error: {e}")
                 print(f"[DEBUG][unsafe_execute] An unexpected error occurred during Haskell execution for {task_id}: {e}")
             finally:
                 # Clean up and return to original directory
@@ -644,24 +644,22 @@ def check_correctness(
 
     p = multiprocessing.Process(target=unsafe_execute, args=(tmp_dir,))
     p.start()
-    p.join(timeout=timeout + 1);
+    p.join(timeout=timeout + 1)
     if p.is_alive():
         p.kill()
 
     if not result:
-        result.append({"status": "timed out", "stdout": "", "stderr": "Timed out!"})
+        result.append("timed out")
         print(f"[DEBUG][check_correctness] Task {task_id} timed out.")
 
-    print(f"[DEBUG][check_correctness] Result for {task_id}, completion_id {completion_id}: {result[0]['status']}")
+    print(f"[DEBUG][check_correctness] Result for {task_id}, completion_id {completion_id}: {result[0]}")
     return {
         "task_id"      : task_id,
         "completion_id": completion_id,
-        "result"       : result[0]['status'],
-        "passed"       : result[0]['status'] == "passed",
+        "result"       : result[0],
+        "passed"       : result[0] == "passed",
         "finish"       : -1 if "finish" not in sample else sample["finish"],
-        "code"         : sample["test_code"],
-        "stdout"       : result[0].get("stdout", ""),
-        "stderr"       : result[0].get("stderr", "")
+        "code"         : sample["test_code"]
     }
 
 # Copyright (c) OpenAI (https://openai.com)

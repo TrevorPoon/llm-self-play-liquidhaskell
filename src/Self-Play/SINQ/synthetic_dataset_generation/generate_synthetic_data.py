@@ -8,7 +8,7 @@ import pyarrow.feather as feather
 from dotenv import load_dotenv
 from tqdm import tqdm
 from huggingface_hub import HfApi, HfFolder
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 import torch
 from transformers.generation.utils import GenerationMixin
 from transformers import AutoTokenizer
@@ -42,6 +42,15 @@ def load_and_prepare_prompts(num_samples: int):
 
         # Get input, output, and unit_tests
         prompts_data = dataset.select_columns(['input', 'output']).select(range(len(dataset)))
+        
+        # 1. Convert to pandas
+        df = prompts_data.to_pandas()
+
+        # 2. Drop duplicate rows based on 'output'
+        df = df.drop_duplicates(subset=['output'])
+
+        # 3. Re-create a Dataset
+        prompts_data = Dataset.from_pandas(df)
 
         print(f"Loaded {len(prompts_data)} prompts after filtering and sorting.")
         # No need to modify prompts for 'Haskell' here as we want the original Python context
@@ -154,7 +163,14 @@ def main():
     if args.upload_to_hf and not args.hf_username:
         parser.error("--hf_username is required when --upload_to_hf is set.")
 
-    # --- 1. Configure VLLM ---
+    # --- 1. Load and Prepare Prompts ---
+    print(f"Loading and preparing {args.num_samples} prompts...")
+    prompts_for_generation = load_and_prepare_prompts(args.num_samples)
+    if not prompts_for_generation:
+        print("No prompts were loaded. Exiting.")
+        return
+
+    # --- 2. Configure VLLM ---
     print(f"Loading model {args.model} with vLLM...")
     num_gpus = torch.cuda.device_count()
     
@@ -181,13 +197,6 @@ def main():
         presence_penalty=1.5,
     )
     
-    # --- 2. Load and Prepare Prompts ---
-    print(f"Loading and preparing {args.num_samples} prompts...")
-    prompts_for_generation = load_and_prepare_prompts(args.num_samples)
-    if not prompts_for_generation:
-        print("No prompts were loaded. Exiting.")
-        return
-
     # --- 3. Generate Data ---
     print(f"Generating up to {len(prompts_for_generation)} samples...")
     dataset = []
@@ -239,7 +248,8 @@ def main():
     # --- 4. Save Dataset to Arrow and JSONL files ---
     print(f"Generated {len(dataset)} valid samples.")
     df = pd.DataFrame(dataset)
-    
+    df = df.drop_duplicates(subset=['code'])
+    print(f"Removed duplicate generated code. Original size: {len(dataset)}, Unique size: {len(df)}")
     os.makedirs(args.output_dir, exist_ok=True)
     
     output_path_arrow = os.path.join(args.output_dir, args.output_filename_arrow)

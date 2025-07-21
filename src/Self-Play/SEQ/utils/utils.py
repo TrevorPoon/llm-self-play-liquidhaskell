@@ -146,6 +146,14 @@ def _truncate_code_at_stopwords(code, stop_words):
             min_stop_idx = stop_index
     return code[:min_stop_idx]
 
+def strip_comments(src: str) -> str:
+    """Drop {- -}, --, and {-# #-} pragmas, keep line count."""
+    # pragmas / block comments
+    src = re.sub(r"{-\#[\s\S]*?\#-}", "", src)
+    src = re.sub(r"{-[\s\S]*?-}", "", src)
+    # line comments
+    return re.sub(r"--.*", "", src)
+
 def print_nvidia_smi(label=""):
     """Prints the current GPU memory usage using nvidia-smi"""
     nvidia_smi_output = subprocess.run(['nvidia-smi'], capture_output=True, text=True).stdout

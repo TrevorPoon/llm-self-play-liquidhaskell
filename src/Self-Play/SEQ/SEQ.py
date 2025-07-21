@@ -20,8 +20,7 @@ from datasets import load_dataset, load_from_disk
 from torch.utils.data import Dataset
 import re
 
-from utils.execution import time_limit, create_tempdir
-from utils.utils import extract_generation_code, get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage
+from utils.utils import extract_generation_code, get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage, strip_comments
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -30,45 +29,40 @@ logger = logging.getLogger(__name__)
 
 # --- Prompts (from SInQ Paper, Appendix C) ---
 
-ALICE_EQUIV_PROMPT = textwrap.dedent("""
-    You are a helpful and an expert Haskell programmer.
-    Your task is to generate a *syntactically and semantically equivalent* variant `Q` of a given Haskell program `P`.
+ALICE_SYSTEM_PROMPT = textwrap.dedent("""
+    You are a helpful and expert Haskell programmer, powered by Liquid Haskell.
+    Your job is to *transform* any given function `P` into a new function `Q` that:
 
-    Produce a new variant `Q` such that ∀x. `P x == Q x`. `Q` MUST be *different* from `P`.
+      • Is syntactically correct Haskell.  
+      • Is semantically equivalent: ∀x. `P x == Q x`.  
+      • Uses a *different* implementation and a different function name (e.g. add a trailing `'`).  
 
-    1. Write down `<think>…</think>` justification.
-    2. Output only:
-       **Generated Program `Q`:**
+    Always think through your transformation steps in `<think>…</think>`, then emit exactly:
 
-       ```haskell
-       <your Q>
-       ```
+    **Generated Program `Q`:**
+    ```haskell
+    <your Q here>
+    ```
 """).strip()
 
+
 ALICE_USER_PROMPT = textwrap.dedent("""
-    Here is the program `P` that you need to generate an equivalent variant `Q` for:
+    Here is the original Haskell function `P`:
 
-    ```haskell
-    {program}
-    ```
-
-    You are given the full original program `P` (which may include types and other declarations):
     ```haskell
     {program_p_completion}
     ```
 
-    You are also given the type `t` of the argument of the function in `P`. This is required to make sure Liquid Haskell can check the equivalence.
-    `t` = {t}
-
-    Please ensure `Q` is *syntactically correct* and *semantically equivalent* to `P`. Also, `Q` MUST be *different* from `P`. Avoid trivial changes like reordering commutative operations unless it is part of a larger, more significant transformation. Focus on generating genuinely distinct but equivalent programs. For example, if `P` is `add1 x = x + 1`, a good `Q` would be `add1 x = succ x`, not `add1 x = 1 + x`.
-    You **must** present your response in the following format:
-
-    ```
-    **Generated Program `Q`:**
+    Its argument type is  
     ```haskell
-    -- ONLY the code for program Q here
+    t = {t}
     ```
-    """).strip()
+
+    **Your task**: produce a new function `Q` that satisfies the system prompt requirements.  
+    - Make sure `Q` has a different name (e.g. append a `'`).  
+    - Avoid trivial symmetric rewrites—show a genuine alternative implementation.  
+    - Do not include any extra commentary beyond the required `<think>…</think>` and the `**Generated Program `Q`:** block.
+""").strip()
 
 BOB_SYSTEM_PROMPT = textwrap.dedent("""
     You are a Haskell equivalence checker. Given P and Q:
@@ -88,47 +82,16 @@ BOB_USER_PROMPT_TEMPLATE = textwrap.dedent("""
     ```
 """)
 
-ALICE_DIFFICULTY_PREDICTION_PROMPT_TEMPLATE = textwrap.dedent("""
-    Difficulty level: Any
-    ```haskell
-    {program}
-    ```
-""").strip()
+
 
 # New SFT Templates
-ALICE_PROOF_SFT_PROMPT = textwrap.dedent("""
-    You are a helpful and an expert Haskell programmer.
-    Your task is to generate a *syntactically and semantically equivalent* variant `Q` of a given Haskell program `P`.
-    You are given the full original program `P` (which may include types and other declarations):
-    ```haskell
-    {program_p}
-    ```
-
-    Your previous response was successfully proven to be equivalent by Liquid Haskell. Please learn from it.
-    """).strip()
-
-BOB_COUNTEREXAMPLE_SFT_PROMPT = textwrap.dedent("""
-    You are a Haskell equivalence checker. Given P and Q:
-      1. If ∀x. P x == Q x, output "Equivalent."
-      2. Otherwise, output a concrete counterexample x and the two outputs.
-
-    Program `P`:
-    ```haskell
-    {program_p}
-    ```
-
-    Program `Q`:
-    ```haskell
-    {program_q}
-    ```
-""").strip()
 
 
 # --- Code Execution ---
 
 class CodeExecutor:
     """A wrapper for executing Haskell code and comparing results."""
-    def __init__(self, sinq_instance, timeout: float = 20.0):
+    def __init__(self, sinq_instance, timeout: float = 60.0):
         self.sinq = sinq_instance
         self.timeout = timeout
         self.tmp_dir = tempfile.mkdtemp(prefix="haskell_executor_")
@@ -410,7 +373,8 @@ main = do
                         equiv_file_path
                     ],
                     capture_output=True, text=True, timeout=self.timeout,
-                    cwd=self.tmp_dir
+                    cwd=self.tmp_dir, 
+                    env=env
                 )
                 
                 logger.info(f"Equiv.hs (Attempt {attempt + 1}): \n{equiv_code}")
@@ -567,12 +531,8 @@ class SInQ:
                     dataset_iterator = dataset.take(self.args.num_initial_programs)
 
             for program_item in dataset_iterator:
-                if 'prompt' in program_item and 'completion' in program_item:
-                    prompt = program_item['prompt']
-                    completion_match = re.search(r"```haskell\n(.*?)\n```", program_item['completion'], re.DOTALL)
-                    if completion_match:
-                        completion = completion_match.group(1).strip()
-                        programs.append({'prompt': prompt, 'completion': completion})
+                if 'code' in program_item:
+                    programs.append({'code': program_item['code']})
 
             if self.args.num_initial_programs!=0 and len(programs) < self.args.num_initial_programs:
                  logger.warning(f"Warning: Only able to load {len(programs)} programs, but {self.args.num_initial_programs} were requested.")
@@ -640,7 +600,7 @@ class SInQ:
             logger.error(f"🟥 --- Bob parsing failed with exception: {e} ---")
             return None, None, None
 
-    def run_alice(self, program_p_prompt, program_p_completion):
+    def run_alice(self, program_p_completion):
         """Alice generates a variant of a program."""
         logger.info(f"Running Alice...")
         
@@ -652,13 +612,12 @@ class SInQ:
 
         # ALICE_USER_PROMPT already contains {program}
         user_content = ALICE_USER_PROMPT.format(
-            program=program_p_prompt,
             program_p_completion=program_p_completion,
             t=arg_type_p
         )
         
         messages = [
-            {"role": "system", "content": ALICE_EQUIV_PROMPT},
+            {"role": "system", "content": ALICE_SYSTEM_PROMPT},
             {"role": "user", "content": user_content}
         ]
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
@@ -686,9 +645,9 @@ class SInQ:
             result_text = output.outputs[0].text
             program_q, alice_raw_output = self.parse_alice_output(result_text)
             if program_q:
-                return program_q, alice_raw_output
+                return program_q, alice_raw_output, user_content
         
-        return None, None
+        return None, None, None
 
     def call_alice_for_proof(self, proof_prompt: str) -> str:
         """Generic method to call Alice with a specified prompt."""
@@ -891,24 +850,27 @@ class SInQ:
             }
             
             iteration_data = [] # To store JSON records for this iteration
-            candidate_examples = []
             bob_training_data = []
             
             # random.shuffle(self.programs)
             
             for j, program_item in enumerate(tqdm(self.programs, desc=f"Iteration {i+1}")):
-                p_original_prompt = program_item['prompt']
-                p_original_completion = program_item['completion']
-                tqdm.write(f"\n--- Processing example {j+1}/{len(self.programs)} in Iteration {i+1} ---")
-                # tqdm.write(f"Original program (P):\n{p_original_completion}")
 
-                if not self.executor.check_compiles(p_original_completion):
+                p_original_code = program_item['code']
+                p_original_code = p_original_code.replace("main :: IO ()", "")
+                p_original_code = strip_comments(p_original_code)
+
+
+                tqdm.write(f"\n--- Processing example {j+1}/{len(self.programs)} in Iteration {i+1} ---")
+                # tqdm.write(f"Original program (P):\n{p_original_code}")
+
+                if not self.executor.check_compiles(p_original_code):
                     logger.warning("🟨 Original program P failed to compile. Skipping example.")
                     warning_counts["p_compile_fail"] += 1
                     continue
 
                 # Alice's turn
-                q_candidate, alice_raw_output = self.run_alice(p_original_prompt, p_original_completion)
+                q_candidate, alice_raw_output, alice_user_content = self.run_alice(p_original_code)
                 
                 if not q_candidate:
                     logger.warning("🟨 Alice failed to generate a candidate program.")
@@ -916,23 +878,23 @@ class SInQ:
                     continue
 
                 # Check if Q is different from P
-                if q_candidate.strip() == p_original_completion.strip():
+                if q_candidate.strip() == p_original_code.strip():
                     logger.warning("🟨 Alice generated an identical program Q to P. Skipping example.")
                     warning_counts["alice_not_divergent"] += 1
                     continue
 
                 if not self.executor.check_compiles(q_candidate):
-                    logger.warning("�� Candidate Q failed to compile. Skipping example.")
+                    logger.warning("🟨 Candidate Q failed to compile. Skipping example.")
                     warning_counts["q_compile_fail"] += 1
                     continue
             
                 logger.info(f"Alice's candidate program: \n{q_candidate}")
 
                 # Phase 2: Embedding & Proving with Liquid Haskell
-                lh_status, lh_output, lh_counterexample = self.executor.verify_equivalence(p_original_completion, q_candidate)
+                lh_status, lh_output, lh_counterexample = self.executor.verify_equivalence(p_original_code, q_candidate)
                 
                 record = {
-                    "p": p_original_completion,
+                    "p": p_original_code,
                     "q": q_candidate,
                     "status": lh_status,
                     "lh_output": lh_output
@@ -943,11 +905,10 @@ class SInQ:
                     iteration_data.append(record)
 
                     # Add to Alice's training data (proof-conditioned)
-                    alice_sft_user_content = ALICE_PROOF_SFT_PROMPT.format(program_p=p_original_completion)
                     messages = [
-                        {"role": "system", "content": alice_sft_user_content},
-                        {"role": "user", "content": ALICE_USER_PROMPT.format(program=p_original_prompt)}, # Keeping user prompt for full context
-                        {"role": "assistant", "content": alice_raw_output} # Alice's successful generation with proof
+                        {"role": "system", "content": ALICE_SYSTEM_PROMPT},
+                        {"role": "user", "content": alice_user_content},
+                        {"role": "assistant", "content": alice_raw_output}
                     ]
                     self.cumulative_alice_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
 
@@ -960,7 +921,7 @@ class SInQ:
                     # Phase 3: Bob vs. Liquid Haskell (optional sanity check & training)
                     run_bob_triggered_count += 1
                     # The difficulty is now how easily Bob finds a counterexample for Alice's *refuted* claim.
-                    difficulty, valid_bob_inputs, bob_successful_responses = self.run_bob(p_original_completion, q_candidate)
+                    difficulty, valid_bob_inputs, bob_successful_responses = self.run_bob(p_original_code, q_candidate)
                     
                     # Store Bob's successful attempts for evaluation and training
                     record["bob_difficulty"] = difficulty
@@ -977,7 +938,7 @@ class SInQ:
                         # The original `BOB_SYSTEM_PROMPT` is used for Bob's generation, so we use that for his training context.
                         messages = [
                             {"role": "system", "content": BOB_SYSTEM_PROMPT},
-                            {"role": "user", "content": BOB_USER_PROMPT_TEMPLATE.format(program_p=p_original_completion, program_q=q_candidate)},
+                            {"role": "user", "content": BOB_USER_PROMPT_TEMPLATE.format(program_p=p_original_code, program_q=q_candidate)},
                             {"role": "assistant", "content": bob_response}
                         ]
                         bob_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
@@ -985,11 +946,11 @@ class SInQ:
                     if not valid_bob_inputs and lh_counterexample:
                         logger.info("🟨 Bob failed to find any counterexample, but LH provided one. Creating a hard training example for Bob from LH's counterexample.")
                         # Use BOB_COUNTEREXAMPLE_SFT_PROMPT for this hard training example
-                        bob_sft_user_content = BOB_COUNTEREXAMPLE_SFT_PROMPT.format(program_p=p_original_completion, program_q=q_candidate)
+                        # The original BOB_COUNTEREXAMPLE_SFT_PROMPT was removed, use BOB_SYSTEM_PROMPT instead for system content
                         bob_completion = f"Counterexample: `{lh_counterexample}`\nOutput P: `...`\nOutput Q: `...`" # Placeholder for outputs
                         messages = [
-                            {"role": "system", "content": bob_sft_user_content},
-                            {"role": "user", "content": BOB_USER_PROMPT_TEMPLATE.format(program_p=p_original_completion, program_q=q_candidate)}, # Need to include the user part for Bob
+                            {"role": "system", "content": BOB_SYSTEM_PROMPT},
+                            {"role": "user", "content": BOB_USER_PROMPT_TEMPLATE.format(program_p=p_original_code, program_q=q_candidate)},
                             {"role": "assistant", "content": bob_completion}
                         ]
                         bob_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
@@ -1011,7 +972,7 @@ class SInQ:
                 json.dump(iteration_data, f, indent=4)
             logger.info(f"Saved iteration {i+1} data to {output_file_path}")
 
-            # --- Phase 4: Data Aggregation & Fine-Tuning --- 
+            # --- Phase 4: Data Aggregation & Fine-Tuning ---
             # Alice's training data comes from successfully proved LH claims.
             # Bob's training data comes from his successful counterexamples, and LH-refuted cases.
 
