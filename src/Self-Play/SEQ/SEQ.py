@@ -16,18 +16,17 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingA
 import textwrap
 import tempfile
 from datasets import load_dataset, load_from_disk
-
 from torch.utils.data import Dataset
 import re
 
-from utils.utils import extract_generation_code, get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage, strip_comments
+from utils.utils import get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage, strip_comments
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
-# --- Prompts (from SInQ Paper, Appendix C) ---
+# --- Prompts (from SEQ Paper, Appendix C) ---
 
 ALICE_SYSTEM_PROMPT = textwrap.dedent("""
     You are a helpful and expert Haskell programmer, powered by Liquid Haskell.
@@ -35,7 +34,8 @@ ALICE_SYSTEM_PROMPT = textwrap.dedent("""
 
       • Is syntactically correct Haskell.  
       • Is semantically equivalent: ∀x. `P x == Q x`.  
-      • Uses a *different* implementation and a different function name (e.g. add a trailing `'`).  
+      • Uses a *different* implementation -- Implement a non-structural change rather than merely swapping operator order. 
+      • Uses a different function name (e.g. add a trailing `'_alt`).  
 
     Always think through your transformation steps in `<think>…</think>`, then emit exactly:
 
@@ -44,7 +44,6 @@ ALICE_SYSTEM_PROMPT = textwrap.dedent("""
     <your Q here>
     ```
 """).strip()
-
 
 ALICE_USER_PROMPT = textwrap.dedent("""
     Here is the original Haskell function `P`:
@@ -59,18 +58,24 @@ ALICE_USER_PROMPT = textwrap.dedent("""
     ```
 
     **Your task**: produce a new function `Q` that satisfies the system prompt requirements.  
-    - Make sure `Q` has a different name (e.g. append a `'`).  
+    - Make sure `Q` has a different name (e.g. append a `'_alt`).  
     - Avoid trivial symmetric rewrites—show a genuine alternative implementation.  
     - Do not include any extra commentary beyond the required `<think>…</think>` and the `**Generated Program `Q`:** block.
+    - Where appropriate, feel free to use Prelude functions such as foldr, map, or zipWith to encourage diverse strategies.
 """).strip()
 
-BOB_SYSTEM_PROMPT = textwrap.dedent("""
-    You are a Haskell equivalence checker. Given P and Q:
-      1. If ∀x. P x == Q x, output "Equivalent."
-      2. Otherwise, output a concrete counterexample x and the two outputs.
+COUNTEREXAMPLE_SYSTEM_PROMPT = textwrap.dedent("""
+    You are a Haskell equivalence checker. You are given two functions, P and Q, which fails to be proven equivalent by Liquid Haskell.
+    Your task is to provide a concrete counterexample input `x` that demonstrates their inequivalence.
+    The counterexample should be a valid Haskell expression for the input type.
+
+    - Choose x :: t within typical domain (e.g. small integers, small lists, etc.)
+    - Provide the smallest counterexample by size for minimality (e.g. shortest list or smallest integer)
+    - Return only the expression (no surrounding code)
+                                               
 """).strip()
 
-BOB_USER_PROMPT_TEMPLATE = textwrap.dedent("""
+COUNTEREXAMPLE_USER_PROMPT = textwrap.dedent("""
     Program `P`:
     ```haskell
     {program_p}
@@ -80,19 +85,94 @@ BOB_USER_PROMPT_TEMPLATE = textwrap.dedent("""
     ```haskell
     {program_q}
     ```
-""")
 
+    These two programs have failed to be proven equivalent by Liquid Haskell. Please provide a concrete counterexample.
 
+    **Counterexample:**
+    ```haskell
+    your counterexample here
+    ```
+""").strip()
 
-# New SFT Templates
+LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
+    You are an expert Haskell/Liquid Haskell prover.
+    You are asked to prove that two reflectedfunctions are equivalent.
+                                            
+    Here is an example of a *complete* proof:
+    
+    ```haskell
+    {{-@ LIQUID "--reflection"        @-}}
+    {{-@ LIQUID "--ple"               @-}}
 
+    module MyTest where
 
+    import Language.Haskell.Liquid.ProofCombinators
+
+    -- Alice program P
+    {{-@ reflect double @-}}
+    double :: Int -> Int
+    double x = x + x
+
+    -- Alice proposes Q
+    {{-@ reflect double' @-}}
+    double' :: Int -> Int
+    double' x = 2 * x
+
+    -- Here is the *full* lemma, from annotation to QED:
+    {{-@ lemma_double_equiv :: x:Int -> { double x == double' x } @-}}
+    lemma_double_equiv :: Int -> Proof
+    lemma_double_equiv x
+    =   double x
+    === double' x
+    *** QED
+    ```
+                                            
+    When you answer, output **only** the complete lemma block in the same style:
+    1. Use the `{{-@ lemma_… @-}}` annotation , with the exact naming pattern lemma_<P>_equiv
+    2. The Haskell type signature  
+    3. The function definition with `===` steps  
+    4. End with `*** QED`  
+    No extra text, no additional comments.
+    Your answer must match the example format exactly, without trailing whitespace or newlines outside the code block.                                     
+
+    """).strip()
+
+LEMMA_PROOF_USER_PROMPT = textwrap.dedent("""
+    {error_msg_section}
+                                          
+    Below are two reflected definitions with liquid haskell proof in previous attempt:
+    ```haskell
+    {equiv_code}
+    ```
+    ------------------------------------------------------------
+
+    **Your task**: Produce the proof of equivalence for the following function:
+    `{func_name_p} x == {func_name_q} x` for all `x`.  
+
+    ```haskell
+    {{-@ LIQUID "--reflection" @-}}
+    {{-@ LIQUID "--ple" @-}}
+    module Equiv where
+    import Language.Haskell.Liquid.ProofCombinators
+
+    {{-@ reflect {func_name_p} @-}}
+    {program_p_content}
+
+    {{-@ reflect {func_name_q} @-}}
+    {program_q_content}
+
+    -- Your complete proof of equivalence
+    ```haskell
+    /* PROOF BODY HERE */
+    ```
+    
+""").strip()
 # --- Code Execution ---
 
 class CodeExecutor:
     """A wrapper for executing Haskell code and comparing results."""
-    def __init__(self, sinq_instance, timeout: float = 60.0):
-        self.sinq = sinq_instance
+    def __init__(self, seq_instance, timeout: float = 60.0):
+        self.seq = seq_instance
         self.timeout = timeout
         self.tmp_dir = tempfile.mkdtemp(prefix="haskell_executor_")
 
@@ -208,6 +288,8 @@ main = do
     def check_compiles(self, program_code: str) -> bool:
         """Checks if a Haskell program compiles successfully."""
         main_body = 'main :: IO ()\nmain = putStrLn "compiles"'
+        if 'main = ' in program_code:
+            main_body = 'main :: IO ()'
         program = self._create_haskell_program(program_code, main_body)
 
         logger.info(f"Compiling Program: \n\n{program}\n\n")
@@ -232,7 +314,7 @@ main = do
                 return False
         return True
 
-    def generate_proof_body(self, program_p: str, program_q: str, func_name_p: str, func_name_q: str, arg_type: str, error_msg: str = None) -> str:
+    def generate_proof_body(self, program_p: str, program_q: str, func_name_p: str, func_name_q: str, arg_type: str, error_msg: str, equiv_code: str) -> str:
         """
         Ask Alice to fill in the proof. If error_msg is set, include it so she can fix mistakes.
         Returns just the body (the lines after '=').
@@ -241,40 +323,43 @@ main = do
         program_q_content = textwrap.dedent(program_q)
         # 1. Build a prompt that shows the reflected P and Q,
         #    and that asks for a sequence of ===, ?lemmas, and *** QED.
-        proof_prompt = textwrap.dedent(f"""
-        You are an expert Haskell/Liquid Haskell prover.
-        Below are two reflected definitions:
 
-        ```haskell
-        {{-@ reflect {func_name_p} @-}}
-        {program_p_content}
+        if error_msg:
+            error_msg_section = f"Liquid Haskell failed with:\n```\n{error_msg}\n```\nPlease fix your proof accordingly."
+        else:
+            error_msg_section = ""
 
-        {{-@ reflect {func_name_q} @-}}
-        {program_q_content}
-        ```
+        proof_user_prompt = LEMMA_PROOF_USER_PROMPT.format(
+            func_name_p=func_name_p,
+            func_name_q=func_name_q,
+            program_p_content=program_p_content,
+            program_q_content=program_q_content,
+            arg_type=arg_type,
+            error_msg_section=error_msg_section, 
+            equiv_code=equiv_code
+        )
 
-        Please write the body of
-
-        ```haskell
-        lemma_{func_name_p}_equiv :: x:{arg_type} -> {{ {func_name_p} x == {func_name_q} x }}
-        lemma_{func_name_p}_equiv x
-          =   /* PROOF BODY HERE */
-        ```
-
-        Use `===` for equational steps, `? someLemma …` for hints, and end with `*** QED`.
-
-        {f"If Liquid Haskell failed with:\n```\n{error_msg}\n```\nplease fix your proof accordingly." if error_msg else ""}
-        """).strip()
-
+        # logger.info(f"Proof system prompt: \n{LEMMA_PROOF_SYSTEM_PROMPT}")
+        # logger.info(f"Proof user prompt: \n{proof_user_prompt}")
+        
         # Call your LLM (Alice) with this as a single-turn prompt:
-        response = self.sinq.call_alice_for_proof(proof_prompt)
-        logger.info(f"Alice's raw proof generation response: {response}")
+        response = self.seq.call_alice_for_proof(LEMMA_PROOF_SYSTEM_PROMPT, proof_user_prompt)
+        # logger.info(f"Alice's raw lemma proof generation response: {response}")
 
         # Check if Alice returned the full function definition
-        match = re.search(r"lemma_.*?_equiv x\s*=\s*(.*)", response, re.DOTALL)
+
+        # 1) Try to grab the haskell‐labelled code block
+        pattern_hs = re.compile(r"```haskell\s*([\s\S]*?)```", flags=re.MULTILINE)
+        match = pattern_hs.search(response)
+
+        # 2) If none, fall back to any code block
+        if not match:
+            pattern_any = re.compile(r"```(?:[^\n]*\n)?([\s\S]*?)```", flags=re.MULTILINE)
+            match = pattern_any.search(response)
+
         if match:
             body = match.group(1).strip()
-            logger.info(f"Extracted proof body from full definition:\n{body}")
+            logger.info(f"Extracted lemma proof body from full definition:\n{body}")
             return body
         else:
             # Assume the entire response is the proof body
@@ -297,7 +382,7 @@ main = do
 
         if not func_name_p or not arg_type_p or not func_name_q or not arg_type_q:
             logger.warning("Could not extract function name or argument type for P or Q. Skipping LH verification.")
-            return "lh_error", "Function name or arg type extraction failed.", None
+            return "lh_error", "Function name or arg type extraction failed."
 
         # Create temporary files for Original.hs and Variant.hs
         original_file_path = os.path.join(self.tmp_dir, "Original.hs")
@@ -321,8 +406,7 @@ main = do
             {{-@ LIQUID "--reflection" @-}}
             {{-@ LIQUID "--ple" @-}}
             module Equiv where
-            import Original ({func_name_p})
-            import Variant  ({func_name_q})
+
             import Language.Haskell.Liquid.ProofCombinators
 
             {{-@ reflect {func_name_p} @-}}
@@ -332,20 +416,32 @@ main = do
             {program_q_content}
 
             -- Alice’s detailed proof of equivalence
-            {{-@ lemma_{func_name_p}_equiv :: x:{arg_type_p} -> {{ {func_name_p} x == {func_name_q} x }} @-}}
-            lemma_{func_name_p}_equiv :: {arg_type_p} -> Proof
-            lemma_{func_name_p}_equiv x
-              =   {proof_body}
+            {proof_body}
         """)
         
         # 1. Fill the initial proof_body with a stub
-        proof_body = f"{func_name_p} x === {func_name_q} x *** QED"
+        proof_body_template = textwrap.dedent("""
+            {{-@ lemma_{func_name_p}_equiv :: x:{arg_type_p} -> {{ {func_name_p} x == {func_name_q} x }} @-}}
+            lemma_{func_name_p}_equiv :: {arg_type_p} -> Proof
+            lemma_{func_name_p}_equiv x
+                =   {func_name_p} x 
+                === {func_name_q} x 
+                *** QED
+        """).strip()
+
         MAX_PROOF_ATTEMPTS = 3 # Set a limit for proof attempts
+
+        proof_body = proof_body_template.format(
+            func_name_p=func_name_p,
+            func_name_q=func_name_q,
+            arg_type_p=arg_type_p,
+        )
 
         for attempt in range(MAX_PROOF_ATTEMPTS):
             logger.info(f"--- Proof attempt {attempt + 1}/{MAX_PROOF_ATTEMPTS} ---")
             
             # 2. Render Equiv.hs with proof_body
+
             equiv_code = equiv_code_template.format(
                 func_name_p=func_name_p,
                 func_name_q=func_name_q,
@@ -381,7 +477,21 @@ main = do
                 
                 if lh_process.returncode == 0:
                     logger.info("✅ Liquid Haskell proof accepted.")
-                    return "proved", lh_process.stdout, None
+
+                    if self.seq.args.training_mode in ["positive_only", "both"]:
+                        # Add to Alice's training data (proof-conditioned)
+                        liquid_haskell_proof_system_prompt = textwrap.dedent("""
+                            You are a helpful assistant that generates Liquid Haskell proofs.
+                            You will be given a Liquid Haskell proof and a program.
+                            You will need to generate a new proof that is equivalent to the given proof.
+                        """).strip()
+                        messages = [
+                            {"role": "system", "content": liquid_haskell_proof_system_prompt},
+                            {"role": "assistant", "content": equiv_code}
+                        ]
+                        self.seq.cumulative_alice_training_data.append(self.seq.tokenizer.apply_chat_template(messages, tokenize=False))
+
+                    return "proved", lh_process.stdout
                 
                 # 4. On failure, extract stderr and ask Alice for a new proof_body
                 error_msg = lh_process.stderr
@@ -390,28 +500,25 @@ main = do
                 if attempt < MAX_PROOF_ATTEMPTS - 1:
                     logger.info("Asking Alice for a new proof body...")
                     proof_body = self.generate_proof_body(
-                        program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg
+                        program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code
                     )
                 else:
                     logger.warning(f"Max proof attempts ({MAX_PROOF_ATTEMPTS}) reached. Final refutation.")
-                    counterexample_match = re.search(r"Counterexample: (.*)", error_msg)
-                    counterexample = counterexample_match.group(1).strip() if counterexample_match else None
-                    return "refuted", error_msg, counterexample
+                    return "refuted", error_msg
 
             except subprocess.TimeoutExpired:
                 logger.warning(f"Liquid Haskell verification timed out (Attempt {attempt + 1}).")
                 # If it times out on the last attempt, return timeout
                 if attempt == MAX_PROOF_ATTEMPTS - 1:
-                    return "lh_timeout", "Liquid Haskell verification timed out", None
+                    return "lh_timeout", "Liquid Haskell verification timed out"
             except Exception as e:
                 logger.error(f"An unexpected error occurred during Liquid Haskell verification: {e}")
-                return "lh_error", str(e), None
+                return "lh_error", str(e)
 
         # This part should ideally not be reached if the loop handles all cases
-        return "refuted", "Max proof attempts reached without success.", None
+        return "refuted", "Max proof attempts reached without success."
 
-
-# --- SInQ Self-Play and Fine-tuning ---
+# --- SEQ Self-Play and Fine-tuning ---
 class SavePeftModelCallback(TrainerCallback):
     def __init__(self, model_type=None, iteration=None):
         self.model_type = model_type
@@ -431,7 +538,7 @@ class SavePeftModelCallback(TrainerCallback):
         model.save_pretrained(adapter_path)
         logger.info(f"Saved adapter for epoch {int(epoch)} to {adapter_path}")
 
-class SInQ_Dataset(Dataset):
+class SEQ_Dataset(Dataset):
     def __init__(self, data, tokenizer):
         self.data = data
         self.tokenizer = tokenizer
@@ -444,7 +551,7 @@ class SInQ_Dataset(Dataset):
         tokenized_item = self.tokenizer(item, truncation=True, padding="max_length")
         return {k: torch.tensor(v) for k, v in tokenized_item.items()}
 
-class SInQ:
+class SEQ:
     def __init__(self, args):
         self.args = args
         self.model_name = args.model_name_or_path
@@ -474,7 +581,6 @@ class SInQ:
         self.executor = CodeExecutor(self, timeout=args.timeout)
         self.programs = self.load_initial_programs(args.dataset_name)
         self.alice_adapter_path = self.initial_adapter_path
-        self.bob_adapter_path = self.initial_adapter_path
         self.cumulative_alice_training_data = []
 
     def _initialize_vllm(self):
@@ -549,7 +655,7 @@ class SInQ:
         try:
             # print(f"Alice output: \n\n{text}\n\n")
             # Extract program Q
-            program_q_match = re.search(r"\*\*Generated Program `Q`:\*\*\s*```haskell\n(.*?)\n```", text, re.DOTALL)
+            program_q_match = re.search(r"\*\*Generated Program `?Q`?:\*\*\s*```haskell\n(.*?)\n```", text, re.DOTALL)
             if not program_q_match:
                 logger.warning("🟥 --- Alice parsing failed: Could not find 'Generated Program Q' block ---")
 
@@ -567,38 +673,6 @@ class SInQ:
             logger.error(f"🟥 --- Alice parsing failed with exception: {e} ---")
             logger.error(f"Full output from Alice:\n{text}")
             return None, None
-
-    def parse_bob_output(self, text):
-        try:
-            # If Bob claims equivalence
-            if re.match(r"^Equivalent\.$", text.strip()):
-                return "Equivalent", None, None
-            
-            # Extract counterexample if programs are inequivalent
-            # More robust regex for LH counterexamples: typically 'Counterexample: <value> with input <input_value>'
-            # or just 'Counterexample: <value>'
-            counterexample_match = re.search(r"[Cc]ounterexample: (.*?)(?: with input (.*?))?", text)
-            if counterexample_match:
-                counterexample_value = counterexample_match.group(1).strip()
-                # If there's a second group, it's the specific input for the counterexample.
-                # Otherwise, the entire captured value is the counterexample.
-                counterexample = counterexample_match.group(2).strip() if counterexample_match.group(2) else counterexample_value
-
-                # Remove potential 'x = ' prefix from the diverging input.
-                counterexample = re.sub(r'^[ \t]*\w+[ \t]*=[ \t]*', '', counterexample).strip()
-
-                output_p_match = re.search(r"[oO]utput P:?\s*`(.*?)`", text)
-                output_q_match = re.search(r"[oO]utput Q:?\s*`(.*?)`", text)
-
-                output_p = output_p_match.group(1).strip() if output_p_match else None
-                output_q = output_q_match.group(1).strip() if output_q_match else None
-
-                return counterexample, output_p, output_q
-            
-            return None, None, None
-        except Exception as e:
-            logger.error(f"🟥 --- Bob parsing failed with exception: {e} ---")
-            return None, None, None
 
     def run_alice(self, program_p_completion):
         """Alice generates a variant of a program."""
@@ -633,28 +707,42 @@ class SInQ:
         
         # Note: vLLM currently doesn't support different LoRA adapters for different requests in a single batch.
         # We pass the LoRA request, and it will be applied to all prompts in the batch.
-        request_outputs = self.vllm_model.generate(
-            [prompt] * 1,
-            sampling_params,
-            lora_request=LoRARequest("alice_adapter", 1, self.alice_adapter_path) if self.alice_adapter_path else None
-        )
-
-        logger.info(f"Length of Alice request_outputs: {len(request_outputs)}")
-
-        for output in request_outputs:
-            result_text = output.outputs[0].text
-            program_q, alice_raw_output = self.parse_alice_output(result_text)
-            if program_q:
-                return program_q, alice_raw_output, user_content
         
+        MAX_ALICE_RETRIES = 5
+        for attempt in range(MAX_ALICE_RETRIES):
+            logger.info(f"Alice generation attempt {attempt + 1}/{MAX_ALICE_RETRIES}...")
+            request_outputs = self.vllm_model.generate(
+                [prompt] * 1,
+                sampling_params,
+                lora_request=LoRARequest("alice_adapter", 1, self.alice_adapter_path) if self.alice_adapter_path else None
+            )
+
+            logger.info(f"Length of Alice request_outputs: {len(request_outputs)}")
+
+            for output in request_outputs:
+                result_text = output.outputs[0].text
+                program_q, alice_raw_output = self.parse_alice_output(result_text)
+                
+                if program_q:
+                    # Check if the generated program Q compiles
+                    if self.executor.check_compiles(program_q):
+                        logger.info("✅ Alice generated a compilable program Q.")
+                        return program_q, alice_raw_output, user_content
+                    else:
+                        logger.warning("🟨 Alice's generated program Q failed to compile. Retrying...")
+                else:
+                    logger.warning("🟨 Alice failed to generate a valid program Q (parsing issue). Retrying...")
+        
+        logger.error(f"❌ Alice failed to generate a compilable program Q after {MAX_ALICE_RETRIES} attempts.")
         return None, None, None
 
-    def call_alice_for_proof(self, proof_prompt: str) -> str:
+    def call_alice_for_proof(self, proof_system_prompt: str, proof_user_prompt: str) -> str:
         """Generic method to call Alice with a specified prompt."""
         logger.info("Calling Alice for proof generation...")
         
         messages = [
-            {"role": "system", "content": proof_prompt}
+            {"role": "system", "content": proof_system_prompt},
+            {"role": "user", "content": proof_user_prompt}
         ]
         
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
@@ -677,70 +765,52 @@ class SInQ:
         if request_outputs:
             return request_outputs[0].outputs[0].text
         return ""
+    
+    def get_counterexample(self, program_p, program_q, lh_output):
+        logger.info("Getting counterexample...")
 
-    def run_bob(self, program_p, program_q):
-        """
-        Bob checks for semantic equivalence and calculates difficulty.
-        It generates n_samples and checks how many are correct.
-        """
-        logger.info(f"Running Bob to calculate difficulty over {self.args.n_samples} attempts...")
-        
+        # First, try to extract from Liquid Haskell's output
+        counterexample_match = re.search(r"Counterexample: (.*)", lh_output)
+        if counterexample_match:
+            counterexample = counterexample_match.group(1).strip()
+            logger.info(f"Extracted counterexample from LH output: {counterexample}")
+            return counterexample
+
+        # If not found, prompt the LLM
+        logger.info("LH output did not contain a counterexample. Prompting LLM...")
+
+        counterexample_user_prompt = COUNTEREXAMPLE_USER_PROMPT.format(program_p=program_p, program_q=program_q)
+
         messages = [
-            {"role": "system", "content": BOB_SYSTEM_PROMPT},
-            {"role": "user", "content": BOB_USER_PROMPT_TEMPLATE.format(program_p=program_p, program_q=program_q)}
+            {"role": "system", "content": COUNTEREXAMPLE_SYSTEM_PROMPT},
+            {"role": "user", "content": counterexample_user_prompt}
         ]
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        
+
         sampling_params = vllm.SamplingParams(
-            n=self.args.n_samples,
+            n=1,
             temperature=self.args.temperature,
+            max_tokens=self.args.max_tokens,
             top_p=self.args.top_p,
             top_k=self.args.top_k,
-            max_tokens=self.args.max_tokens,
             presence_penalty=self.args.presence_penalty
         )
-        
-        # We generate n_samples for a single prompt. This returns one RequestOutput.
+
         request_outputs = self.vllm_model.generate(
             [prompt],
             sampling_params,
-            lora_request=LoRARequest("bob_adapter", 1, self.bob_adapter_path) if self.bob_adapter_path else None
+            lora_request=LoRARequest("alice_adapter", 1, self.alice_adapter_path) if self.alice_adapter_path else None
         )
 
-        logger.info(f"Length of Bob request_outputs: {len(request_outputs)}")
-        
-        n_correct = 0
-        valid_bob_inputs = []
-        bob_training_responses = []
+        if not request_outputs:
+            return ""
 
-        # The single RequestOutput contains a list of n_samples CompletionOutputs
-        bob_outputs = request_outputs[0].outputs
-        for output in bob_outputs:
-            result_text = output.text
-            counterexample, output_p, output_q = self.parse_bob_output(result_text)
-
-            logger.info(f"Bob's counterexample: {counterexample}")
-            
-            if counterexample and counterexample != "Equivalent":
-                # For Bob, we only consider a 'correct' counterexample if it diverges on the concrete input
-                if self.executor.check_divergence(program_p, program_q, counterexample):
-                    n_correct += 1
-                    valid_bob_inputs.append({
-                        "counterexample": counterexample,
-                        "output_p": output_p,
-                        "output_q": output_q
-                    })
-                    # Add the raw successful response for Bob's training
-                    bob_training_responses.append(result_text)
-            elif counterexample == "Equivalent":
-                # If Bob claims equivalence, and LH proved it, this is a correct Bob response
-                # For now, we don't count this towards 'n_correct' for difficulty, but good for training.
-                pass
-
-        difficulty = 10 * (1 - (n_correct / self.args.n_samples))
-        logger.info(f"Bob found {n_correct}/{self.args.n_samples} correct diverging inputs. Calculated difficulty: {difficulty:.2f}")
-        
-        return difficulty, valid_bob_inputs, bob_training_responses
+        response_text = request_outputs[0].outputs[0].text
+        # logger.info(f"Counterexample response: {response_text}")
+        match = re.search(r"```haskell\s*(.*?)\s*```", response_text, re.DOTALL)
+        if match:
+            return match.group(1).strip(), response_text.strip()
+        return "", response_text.strip()
 
     def _initialize_base_model_for_finetuning(self):
         if self.base_model is None:
@@ -771,11 +841,7 @@ class SInQ:
             target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
         )
 
-        current_adapter_to_load = None
-        if model_type == "alice":
-            current_adapter_to_load = self.alice_adapter_path
-        elif model_type == "bob":
-            current_adapter_to_load = self.bob_adapter_path
+        current_adapter_to_load = self.alice_adapter_path
 
         if current_adapter_to_load and os.path.exists(current_adapter_to_load):
             logger.info(f"Loading adapter from {current_adapter_to_load} to continue fine-tuning.")
@@ -806,7 +872,7 @@ class SInQ:
         trainer = Trainer(
             model=peft_model,
             args=training_args,
-            train_dataset=SInQ_Dataset(dataset, self.tokenizer),
+            train_dataset=SEQ_Dataset(dataset, self.tokenizer),
             data_collator=DataCollatorForLanguageModeling(self.tokenizer, mlm=False),
             callbacks=[SavePeftModelCallback(model_type=model_type, iteration=iteration)]
         )
@@ -824,8 +890,6 @@ class SInQ:
         adapter_path = os.path.join(output_dir, adapter_dir_name)
         if model_type == "alice":
             self.alice_adapter_path = adapter_path
-        else:
-            self.bob_adapter_path = adapter_path
         
         torch.cuda.empty_cache()
         # print_gpu_memory_usage(f"After cleaning up fine-tuning model")
@@ -835,10 +899,8 @@ class SInQ:
         
         os.makedirs(os.path.join(self.args.output_dir, "seq_data"), exist_ok=True)
 
-        for i in range(self.args.n_iterations):
-            logger.info(f"--- Self-Play Iteration {i+1}/{self.args.n_iterations} ---")
-            
-            run_bob_triggered_count = 0
+        for iteration in range(self.args.n_iterations):
+            logger.info(f"--- Self-Play Iteration {iteration+1}/{self.args.n_iterations} ---")
             
             warning_counts = {
                 "p_compile_fail": 0,
@@ -850,18 +912,17 @@ class SInQ:
             }
             
             iteration_data = [] # To store JSON records for this iteration
-            bob_training_data = []
             
             # random.shuffle(self.programs)
             
-            for j, program_item in enumerate(tqdm(self.programs, desc=f"Iteration {i+1}")):
+            for j, program_item in enumerate(tqdm(self.programs, desc=f"Iteration {iteration+1}")):
 
                 p_original_code = program_item['code']
                 p_original_code = p_original_code.replace("main :: IO ()", "")
                 p_original_code = strip_comments(p_original_code)
 
 
-                tqdm.write(f"\n--- Processing example {j+1}/{len(self.programs)} in Iteration {i+1} ---")
+                tqdm.write(f"\n--- Processing example {j+1}/{len(self.programs)} in Iteration {iteration+1} ---")
                 # tqdm.write(f"Original program (P):\n{p_original_code}")
 
                 if not self.executor.check_compiles(p_original_code):
@@ -891,7 +952,10 @@ class SInQ:
                 logger.info(f"Alice's candidate program: \n{q_candidate}")
 
                 # Phase 2: Embedding & Proving with Liquid Haskell
-                lh_status, lh_output, lh_counterexample = self.executor.verify_equivalence(p_original_code, q_candidate)
+                lh_status, lh_output = self.executor.verify_equivalence(p_original_code, q_candidate)
+                
+                logger.info(f"Liquid Status: {lh_status}")
+                logger.info(f"Liquid Output: {lh_output}")
                 
                 record = {
                     "p": p_original_code,
@@ -902,58 +966,49 @@ class SInQ:
 
                 if lh_status == "proved":
                     logger.info("✅ Alice generated an equivalent program with a successful LH proof.")
+
                     iteration_data.append(record)
 
-                    # Add to Alice's training data (proof-conditioned)
-                    messages = [
-                        {"role": "system", "content": ALICE_SYSTEM_PROMPT},
-                        {"role": "user", "content": alice_user_content},
-                        {"role": "assistant", "content": alice_raw_output}
-                    ]
-                    self.cumulative_alice_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
+                    if self.args.training_mode in ["positive_only", "both"]:
+                        # Add to Alice's training data (proof-conditioned)
+                        messages = [
+                            {"role": "system", "content": ALICE_SYSTEM_PROMPT},
+                            {"role": "user", "content": alice_user_content},
+                            {"role": "assistant", "content": alice_raw_output}
+                        ]
+                        self.cumulative_alice_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
 
                 elif lh_status == "refuted":
+
                     logger.warning("❌ Alice's claim was refuted by Liquid Haskell.")
-                    record["counterexample"] = lh_counterexample
-                    iteration_data.append(record)
-                    warning_counts["alice_not_divergent"] += 1 # Renaming this for LH refutations
 
-                    # Phase 3: Bob vs. Liquid Haskell (optional sanity check & training)
-                    run_bob_triggered_count += 1
-                    # The difficulty is now how easily Bob finds a counterexample for Alice's *refuted* claim.
-                    difficulty, valid_bob_inputs, bob_successful_responses = self.run_bob(p_original_code, q_candidate)
+                    if self.args.training_mode in ["negative_only", "both"]:
+                        
+                        counterexample, counterexample_response = self.get_counterexample(p_original_code, q_candidate, lh_output)
+                        logger.info(f"Counterexample: {counterexample}")
+
+                        is_divergence = self.executor.check_divergence(p_original_code, q_candidate, counterexample)
+
+                        if is_divergence:
+                            logger.info("✅ Alice generated a correct counterexample.")
+                            record["counterexample"] = counterexample
+                            iteration_data.append(record)
+
+                            warning_counts["alice_not_divergent"] += 1
+
+                            # Create training data for Alice (as checker)
+                            messages = [
+                                {"role": "system", "content": COUNTEREXAMPLE_SYSTEM_PROMPT},
+                                {"role": "user", "content": COUNTEREXAMPLE_USER_PROMPT.format(program_p=p_original_code, program_q=q_candidate)},
+                                {"role": "assistant", "content": counterexample_response},
+                            ]
+                            self.cumulative_alice_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
+                        else:
+                            logger.warning("❌ Alice generated an incorrect counterexample, skipping example.")
                     
-                    # Store Bob's successful attempts for evaluation and training
-                    record["bob_difficulty"] = difficulty
-                    record["valid_bob_inputs"] = valid_bob_inputs
-                    record["bob_successful_responses"] = bob_successful_responses # Store for analysis if needed
+                    else:
+                        logger.info("We are not training Alice on counterexamples, skipping example.")
 
-                    # In SEQ, Alice should be trained to *avoid* refutations, or to produce *provable* equivalents.
-                    # For now, we are focusing Alice's training on proved examples. If she is refuted, it's a negative example.
-                    # We could add a separate mechanism for Alice to learn from refutations.
-
-                    # Create Bob's training data from his successful attempts or LH's counterexample
-                    for bob_response in bob_successful_responses:
-                        # Bob's training data is based on successfully finding a counterexample
-                        # The original `BOB_SYSTEM_PROMPT` is used for Bob's generation, so we use that for his training context.
-                        messages = [
-                            {"role": "system", "content": BOB_SYSTEM_PROMPT},
-                            {"role": "user", "content": BOB_USER_PROMPT_TEMPLATE.format(program_p=p_original_code, program_q=q_candidate)},
-                            {"role": "assistant", "content": bob_response}
-                        ]
-                        bob_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
-
-                    if not valid_bob_inputs and lh_counterexample:
-                        logger.info("🟨 Bob failed to find any counterexample, but LH provided one. Creating a hard training example for Bob from LH's counterexample.")
-                        # Use BOB_COUNTEREXAMPLE_SFT_PROMPT for this hard training example
-                        # The original BOB_COUNTEREXAMPLE_SFT_PROMPT was removed, use BOB_SYSTEM_PROMPT instead for system content
-                        bob_completion = f"Counterexample: `{lh_counterexample}`\nOutput P: `...`\nOutput Q: `...`" # Placeholder for outputs
-                        messages = [
-                            {"role": "system", "content": BOB_SYSTEM_PROMPT},
-                            {"role": "user", "content": BOB_USER_PROMPT_TEMPLATE.format(program_p=p_original_code, program_q=q_candidate)},
-                            {"role": "assistant", "content": bob_completion}
-                        ]
-                        bob_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
 
                 elif lh_status == "lh_timeout":
                     logger.warning("⏱️ Liquid Haskell verification timed out. Skipping example.")
@@ -967,24 +1022,22 @@ class SInQ:
                     continue
 
             # Save iteration data to JSON
-            output_file_path = os.path.join(self.args.output_dir, "seq_data", f"iteration_{i}.json")
+            output_file_path = os.path.join(self.args.output_dir, "seq_data", f"iteration_{iteration}.json")
             with open(output_file_path, 'w') as f:
                 json.dump(iteration_data, f, indent=4)
-            logger.info(f"Saved iteration {i+1} data to {output_file_path}")
+            logger.info(f"Saved iteration {iteration+1} data to {output_file_path}")
 
             # --- Phase 4: Data Aggregation & Fine-Tuning ---
             # Alice's training data comes from successfully proved LH claims.
             # Bob's training data comes from his successful counterexamples, and LH-refuted cases.
 
-            logger.info(f"Iteration {i+1} summary:")
-            logger.info(f"  - Bob was triggered {run_bob_triggered_count} times.")
+            logger.info(f"Iteration {iteration+1} summary:")
             logger.info(f"  - Total processed examples: {len(iteration_data)}")
             logger.info(f"  - LH Proved examples: {len([r for r in iteration_data if r['status'] == 'proved'])}")
             logger.info(f"  - LH Refuted examples: {len([r for r in iteration_data if r['status'] == 'refuted'])}")
             logger.info(f"  - LH Timeout examples: {len([r for r in iteration_data if r['status'] == 'lh_timeout'])}")
             logger.info(f"  - LH Error examples: {len([r for r in iteration_data if r['status'] == 'lh_error'])}")
             logger.info(f"  - Cumulative Alice training data size: {len(self.cumulative_alice_training_data)}")
-            logger.info(f"  - Bob training data size: {len(bob_training_data)}")
             logger.info("  - 🟥 🟥 🟥 Warning counts: 🟥 🟥 🟥")
             logger.info(f"    - Original program P failed to compile: {warning_counts['p_compile_fail']}")
             logger.info(f"    - Alice failed to generate a candidate program/refinement stub: {warning_counts['alice_generation_fail']}")
@@ -993,7 +1046,8 @@ class SInQ:
             logger.info(f"    - Liquid Haskell verification timed out: {warning_counts['lh_timeout']}")
             logger.info(f"    - Liquid Haskell verification failed unexpectedly: {warning_counts['lh_error']}")
 
-            if self.cumulative_alice_training_data or bob_training_data:
+            if self.cumulative_alice_training_data:
+
                 logger.info("Releasing vLLM model to free up memory for fine-tuning...")
                 del self.vllm_model
                 torch.cuda.empty_cache()
@@ -1001,13 +1055,17 @@ class SInQ:
                 print_nvidia_smi("After releasing vLLM model")
                 print_gpu_memory_usage("After releasing vLLM model")
 
+                logger.info("Save Alice Training Data to File...")
+                with open(os.path.join(self.args.output_dir, "seq_training_data", 
+                                       self.model_name, 
+                                       f"iteration_{iteration}_dataset{self.args.dataset_name}_size{self.args.num_initial_programs}", 
+                                       "alice_training_data.json"), "w") as f:
+                    json.dump(self.cumulative_alice_training_data, f, indent=4)
+                logger.info("Alice Training Data saved to file.")
 
-                if self.cumulative_alice_training_data:
-                    self.finetune_model(self.cumulative_alice_training_data, "alice", i)
+                logger.info("Fine-tuning Alice's model...")
+                self.finetune_model(self.cumulative_alice_training_data, "alice", iteration)
 
-                if bob_training_data:
-                    self.finetune_model(bob_training_data, "bob", i)
-                
                 # Release base model memory
                 del self.base_model
                 self.base_model = None
@@ -1021,7 +1079,7 @@ class SInQ:
             # In SEQ, Alice learns from successfully proved examples.
 
             if self.args.run_evaluation:
-                self.evaluate(i)
+                self.evaluate(iteration)
 
     def evaluate(self, iteration):
         logger.info(f"Starting final evaluation for iteration {iteration}...")
@@ -1113,7 +1171,7 @@ class SInQ:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SInQ Self-Play and Fine-tuning")
+    parser = argparse.ArgumentParser(description="SEQ Self-Play and Fine-tuning")
     parser.add_argument('--model_name_or_path', type=str, required=True, help="Path to the base model.")
 
     parser.add_argument('--dataset_name', type=str, default='../data/successfully_compiled_sorted_haskell_dataset', help="Hugging Face dataset name or local path for initial programs.")
@@ -1140,6 +1198,7 @@ def main():
     parser.add_argument('--run_evaluation', action='store_true', help="Whether to run evaluation after each iteration.")
     parser.add_argument('--initial_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter to continue fine-tuning from.")
     parser.add_argument('--tensor_parallel_size', type=int, default=1, help="Number of tensor parallel processes.")
+    parser.add_argument('--training_mode', type=str, default='positive_only', choices=['positive_only', 'negative_only', 'both'], help="Which data to use for training Alice.")
     
     args = parser.parse_args()
 
@@ -1147,15 +1206,15 @@ def main():
     for arg in vars(args):
         logger.info(f"{arg}: {getattr(args, arg)}")
     
-    sinq = SInQ(args)
+    seq = SEQ(args)
 
     try:
-        sinq.run_self_play_loop()
+        seq.run_self_play_loop()
     finally:
         # Explicitly clean up the temporary directory created by CodeExecutor
-        if os.path.exists(sinq.executor.tmp_dir):
-            logger.info(f"Cleaning up temporary directory: {sinq.executor.tmp_dir}")
-            shutil.rmtree(sinq.executor.tmp_dir)
+        if os.path.exists(seq.executor.tmp_dir):
+            logger.info(f"Cleaning up temporary directory: {seq.executor.tmp_dir}")
+            shutil.rmtree(seq.executor.tmp_dir)
 
 if __name__ == "__main__":
     main()

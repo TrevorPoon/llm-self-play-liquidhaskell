@@ -32,6 +32,29 @@ lemma_double_equiv x
 
 """
 
+haskell_code = """
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple" @-}
+module Equiv where
+
+import Language.Haskell.Liquid.ProofCombinators
+
+{-@ reflect addNumbers @-}
+addNumbers :: Int -> Int -> Int
+addNumbers a b = a + b
+
+{-@ reflect addNumbers' @-}
+addNumbers' :: Int -> (Int -> Int)
+addNumbers' a = \b -> a + b
+
+-- Alice’s detailed proof of equivalence
+lemma_addNumbers_equiv :: Int -> Int -> Proof
+lemma_addNumbers_equiv x y
+    =   addNumbers x y 
+    === addNumbers' x y 
+    *** QED
+"""
+
 # Define the Haskell file name
 haskell_file_name = "MyTest.hs"
 # Create a temporary directory

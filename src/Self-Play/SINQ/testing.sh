@@ -2,9 +2,9 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:1                 # specifically four A40 GPUs
-#SBATCH --time=0-02:00:00
-#SBATCH --output=log/slurm-seq-finetune-%j.out
+#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
+#SBATCH --time=2-00:00:00
+#SBATCH --output=log/slurm-sinq-trial-7B-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -39,24 +39,25 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # INPUTS
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
-DATASET_NAME="../data/synthetic_haskell_dataset_nvidia_10000/synthetic_haskell_dataset_nvidia.jsonl"
-NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=4
+DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
+NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=8
 NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter"
 
 OUTPUT_DIR="output/${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_without_difficulty_prediction"
 
-CUDA_VISIBLE_DEVICES=0 python -u SEQ.py \
+accelerate launch \
+    --config_file accelerate_config.yaml \
+    SINQ_wo_d_v2.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \
     --initial_adapter_path "$INITIAL_ADAPTER_PATH" \
-    --n_iterations 1  \
+    --n_iterations 3  \
     --n_samples 10 \
     --timeout 20 \
     --max_tokens 32768 \
@@ -69,4 +70,4 @@ CUDA_VISIBLE_DEVICES=0 python -u SEQ.py \
     --num_initial_programs $NUM_INITIAL_PROGRAMS \
     --per_device_train_batch_size 1 \
     --n_humaneval_evaluations_per_iteration $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION \
-    --tensor_parallel_size 1
+    --tensor_parallel_size 2
