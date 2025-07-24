@@ -114,7 +114,7 @@ do
             --iteration "$i" \
             --num_train_epochs $NUM_EPOCHS \
             --per_device_train_batch_size 1 \
-            --learning_rate $LEARNING_RATE
+            --learning_rate $LEARNING_RATE \
 
         # Find the path to the latest adapter created by the fine-tuning script
         # Assuming the last epoch's adapter is the one to use next.

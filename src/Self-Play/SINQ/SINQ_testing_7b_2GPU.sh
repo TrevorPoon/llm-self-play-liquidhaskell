@@ -96,6 +96,8 @@ do
     # Update programs file path for the next iteration
     ALICE_TRAINING_DATA_PATH="${ITERATION_DIR}/alice_training_data.jsonl"
     BOB_TRAINING_DATA_PATH="${ITERATION_DIR}/bob_training_data.jsonl"
+
+    nvidia-smi
     
     # --- Step 2: Fine-tuning (Accelerate on GPUs 1, 2, 3) ---
     if [ -f "$ALICE_TRAINING_DATA_PATH" ] && [ -s "$ALICE_TRAINING_DATA_PATH" ]; then

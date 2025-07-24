@@ -32,10 +32,9 @@ class SavePeftModelCallback(TrainerCallback):
         logger.info(f"Saved adapter for epoch {int(epoch)} to {adapter_path}")
 
 class SEQ_Dataset(Dataset):
-    def __init__(self, data, tokenizer, max_length):
+    def __init__(self, data, tokenizer):
         self.data = data
         self.tokenizer = tokenizer
-        self.max_length = max_length
 
     def __len__(self):
         return len(self.data)
@@ -53,14 +52,14 @@ class SEQ_Dataset(Dataset):
         # Tokenize the combined text
         tokenized_item = self.tokenizer(
             combined_text,
-            truncation=True,
-            padding="max_length",
-            max_length=self.max_length,
+            truncation=False,
+            padding=False,
             return_tensors="pt"
         )
 
         input_ids = tokenized_item["input_ids"].squeeze(0)
-        labels = input_ids.clone()  
+        labels = input_ids.clone() 
+         
         return {"input_ids": input_ids, "labels": labels}
 
 def load_training_data(file_path):
@@ -83,7 +82,7 @@ def main():
     parser.add_argument('--lora_r', type=int, default=8, help="LoRA r.")
     parser.add_argument('--lora_alpha', type=int, default=16, help="LoRA alpha.")
     parser.add_argument('--lora_dropout', type=float, default=0.05, help="LoRA dropout.")
-    parser.add_argument('--max_tokens', type=int, default=32768, help="Maximum number of tokens for the model's context window.")
+    parser.add_argument('--max_tokens', type=int, default=4096, help="Maximum number of tokens for the model's context window.")
 
     args = parser.parse_args()
 
@@ -101,7 +100,7 @@ def main():
         logger.error(f"No training data found in {args.dataset_path}. Exiting.")
         return
 
-    train_dataset = SEQ_Dataset(training_data, tokenizer, args.max_tokens)
+    train_dataset = SEQ_Dataset(training_data, tokenizer)
     
     # --- Model Initialization ---
     logger.info("Initializing base model for fine-tuning...")

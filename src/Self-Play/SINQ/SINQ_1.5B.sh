@@ -40,6 +40,8 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
+export USE_SDP_ATTENTION=0
+
 
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
@@ -47,7 +49,7 @@ DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=0
 NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter_without_difficulty_prediction"
+NAME="no_initial_adapter"
 N_ITERATIONS=3
 LEARNING_RATE=5e-4
 NUM_EPOCHS=3
@@ -74,7 +76,7 @@ do
     echo "--- [Iteration ${i}] Running Data Generation ---"
   
     
-    python SINQ_wo_d_v2.py \
+    python SINQ_v2.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
         --output_dir "$OUTPUT_DIR" \
@@ -112,7 +114,7 @@ do
             --iteration "$i" \
             --num_train_epochs $NUM_EPOCHS \
             --per_device_train_batch_size 1 \
-            --learning_rate $LEARNING_RATE
+            --learning_rate $LEARNING_RATE \
 
         # Find the path to the latest adapter created by the fine-tuning script
         # Assuming the last epoch's adapter is the one to use next.
