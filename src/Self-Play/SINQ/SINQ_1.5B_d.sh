@@ -4,7 +4,7 @@
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
 #SBATCH --gres=gpu:a40:1                  # specifically four A40 GPUs
 #SBATCH --mem=128000
-#SBATCH --time=1-00:00:00
+#SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-sinq-trial-1.5B-%j.out
 
 # --- Environment Setup ---
@@ -47,7 +47,7 @@ export USE_SDP_ATTENTION=0
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=0
-NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter"
 N_ITERATIONS=3

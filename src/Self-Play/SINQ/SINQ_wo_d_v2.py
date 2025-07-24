@@ -207,7 +207,7 @@ main = do
         if status_p == "success" and status_q == "success" and out_p != out_q:
             return True
 
-        if status_p == status_q == "runtime_error":
+        if status_p != status_q:
             return True
 
         return False
