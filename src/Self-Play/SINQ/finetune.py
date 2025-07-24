@@ -106,8 +106,7 @@ def main():
     logger.info("Initializing base model for fine-tuning...")
     base_model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
-        torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
-        device_map="auto"
+        torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     )
 
     base_model.gradient_checkpointing_enable()
@@ -144,6 +143,11 @@ def main():
         logging_steps=10,
         save_strategy="epoch",
         save_steps=500,
+        bf16=True,
+        tf32=True,
+        torch_compile=True,
+        ddp_find_unused_parameters=False,
+        weight_decay=0.01 
     )
 
     trainer = Trainer(

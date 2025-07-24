@@ -580,10 +580,8 @@ class SEQ:
         self.executor = CodeExecutor(self, timeout=args.timeout)
         self.programs = self.load_programs(args.dataset_name)
         
-        if args.cumulative_alice_training_data_path:
-            self.cumulative_alice_training_data = self.load_cumulative_training_data(args.cumulative_alice_training_data_path)
-        else:
-            self.cumulative_alice_training_data = []
+        self.cumulative_alice_training_data = self.load_cumulative_training_data(args.cumulative_alice_training_data_path)
+
 
     def _initialize_vllm(self):
         logger.info("Initializing vLLM model...")
@@ -604,7 +602,8 @@ class SEQ:
         if programs_file_path and os.path.exists(programs_file_path):
             logger.info(f"Loading programs from {programs_file_path}...")
             with open(programs_file_path, 'r') as f:
-                return [line.strip() for line in f if line.strip()]
+                return [json.loads(line.strip()) for line in f if line.strip()]
+        return []
 
     def load_programs(self, dataset_name):
 

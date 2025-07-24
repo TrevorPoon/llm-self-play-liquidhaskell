@@ -49,9 +49,11 @@ NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter_without_difficulty_prediction"
 N_ITERATIONS=3
+LEARNING_RATE=5e-4
+NUM_EPOCHS=3
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="SEQ_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_${NAME}"
+EXPERIMENT_NAME="SEQ_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -108,9 +110,9 @@ do
             --output_dir "${ITERATION_DIR}/alice_adapters" \
             --previous_adapter_path "" \
             --iteration "$i" \
-            --num_train_epochs 3 \
+            --num_train_epochs $NUM_EPOCHS \
             --per_device_train_batch_size 1 \
-            --learning_rate 2e-5
+            --learning_rate $LEARNING_RATE
 
         # Find the path to the latest adapter created by the fine-tuning script
         LATEST_ALICE_ADAPTER_PATH=$(find "${ITERATION_DIR}/alice_adapters" -type d -name "checkpoint-*" | sort -V | tail -n 1)

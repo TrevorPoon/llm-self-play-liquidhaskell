@@ -49,9 +49,12 @@ NUM_INITIAL_PROGRAMS=10 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter_without_difficulty_prediction"
 N_ITERATIONS=3
+LEARNING_RATE=5e-4
+NUM_EPOCHS=3
+
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}"
+EXPERIMENT_NAME="${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -113,9 +116,9 @@ do
             --output_dir "${ITERATION_DIR}/alice_adapters" \
             --previous_adapter_path "" \
             --iteration "$i" \
-            --num_train_epochs 3 \
+            --num_train_epochs $NUM_EPOCHS \
             --per_device_train_batch_size 1 \
-            --learning_rate 2e-5
+            --learning_rate $LEARNING_RATE
 
         # Find the path to the latest adapter created by the fine-tuning script
         # Assuming the last epoch's adapter is the one to use next.

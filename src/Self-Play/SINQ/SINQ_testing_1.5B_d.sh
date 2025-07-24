@@ -47,7 +47,7 @@ export USE_SDP_ATTENTION=0
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=0
-NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=10 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter"
 N_ITERATIONS=3
@@ -75,7 +75,6 @@ do
     # --- Step 1: Data Generation (vLLM on GPU 0) ---
     echo "--- [Iteration ${i}] Running Data Generation ---"
   
-    
     python SINQ_v2.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
