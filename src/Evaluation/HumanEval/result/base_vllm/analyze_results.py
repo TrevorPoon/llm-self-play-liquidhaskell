@@ -79,7 +79,7 @@ else:
 
     # Add labels for mean pass@1 rate (percentage, to the right of the square)
     for i, row in summary_df.iterrows():
-        mean_percentage = f'{row['mean']:.1%}' # Format as percentage with one decimal place
+        mean_percentage = f"{row['mean']:.1%}" # Format as percentage with one decimal place
         ax.text(i + 0.1, row['mean'], mean_percentage, # Add a small offset to the right
                 ha='left', va='center', fontsize=12, color='dimgray')
 

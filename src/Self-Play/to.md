@@ -19,43 +19,100 @@ Generation dataset (10,000) --  ✅ Done
 
 Filter it with execution of random input --  ✅ Done
 
-SINQ on synthetic -- ⏳ Running
+## Testing (100 Examples)
 
-Evaluation -- 📌 TODO
+SINQ on synthetic on 1.5B -- ⏳ Running
 
-## Misc
+Evaluation on 1.5B -- 📌 TODO
 
-run with difficulty -- 📌 TODO
+SINQ on synthetic on 7B -- 📌 TODO
 
-Generation dataset (200,000) -- 📌 TODO 
+Evaluation on 7B -- 📌 TODO
 
-Inspect the code carefully. Gimme me suggestions / improve / identify any bugs in my semantic equivalent game for LLM code generation -- 📌 TODO 
+## Experiment (1000 Examples)
+
+SINQ on synthetic on 1.5B -- 📌 TODO
+
+Evaluation on 1.5B -- 📌 TODO
+
+SINQ on synthetic on 7B -- 📌 TODO
+
+Evaluation on 7B -- 📌 TODO
+
+# SINQ with Diff
+
+## Testing (100 Examples)
+
+SINQ on synthetic on 1.5B -- ⏳ Running
+
+Evaluation on 1.5B -- 📌 TODO
+
+SINQ on synthetic on 7B -- 📌 TODO
+
+Evaluation on 7B -- 📌 TODO
+
+## Experiment (1000 Examples)
+
+SINQ on synthetic on 1.5B -- 📌 TODO
+
+Evaluation on 1.5B -- 📌 TODO
+
+SINQ on synthetic on 7B -- 📌 TODO
+
+Evaluation on 7B -- 📌 TODO
+
 
 ## Result
 
-Blastwind (validate with function binding) -- Running Bob at 14% --  ✅ Done
+### 1.5B
+Blastwind (validate with function binding) -- Running Bob at 7% 
 
-Blastwind (validate with input running) -- Running Bob at 20% --  ✅ Done
+Synthetic OpenInstruct Dataset -- Running Bob at 58 % 
+
+### 7B 
+Blastwind (validate with function binding) -- Running Bob at 14% 
+
+Blastwind (validate with input running) -- Running Bob at 20% 
 
 OpenInstruct -- 📌 TODO
 
 # SEQ
 
-## synthetic openinstruct
+## Testing (100 Examples)
 
-test if deepseekcoder has liquidhaskell ability --  ✅ Done
+1.5B Game  ⏳ Running
 
-Finetune on Alice Liquid-Haskell proof ⏳ Running
+1.5B Eval -- 📌 TODO
 
-🟥 Better prompts
+7B Game  ⏳ Running
 
-🟥 Better training examples
+7B Eval -- 📌 TODO
 
-🟥 Review the SINQ & SEQ
+## Experiment (1000 Examples)
 
-SEQ on synthetic -- 📌 TODO
+1.5B Game  -- 📌 TODO
 
-Evaluation -- 📌 TODO
+1.5B Eval -- 📌 TODO
+
+7B Game  -- 📌 TODO
+
+7B Eval -- 📌 TODO
+
+
+
+## Misc
+
+
+
+Inspect the code carefully. Gimme me suggestions / improve / identify any bugs in my semantic equivalent game for LLM code generation -- 📌 TODO 
+
+🟥 Review the SINQ & SEQ code by code
+
+ask my acclerate launch and vllm setup 
+
+shd i aim for finding an equivalent example for wo_d in Bob? 
+
+universal case for liquid haskell 
 
 
 

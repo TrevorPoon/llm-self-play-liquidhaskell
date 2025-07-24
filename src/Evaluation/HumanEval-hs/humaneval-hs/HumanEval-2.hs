@@ -27,6 +27,5 @@
 -- Return the decimal part of the number.
 -- >>> truncate_number 3.5
 -- 0.5
-truncate_number :: RealFrac a => a -> a
-truncate_number x = x - fromIntegral (floor x)
-
+truncate_number :: Float -> Float
+truncate_number number =  number - fromIntegral  (floor number)

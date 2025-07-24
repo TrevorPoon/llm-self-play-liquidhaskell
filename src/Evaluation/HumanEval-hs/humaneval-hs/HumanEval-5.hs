@@ -36,7 +36,4 @@
 -- >>> intersperse [1, 2, 3] 4
 -- [1,4,2,4,3,4]
 intersperse :: [Int] -> Int -> [Int]
-intersperse [] _        = []
-intersperse [x] _       = [x]
-intersperse (x:xs) delim = x : delim : intersperse xs delim
-
+intersperse numbers delimeter =  concat [[x, delimeter] |  x <- numbers]

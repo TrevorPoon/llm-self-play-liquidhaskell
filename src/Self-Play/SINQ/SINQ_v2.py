@@ -29,11 +29,13 @@ logger = logging.getLogger(__name__)
 # --- Prompts (from SInQ Paper, Appendix C) ---
 
 ALICE_SYSTEM_PROMPT = textwrap.dedent("""
-    You are an expert Haskell programmer. Your task is to generate a semantically inequivalent variant of a given Haskell program,.
+    You are an expert Haskell programmer. Your task is to generate a semantically inequivalent variant of a given Haskell program, which means that there must exist at least a diverging input example such that the original program and your program either produce different outputs or exceptions, or one halts and the other one does not halt.
     You must also provide a diverging input, which is a valid input for both programs, but on which they produce different outputs.
                                       
     A good inequivalent program `Q` should be subtly different from `P`.
     A good diverging input `x` should be simple and clearly demonstrate the semantic difference between `P` and `Q`.
+
+    The original program and your program will be used in a test to evaluate the skill of an expert Haskell programmer who will have to produce a diverging example (not necessarily the same as yours), so make sure that the difference you introduce are not very easy to understand. You will be given a difficulty level from 0 (easiest) to 10 (hardest) to target. E.g. difficulty level 0 means that an expert computer scientist in the bottom decile or above should be able to find a diverging example, difficulty level 9 means that only an expert computer scientist in the top decile should be able to find a diverging example, and difficulty level 10 means that only the top 0.01 or less of expert Haskell programmer should be able to find a diverging example.                                 
 
     First, think step-by-step and write down your analysis of program `P` and your strategy for creating an inequivalent program `Q`. Enclose this reasoning within `<think>` and `</think>` tags.
     After the thinking block, the final answer could **only** be in the following format, without any additional explanation or context.
@@ -51,6 +53,7 @@ ALICE_SYSTEM_PROMPT = textwrap.dedent("""
 """).strip()
 
 ALICE_USER_PROMPT = textwrap.dedent("""
+    Difficulty level: {difficulty_level}
     Original program `P`:
     ```haskell
     {program}
@@ -91,13 +94,16 @@ BOB_USER_PROMPT_TEMPLATE = textwrap.dedent("""
     <think>
 """)
 
-ALICE_DIFFICULTY_PREDICTION_PROMPT_TEMPLATE = textwrap.dedent("""
+ALICE_DIFFICULTY_PREDICTION_SYSTEM_PROMPT_TEMPLATE = textwrap.dedent("""
     Difficulty level: Any
     ```haskell
     {program}
     ```
 """).strip()
 
+ALICE_DIFFICULTY_PREDICTION_USER_PROMPT = textwrap.dedent("""
+    Predict the difficulty level of the instance. Just write \"Difficulty level: D\" where D is your prediction, do not write anything else.
+""").strip()
 
 # --- Code Execution ---
 
@@ -389,6 +395,7 @@ class SInQ:
         logger.info(f"Running Alice...")
         
         user_content = ALICE_USER_PROMPT.format(
+            difficulty_level=10,
             program=program_p
         )
         messages = [
@@ -583,7 +590,6 @@ class SInQ:
             if not valid_bob_inputs:
                 logger.info("🟨 Bob failed to find any diverging input. Creating a hard training example for Bob from Alice's input.")
                 bob_completion = f"\n**Analysis:**\n<analysis>\n\n**Diverging Input `x`:**\n```\n{x_candidate}\n```"
-
                 # Convert to desired format: 'system prompt', 'user prompt', 'output'
                 bob_training_example = {
                     "system_prompt": BOB_SYSTEM_PROMPT,
@@ -626,9 +632,18 @@ class SInQ:
         for ex in final_alice_examples:
             # --- (A) Main SFT Example ---
             main_sft_user_content = ALICE_USER_PROMPT.format(
+                difficulty_level=f"{ex['difficulty']:.2f}",
                 program=ex['p_original']
             )
-    
+            main_sft_messages = [
+                {"role": "system", "content": ALICE_SYSTEM_PROMPT},
+                {"role": "user", "content": main_sft_user_content},
+                {"role": "assistant", "content": ex['alice_raw_output']}
+            ]
+
+            logger.info(f"Main SFT example: {main_sft_messages}")
+            logger.info(f"Main SFT example: {ex['alice_raw_output']}")
+            
             # Convert to desired format: 'system prompt', 'user prompt', 'output'
             alice_training_example = {
                 "system_prompt": ALICE_SYSTEM_PROMPT,
@@ -636,7 +651,18 @@ class SInQ:
                 "output": ex['alice_raw_output']
             }
             self.cumulative_alice_training_data.append(alice_training_example)
-        
+
+            # --- (B) Difficulty-Prediction Example ---
+            diff_pred_user_content = ALICE_DIFFICULTY_PREDICTION_SYSTEM_PROMPT_TEMPLATE.format(
+                program=ex['p_original'],
+            )
+            # Convert to desired format: 'system prompt', 'user prompt', 'output'
+            diff_pred_training_example = {
+                "system_prompt": "", # No system prompt for this one, as per original structure
+                "user_prompt": diff_pred_user_content + ex['alice_raw_output'] + ALICE_DIFFICULTY_PREDICTION_USER_PROMPT,
+                "output": f"Difficulty level: {ex['difficulty']:.2f}"
+            }
+            self.cumulative_alice_training_data.append(diff_pred_training_example)
         
         logger.info(f"Iteration {self.args.iteration} summary:")
         logger.info(f"  - Bob was triggered {run_bob_triggered_count} times.")

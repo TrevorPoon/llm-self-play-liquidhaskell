@@ -9,14 +9,14 @@ import argparse
 import subprocess
 import shutil
 from tqdm import tqdm
-from peft import get_peft_model, LoraConfig, TaskType, PeftModel
+from peft import PeftModel
 import vllm
 from vllm.lora.request import LoRARequest
-from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, DataCollatorForLanguageModeling, TrainerCallback
+from transformers import AutoTokenizer
 import textwrap
 import tempfile
-from datasets import load_dataset, load_from_disk
-from torch.utils.data import Dataset
+from datasets import load_dataset, load_from_disk, Dataset
+from typing import List
 import re
 
 from utils.utils import get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage, strip_comments
@@ -62,6 +62,8 @@ ALICE_USER_PROMPT = textwrap.dedent("""
     - Avoid trivial symmetric rewrites—show a genuine alternative implementation.  
     - Do not include any extra commentary beyond the required `<think>…</think>` and the `**Generated Program `Q`:** block.
     - Where appropriate, feel free to use Prelude functions such as foldr, map, or zipWith to encourage diverse strategies.
+
+    <think>
 """).strip()
 
 COUNTEREXAMPLE_SYSTEM_PROMPT = textwrap.dedent("""
@@ -92,11 +94,25 @@ COUNTEREXAMPLE_USER_PROMPT = textwrap.dedent("""
     ```haskell
     your counterexample here
     ```
+
+    <think>
 """).strip()
 
 LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
     You are an expert Haskell/Liquid Haskell prover.
     You are asked to prove that two reflectedfunctions are equivalent.
+                                            
+    The most basic proof should be in the following format:
+    ```haskell
+    {{-@ lemma_{func_name_p}_equiv :: x:{arg_type} -> {{ {func_name_p} x == {func_name_q} x }} @-}}
+            lemma_{func_name_p}_equiv :: {arg_type} -> Proof
+            lemma_{func_name_p}_equiv x
+                =   {func_name_p} x 
+                === {func_name_q} x 
+                *** QED
+    ```
+                                            
+    However, you should also use more advanced proof techniques if necessary. 
                                             
     Here is an example of a *complete* proof:
     
@@ -119,7 +135,7 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
     double' x = 2 * x
 
     -- Here is the *full* lemma, from annotation to QED:
-    {{-@ lemma_double_equiv :: x:Int -> { double x == double' x } @-}}
+    {{-@ lemma_double_equiv :: x:Int -> {{ double x == double' x }} @- }}
     lemma_double_equiv :: Int -> Proof
     lemma_double_equiv x
     =   double x
@@ -138,12 +154,11 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
     """).strip()
 
 LEMMA_PROOF_USER_PROMPT = textwrap.dedent("""
+                                          
     {error_msg_section}
                                           
-    Below are two reflected definitions with liquid haskell proof in previous attempt:
-    ```haskell
     {equiv_code}
-    ```
+    
     ------------------------------------------------------------
 
     **Your task**: Produce the proof of equivalence for the following function:
@@ -165,7 +180,7 @@ LEMMA_PROOF_USER_PROMPT = textwrap.dedent("""
     ```haskell
     /* PROOF BODY HERE */
     ```
-    
+    <think>
 """).strip()
 # --- Code Execution ---
 
@@ -280,6 +295,9 @@ main = do
         # This covers cases like one compile error, one runtime error, or one timeout, etc.
         if status_p != "success" and status_q != "success" and status_p != status_q:
             return True
+        
+        if status_p == status_q == "runtime_error":
+            return True
 
         # If none of the above, they do not diverge (e.g., both compile_error, or both runtime_timeout)
         return False
@@ -343,7 +361,12 @@ main = do
         # logger.info(f"Proof user prompt: \n{proof_user_prompt}")
         
         # Call your LLM (Alice) with this as a single-turn prompt:
-        response = self.seq.call_alice_for_proof(LEMMA_PROOF_SYSTEM_PROMPT, proof_user_prompt)
+        lemma_proof_system_prompt = LEMMA_PROOF_SYSTEM_PROMPT.format(
+            func_name_p=func_name_p,
+            func_name_q=func_name_q,
+            arg_type=arg_type
+        )
+        response = self.seq.call_alice_for_proof(lemma_proof_system_prompt, proof_user_prompt)
         # logger.info(f"Alice's raw lemma proof generation response: {response}")
 
         # Check if Alice returned the full function definition
@@ -360,11 +383,11 @@ main = do
         if match:
             body = match.group(1).strip()
             logger.info(f"Extracted lemma proof body from full definition:\n{body}")
-            return body
+            return body, response.strip()
         else:
             # Assume the entire response is the proof body
             logger.info("Assuming entire response is the proof body.")
-            return response.strip()
+            return response.strip(), response.strip()
 
     def verify_equivalence(self, program_p: str, program_q: str):
         """Verifies semantic equivalence using Liquid Haskell."""
@@ -383,6 +406,11 @@ main = do
         if not func_name_p or not arg_type_p or not func_name_q or not arg_type_q:
             logger.warning("Could not extract function name or argument type for P or Q. Skipping LH verification.")
             return "lh_error", "Function name or arg type extraction failed."
+        
+        # Check if Q is different from P
+        if program_p.strip()== program_q.strip().replace(func_name_q, func_name_p):
+            logger.warning("🟨 Alice generated an identical program Q to P. Skipping example.")
+            return "identical", "Alice generated an identical program Q to P. Skipping example."
 
         # Create temporary files for Original.hs and Variant.hs
         original_file_path = os.path.join(self.tmp_dir, "Original.hs")
@@ -402,7 +430,9 @@ main = do
             f_q.write(content_q)
 
         # Create the Equiv.hs file
-        equiv_code_template = textwrap.dedent("""
+        equiv_code_template = textwrap.dedent("""                       
+        Below are two reflected definitions with liquid haskell proof in previous attempt:
+        ```haskell
             {{-@ LIQUID "--reflection" @-}}
             {{-@ LIQUID "--ple" @-}}
             module Equiv where
@@ -417,24 +447,36 @@ main = do
 
             -- Alice’s detailed proof of equivalence
             {proof_body}
+        ```
         """)
         
         # 1. Fill the initial proof_body with a stub
-        proof_body_template = textwrap.dedent("""
-            {{-@ lemma_{func_name_p}_equiv :: x:{arg_type_p} -> {{ {func_name_p} x == {func_name_q} x }} @-}}
-            lemma_{func_name_p}_equiv :: {arg_type_p} -> Proof
-            lemma_{func_name_p}_equiv x
-                =   {func_name_p} x 
-                === {func_name_q} x 
-                *** QED
-        """).strip()
+
 
         MAX_PROOF_ATTEMPTS = 3 # Set a limit for proof attempts
 
-        proof_body = proof_body_template.format(
-            func_name_p=func_name_p,
-            func_name_q=func_name_q,
-            arg_type_p=arg_type_p,
+        # proof_body_template = textwrap.dedent("""
+        #     {{-@ lemma_{func_name_p}_equiv :: x:{arg_type_p} -> {{ {func_name_p} x == {func_name_q} x }} @-}}
+        #     lemma_{func_name_p}_equiv :: {arg_type_p} -> Proof
+        #     lemma_{func_name_p}_equiv x
+        #         =   {func_name_p} x 
+        #         === {func_name_q} x 
+        #         *** QED
+        # """).strip()
+
+        # proof_body = proof_body_template.format(
+        #     func_name_p=func_name_p,
+        #     func_name_q=func_name_q,
+        #     arg_type_p=arg_type_p,
+        # )
+
+        # equiv_llm_response = ""
+
+        error_msg = ""
+        equiv_code = ""
+
+        proof_body, equiv_llm_response = self.generate_proof_body(
+            program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code
         )
 
         for attempt in range(MAX_PROOF_ATTEMPTS):
@@ -447,7 +489,6 @@ main = do
                 func_name_q=func_name_q,
                 program_p_content=dedented_program_p,
                 program_q_content=dedented_program_q,
-                arg_type_p=arg_type_p,
                 proof_body=proof_body
             )
 
@@ -485,11 +526,13 @@ main = do
                             You will be given a Liquid Haskell proof and a program.
                             You will need to generate a new proof that is equivalent to the given proof.
                         """).strip()
-                        messages = [
-                            {"role": "system", "content": liquid_haskell_proof_system_prompt},
-                            {"role": "assistant", "content": equiv_code}
-                        ]
-                        self.seq.cumulative_alice_training_data.append(self.seq.tokenizer.apply_chat_template(messages, tokenize=False))
+
+                        alice_training_example = {
+                            "system_prompt": liquid_haskell_proof_system_prompt,
+                            "output": equiv_llm_response,
+                        }
+
+                        self.seq.cumulative_alice_training_data.append(alice_training_example)
 
                     return "proved", lh_process.stdout
                 
@@ -499,7 +542,7 @@ main = do
                 
                 if attempt < MAX_PROOF_ATTEMPTS - 1:
                     logger.info("Asking Alice for a new proof body...")
-                    proof_body = self.generate_proof_body(
+                    proof_body, equiv_llm_response = self.generate_proof_body(
                         program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code
                     )
                 else:
@@ -518,39 +561,7 @@ main = do
         # This part should ideally not be reached if the loop handles all cases
         return "refuted", "Max proof attempts reached without success."
 
-# --- SEQ Self-Play and Fine-tuning ---
-class SavePeftModelCallback(TrainerCallback):
-    def __init__(self, model_type=None, iteration=None):
-        self.model_type = model_type
-        self.iteration = iteration
-
-    def on_epoch_end(self, args, state, control, **kwargs):
-        epoch = state.epoch
-        output_dir = args.output_dir
-        model = kwargs['model']
-        
-        if self.model_type is not None and self.iteration is not None:
-            adapter_dir_name = f"{self.model_type}-adapter-iter-{self.iteration}-epoch-{int(epoch)}"
-        else:
-            adapter_dir_name = f"adapter-epoch-{int(epoch)}"
-
-        adapter_path = os.path.join(output_dir, adapter_dir_name)
-        model.save_pretrained(adapter_path)
-        logger.info(f"Saved adapter for epoch {int(epoch)} to {adapter_path}")
-
-class SEQ_Dataset(Dataset):
-    def __init__(self, data, tokenizer):
-        self.data = data
-        self.tokenizer = tokenizer
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        item = self.data[idx]
-        tokenized_item = self.tokenizer(item, truncation=True, padding="max_length")
-        return {k: torch.tensor(v) for k, v in tokenized_item.items()}
-
+# --- SEQ Self-Play ---
 class SEQ:
     def __init__(self, args):
         self.args = args
@@ -561,27 +572,18 @@ class SEQ:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
-
         torch.cuda.empty_cache()
         self._initialize_vllm()
 
-        self.base_model = None # Lazy load to save VRAM
-
-        self.initial_adapter_path = args.initial_adapter_path
-        if self.initial_adapter_path:
-            dest_path = os.path.join(self.args.output_dir, "initial_adapter_base")
-            if os.path.exists(self.initial_adapter_path):
-                if not os.path.exists(dest_path):
-                    logger.info(f"Copying initial adapter from {self.initial_adapter_path} to {dest_path}")
-                    shutil.copytree(self.initial_adapter_path, dest_path)
-            else:
-                logger.warning(f"Initial adapter path specified but not found: {self.initial_adapter_path}")
-                self.initial_adapter_path = None # Reset if not found
+        self.alice_adapter_path = args.alice_adapter_path
 
         self.executor = CodeExecutor(self, timeout=args.timeout)
-        self.programs = self.load_initial_programs(args.dataset_name)
-        self.alice_adapter_path = self.initial_adapter_path
-        self.cumulative_alice_training_data = []
+        self.programs = self.load_programs(args.dataset_name)
+        
+        if args.cumulative_alice_training_data_path:
+            self.cumulative_alice_training_data = self.load_cumulative_training_data(args.cumulative_alice_training_data_path)
+        else:
+            self.cumulative_alice_training_data = []
 
     def _initialize_vllm(self):
         logger.info("Initializing vLLM model...")
@@ -598,7 +600,14 @@ class SEQ:
         print_nvidia_smi("After initializing vLLM model")
         print_gpu_memory_usage("After initializing vLLM model")
 
-    def load_initial_programs(self, dataset_name):
+    def load_cumulative_training_data(self, programs_file_path):     
+        if programs_file_path and os.path.exists(programs_file_path):
+            logger.info(f"Loading programs from {programs_file_path}...")
+            with open(programs_file_path, 'r') as f:
+                return [line.strip() for line in f if line.strip()]
+
+    def load_programs(self, dataset_name):
+
         logger.info(f"Loading initial programs from dataset {dataset_name}...")
         try:
             programs = []
@@ -812,366 +821,157 @@ class SEQ:
             return match.group(1).strip(), response_text.strip()
         return "", response_text.strip()
 
-    def _initialize_base_model_for_finetuning(self):
-        if self.base_model is None:
-            logger.info("Initializing base model for fine-tuning...")
-            self.base_model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
-                device_map="auto"
-            )
-
-    def finetune_model(self, dataset, model_type, iteration):
-        """Fine-tunes the model on the given dataset."""
-        logger.info(f"Starting fine-tuning for {model_type}...")
-        
-        output_dir = os.path.join(self.args.output_dir, model_type)
-        os.makedirs(output_dir, exist_ok=True)
-
-        self._initialize_base_model_for_finetuning()
-
-        # Enable gradient checkpointing on the base model BEFORE wrapping with PEFT
-        self.base_model.gradient_checkpointing_enable()
-
-        lora_config = LoraConfig(
-            r=self.args.lora_r,
-            lora_alpha=self.args.lora_alpha,
-            lora_dropout=self.args.lora_dropout,
-            task_type=TaskType.CAUSAL_LM,
-            target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-        )
-
-        current_adapter_to_load = self.alice_adapter_path
-
-        if current_adapter_to_load and os.path.exists(current_adapter_to_load):
-            logger.info(f"Loading adapter from {current_adapter_to_load} to continue fine-tuning.")
-            peft_model = PeftModel.from_pretrained(self.base_model, current_adapter_to_load, is_trainable=True)
+    def save_as_hf_jsonl(self, data: List[dict], file_path: str):
+        # Detect if data is list of str, and wrap it
+        if data and isinstance(data[0], str):
+            records = [{"text": line} for line in data]
         else:
-            if current_adapter_to_load:
-                logger.warning(f"Adapter path {current_adapter_to_load} not found. Creating a new adapter.")
-            logger.info("Creating a new PeftModel for training from base model.")
-            peft_model = get_peft_model(self.base_model, lora_config)
+            records = data  # assume it's already List[dict]
 
-        peft_model.enable_input_require_grads()
+        # 'data' is a list of dicts
+        ds = Dataset.from_list(records)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        ds.to_json(file_path, orient="records", lines=True)
+        logger.info(f"Saved HF JSONL dataset with {len(ds)} examples to {file_path}")
 
-        # Recommended for gradient checkpointing
-        peft_model.config.use_cache = False
-
-        training_args = TrainingArguments(
-            output_dir=output_dir,
-            num_train_epochs=self.args.num_train_epochs,
-            per_device_train_batch_size=self.args.per_device_train_batch_size,
-            gradient_accumulation_steps=self.args.gradient_accumulation_steps,
-            gradient_checkpointing=True,
-            learning_rate=self.args.learning_rate,
-            logging_dir='./logs',
-            logging_steps=10,
-            save_steps=0, # Defer saving to callback
-        )
-
-        trainer = Trainer(
-            model=peft_model,
-            args=training_args,
-            train_dataset=SEQ_Dataset(dataset, self.tokenizer),
-            data_collator=DataCollatorForLanguageModeling(self.tokenizer, mlm=False),
-            callbacks=[SavePeftModelCallback(model_type=model_type, iteration=iteration)]
-        )
-
-        # Print GPU memory usage before training
-        print_nvidia_smi("Before training")
-        print_gpu_memory_usage(f"Before training '{model_type}' model")
-
-        trainer.train()
-        
-        print_nvidia_smi("After training")
-        print_gpu_memory_usage(f"After training '{model_type}' model")
-
-        adapter_dir_name = f"{model_type}-adapter-iter-{iteration}-epoch-{int(self.args.num_train_epochs)}"
-        adapter_path = os.path.join(output_dir, adapter_dir_name)
-        if model_type == "alice":
-            self.alice_adapter_path = adapter_path
-        
-        torch.cuda.empty_cache()
-        # print_gpu_memory_usage(f"After cleaning up fine-tuning model")
-
-    def run_self_play_loop(self):
-        logger.info("Starting self-play loop...")
+    def run_generation_iteration(self):
+        logger.info("Starting data generation iteration...")
         
         os.makedirs(os.path.join(self.args.output_dir, "seq_data"), exist_ok=True)
 
-        for iteration in range(self.args.n_iterations):
-            logger.info(f"--- Self-Play Iteration {iteration+1}/{self.args.n_iterations} ---")
+        warning_counts = {
+            "p_compile_fail": 0,
+            "alice_generation_fail": 0,
+            "q_compile_fail": 0,
+            "alice_not_divergent": 0,
+            "lh_error": 0,
+            "lh_timeout": 0,
+        }
+        
+        iteration_data = [] # To store JSON records for this iteration
+        
+        # random.shuffle(self.programs)
+        
+        for j, program_item in enumerate(tqdm(self.programs, desc=f"Iteration {self.args.iteration}")):
+
+            p_original_code = program_item['code']
+            p_original_code = p_original_code.replace("main :: IO ()", "")
+            p_original_code = strip_comments(p_original_code)
+
+
+            tqdm.write(f"\n--- Processing example {j+1}/{len(self.programs)} in Iteration {self.args.iteration} ---")
+            # tqdm.write(f"Original program (P):\n{p_original_code}")
+
+            if not self.executor.check_compiles(p_original_code):
+                logger.warning("🟨 Original program P failed to compile. Skipping example.")
+                warning_counts["p_compile_fail"] += 1
+                continue
+
+            # Alice's turn
+            q_candidate, alice_raw_output, alice_user_content = self.run_alice(p_original_code)
             
-            warning_counts = {
-                "p_compile_fail": 0,
-                "alice_generation_fail": 0,
-                "q_compile_fail": 0,
-                "alice_not_divergent": 0,
-                "lh_error": 0,
-                "lh_timeout": 0,
+            if not q_candidate:
+                logger.warning("🟨 Alice failed to generate a candidate program.")
+                warning_counts["alice_generation_fail"] += 1
+                continue
+
+            if not self.executor.check_compiles(q_candidate):
+                logger.warning("🟨 Candidate Q failed to compile. Skipping example.")
+                warning_counts["q_compile_fail"] += 1
+                continue
+        
+            logger.info(f"Alice's candidate program: \n{q_candidate}")
+
+            # Phase 2: Embedding & Proving with Liquid Haskell
+            lh_status, lh_output = self.executor.verify_equivalence(p_original_code, q_candidate)
+            
+            logger.info(f"Liquid Status: {lh_status}")
+            logger.info(f"Liquid Output: {lh_output}")
+            
+            record = {
+                "p": p_original_code,
+                "q": q_candidate,
+                "status": lh_status,
+                "lh_output": lh_output
             }
-            
-            iteration_data = [] # To store JSON records for this iteration
-            
-            # random.shuffle(self.programs)
-            
-            for j, program_item in enumerate(tqdm(self.programs, desc=f"Iteration {iteration+1}")):
 
-                p_original_code = program_item['code']
-                p_original_code = p_original_code.replace("main :: IO ()", "")
-                p_original_code = strip_comments(p_original_code)
+            if lh_status == "proved":
+                logger.info("✅ Alice generated an equivalent program with a successful LH proof.")
 
+                iteration_data.append(record)
 
-                tqdm.write(f"\n--- Processing example {j+1}/{len(self.programs)} in Iteration {iteration+1} ---")
-                # tqdm.write(f"Original program (P):\n{p_original_code}")
+                if self.args.training_mode in ["positive_only", "both"]:
+                    # Add to Alice's training data (proof-conditioned) 
+                    alice_training_example = {
+                        "system_prompt": ALICE_SYSTEM_PROMPT,
+                        "user_prompt": alice_user_content,
+                        "output" : alice_raw_output
+                    }
+                    self.cumulative_alice_training_data.append(alice_training_example)
 
-                if not self.executor.check_compiles(p_original_code):
-                    logger.warning("🟨 Original program P failed to compile. Skipping example.")
-                    warning_counts["p_compile_fail"] += 1
-                    continue
+            elif lh_status == "refuted":
 
-                # Alice's turn
-                q_candidate, alice_raw_output, alice_user_content = self.run_alice(p_original_code)
-                
-                if not q_candidate:
-                    logger.warning("🟨 Alice failed to generate a candidate program.")
-                    warning_counts["alice_generation_fail"] += 1
-                    continue
+                logger.warning("❌ Alice's claim was refuted by Liquid Haskell.")
 
-                # Check if Q is different from P
-                if q_candidate.strip() == p_original_code.strip():
-                    logger.warning("🟨 Alice generated an identical program Q to P. Skipping example.")
-                    warning_counts["alice_not_divergent"] += 1
-                    continue
-
-                if not self.executor.check_compiles(q_candidate):
-                    logger.warning("🟨 Candidate Q failed to compile. Skipping example.")
-                    warning_counts["q_compile_fail"] += 1
-                    continue
-            
-                logger.info(f"Alice's candidate program: \n{q_candidate}")
-
-                # Phase 2: Embedding & Proving with Liquid Haskell
-                lh_status, lh_output = self.executor.verify_equivalence(p_original_code, q_candidate)
-                
-                logger.info(f"Liquid Status: {lh_status}")
-                logger.info(f"Liquid Output: {lh_output}")
-                
-                record = {
-                    "p": p_original_code,
-                    "q": q_candidate,
-                    "status": lh_status,
-                    "lh_output": lh_output
-                }
-
-                if lh_status == "proved":
-                    logger.info("✅ Alice generated an equivalent program with a successful LH proof.")
-
-                    iteration_data.append(record)
-
-                    if self.args.training_mode in ["positive_only", "both"]:
-                        # Add to Alice's training data (proof-conditioned)
-                        messages = [
-                            {"role": "system", "content": ALICE_SYSTEM_PROMPT},
-                            {"role": "user", "content": alice_user_content},
-                            {"role": "assistant", "content": alice_raw_output}
-                        ]
-                        self.cumulative_alice_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
-
-                elif lh_status == "refuted":
-
-                    logger.warning("❌ Alice's claim was refuted by Liquid Haskell.")
-
-                    if self.args.training_mode in ["negative_only", "both"]:
-                        
-                        counterexample, counterexample_response = self.get_counterexample(p_original_code, q_candidate, lh_output)
-                        logger.info(f"Counterexample: {counterexample}")
-
-                        is_divergence = self.executor.check_divergence(p_original_code, q_candidate, counterexample)
-
-                        if is_divergence:
-                            logger.info("✅ Alice generated a correct counterexample.")
-                            record["counterexample"] = counterexample
-                            iteration_data.append(record)
-
-                            warning_counts["alice_not_divergent"] += 1
-
-                            # Create training data for Alice (as checker)
-                            messages = [
-                                {"role": "system", "content": COUNTEREXAMPLE_SYSTEM_PROMPT},
-                                {"role": "user", "content": COUNTEREXAMPLE_USER_PROMPT.format(program_p=p_original_code, program_q=q_candidate)},
-                                {"role": "assistant", "content": counterexample_response},
-                            ]
-                            self.cumulative_alice_training_data.append(self.tokenizer.apply_chat_template(messages, tokenize=False))
-                        else:
-                            logger.warning("❌ Alice generated an incorrect counterexample, skipping example.")
+                if self.args.training_mode in ["negative_only", "both"]:
                     
+                    counterexample, counterexample_response = self.get_counterexample(p_original_code, q_candidate, lh_output)
+                    logger.info(f"Counterexample: {counterexample}")
+
+                    is_divergence = self.executor.check_divergence(p_original_code, q_candidate, counterexample)
+
+                    if is_divergence:
+                        logger.info("✅ Alice generated a correct counterexample.")
+                        record["counterexample"] = counterexample
+                        iteration_data.append(record)
+
+                        warning_counts["alice_not_divergent"] += 1
+
+                        # Create training data for Alice (as checker)
+                        alice_training_example = {
+                            "system_prompt": COUNTEREXAMPLE_SYSTEM_PROMPT,
+                            "user_prompt": COUNTEREXAMPLE_USER_PROMPT.format(program_p=p_original_code, program_q=q_candidate),
+                            "output": counterexample_response
+                        }
+                        self.cumulative_alice_training_data.append(alice_training_example)
                     else:
-                        logger.info("We are not training Alice on counterexamples, skipping example.")
+                        logger.warning("❌ Alice generated an incorrect counterexample, skipping example.")
+                
+                else:
+                    logger.info("We are not training Alice on counterexamples, skipping example.")
 
 
-                elif lh_status == "lh_timeout":
-                    logger.warning("⏱️ Liquid Haskell verification timed out. Skipping example.")
-                    warning_counts["lh_timeout"] += 1
-                    # Do NOT append to iteration_data or training data, as it's an unreliable example.
-                    continue
-                else: # lh_error
-                    logger.error("🔴 Liquid Haskell verification failed unexpectedly. Skipping example.")
-                    warning_counts["lh_error"] += 1
-                    # Do NOT append to iteration_data or training data.
-                    continue
+            elif lh_status == "lh_timeout":
+                logger.warning("⏱️ Liquid Haskell verification timed out. Skipping example.")
+                warning_counts["lh_timeout"] += 1
+                # Do NOT append to iteration_data or training data, as it's an unreliable example.
+                continue
+            elif lh_status == "identical":
+                logger.warning("🟨 Alice generated an identical program Q to P. Skipping example.")
+                warning_counts["alice_not_divergent"] += 1
+                continue
+            else: # lh_error
+                logger.error("🔴 Liquid Haskell verification failed unexpectedly. Skipping example.")
+                warning_counts["lh_error"] += 1
+                # Do NOT append to iteration_data or training data.
+                continue
 
-            # Save iteration data to JSON
-            output_file_path = os.path.join(self.args.output_dir, "seq_data", f"iteration_{iteration}.json")
-            with open(output_file_path, 'w') as f:
-                json.dump(iteration_data, f, indent=4)
-            logger.info(f"Saved iteration {iteration+1} data to {output_file_path}")
+        # Save iteration data to JSON
+        iter_output_dir = self.args.iteration_dir
+        output_file_path = os.path.join(iter_output_dir, "seq_generation_data.jsonl")
+        self.save_as_hf_jsonl(iteration_data, output_file_path)
 
-            # --- Phase 4: Data Aggregation & Fine-Tuning ---
-            # Alice's training data comes from successfully proved LH claims.
-            # Bob's training data comes from his successful counterexamples, and LH-refuted cases.
-
-            logger.info(f"Iteration {iteration+1} summary:")
-            logger.info(f"  - Total processed examples: {len(iteration_data)}")
-            logger.info(f"  - LH Proved examples: {len([r for r in iteration_data if r['status'] == 'proved'])}")
-            logger.info(f"  - LH Refuted examples: {len([r for r in iteration_data if r['status'] == 'refuted'])}")
-            logger.info(f"  - LH Timeout examples: {len([r for r in iteration_data if r['status'] == 'lh_timeout'])}")
-            logger.info(f"  - LH Error examples: {len([r for r in iteration_data if r['status'] == 'lh_error'])}")
-            logger.info(f"  - Cumulative Alice training data size: {len(self.cumulative_alice_training_data)}")
-            logger.info("  - 🟥 🟥 🟥 Warning counts: 🟥 🟥 🟥")
-            logger.info(f"    - Original program P failed to compile: {warning_counts['p_compile_fail']}")
-            logger.info(f"    - Alice failed to generate a candidate program/refinement stub: {warning_counts['alice_generation_fail']}")
-            logger.info(f"    - Candidate Q failed to compile: {warning_counts['q_compile_fail']}")
-            logger.info(f"    - Alice's claim refuted by Liquid Haskell: {warning_counts['alice_not_divergent']}")
-            logger.info(f"    - Liquid Haskell verification timed out: {warning_counts['lh_timeout']}")
-            logger.info(f"    - Liquid Haskell verification failed unexpectedly: {warning_counts['lh_error']}")
-
-            if self.cumulative_alice_training_data:
-
-                logger.info("Releasing vLLM model to free up memory for fine-tuning...")
-                del self.vllm_model
-                torch.cuda.empty_cache()
-
-                print_nvidia_smi("After releasing vLLM model")
-                print_gpu_memory_usage("After releasing vLLM model")
-
-                logger.info("Save Alice Training Data to File...")
-                with open(os.path.join(self.args.output_dir, "seq_training_data", 
-                                       self.model_name, 
-                                       f"iteration_{iteration}_dataset{self.args.dataset_name}_size{self.args.num_initial_programs}", 
-                                       "alice_training_data.json"), "w") as f:
-                    json.dump(self.cumulative_alice_training_data, f, indent=4)
-                logger.info("Alice Training Data saved to file.")
-
-                logger.info("Fine-tuning Alice's model...")
-                self.finetune_model(self.cumulative_alice_training_data, "alice", iteration)
-
-                # Release base model memory
-                del self.base_model
-                self.base_model = None
-                torch.cuda.empty_cache()
-
-                logger.info("Re-initializing vLLM model for the next generation round...")
-                self._initialize_vllm()
-            
-            # New programs are not added based on difficulty anymore; they are just processed.
-            # self.programs.extend(new_programs) # This was for adding 'hard' programs for Alice to learn from.
-            # In SEQ, Alice learns from successfully proved examples.
-
-            if self.args.run_evaluation:
-                self.evaluate(iteration)
-
-    def evaluate(self, iteration):
-        logger.info(f"Starting final evaluation for iteration {iteration}...")
-        
-        # Evaluate Alice's model
-        if self.alice_adapter_path:
-            logger.info(f"Evaluating Alice's model with adapter path: {self.alice_adapter_path}")
-            self.evaluate_agent("alice", self.alice_adapter_path, iteration)
-        else:
-            logger.info("Alice adapter not found, skipping evaluation.")
-
-    def evaluate_agent(self, agent_name, adapter_path, iteration):
-        logger.info(f"--- Evaluating {agent_name}'s Model for iteration {iteration} ---")
-        
-        if not (adapter_path and os.path.exists(adapter_path)):
-            logger.warning(f"Adapter path for {agent_name} does not exist: {adapter_path}. Skipping evaluation.")
-            return
-
-        logger.info(f"Adapter path for evaluation: {adapter_path}")
-        
-        # === HumanEval Evaluation ===
-        eval_working_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../Evaluation/HumanEval'))
-        eval_script_path = os.path.join(eval_working_dir, 'eval_script/eval_adapter.sh')
-
-        adapter_path_abs = os.path.abspath(adapter_path)
-        
-        logger.info(f"Adapter absolute path: {adapter_path_abs}")
-        logger.info(f"Eval script path: {eval_script_path}")
-        logger.info(f"Working directory: {eval_working_dir}")
-
-        logger.info(f"Submitting evaluation script for {agent_name} via sbatch...")
-
-        subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "hs", self.model_name, str(self.args.n_humaneval_evaluations_per_iteration)], check=True, cwd=eval_working_dir)
-        logger.info(f"Submitted Haskell evaluation script for {agent_name} via sbatch.")
-        subprocess.run(['sbatch', eval_script_path, adapter_path_abs, "python", self.model_name, str(self.args.n_humaneval_evaluations_per_iteration)], check=True, cwd=eval_working_dir)
-        logger.info(f"Submitted Python evaluation script for {agent_name} via sbatch.")
+        # Also save the training data for finetuning
+        if self.cumulative_alice_training_data:
+            alice_training_path = os.path.join(iter_output_dir, "alice_training_data.jsonl")
+            self.save_as_hf_jsonl(self.cumulative_alice_training_data, alice_training_path)
 
 
-        # === LiveCodeBench Evaluation ===
-        eval_working_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../Evaluation/LiveCodeBench/code_generation_lite'))
-        eval_script_path = os.path.join(eval_working_dir, 'eval_livecodebench_adapter.sh')
-
-        subprocess.run(['sbatch', eval_script_path, adapter_path_abs, self.model_name], check=True, cwd=eval_working_dir)
-        logger.info(f"LiveCodeBench Evaluation script for {agent_name} submitted.")
-
-        # === New SEQ Evaluation Metrics ===
-        logger.info(f"--- Calculating SEQ Evaluation Metrics for iteration {iteration} ---")
-        
-        iteration_data_path = os.path.join(self.args.output_dir, "seq_data", f"iteration_{iteration}.json")
-        if not os.path.exists(iteration_data_path):
-            logger.warning(f"Iteration data file not found: {iteration_data_path}. Skipping SEQ evaluation metrics.")
-            return
-
-        with open(iteration_data_path, 'r') as f:
-            iteration_data = json.load(f)
-        
-        total_examples = len(iteration_data)
-        if total_examples == 0:
-            logger.info("No examples processed in this iteration. Skipping SEQ evaluation metrics.")
-            return
-
-        # Proof Accuracy
-        proved_count = len([r for r in iteration_data if r['status'] == 'proved'])
-        proof_accuracy = (proved_count / total_examples) * 100 if total_examples > 0 else 0
-        logger.info(f"Proof Accuracy (LH Proved): {proof_accuracy:.2f}%")
-
-        # Counterexample Accuracy (Bob vs. LH)
-        refuted_examples = [r for r in iteration_data if r['status'] == 'refuted']
-        total_refuted = len(refuted_examples)
-        
-        bob_matches_lh_counterexample = 0
-        if total_refuted > 0:
-            for record in refuted_examples:
-                lh_ce = record.get("counterexample")
-                bob_valid_inputs = record.get("valid_bob_inputs", [])
-
-                if lh_ce and bob_valid_inputs:
-                    # Check if any of Bob's valid inputs match LH's counterexample (simple string match for now)
-                    # In a real scenario, this would involve canonicalization or re-execution to compare semantic equivalence of counterexamples
-                    for bob_input in bob_valid_inputs:
-                        if bob_input.get("counterexample") == lh_ce:
-                            bob_matches_lh_counterexample += 1
-                            break # Only need one match per refuted example
-            
-            counterexample_accuracy = (bob_matches_lh_counterexample / total_refuted) * 100
-            logger.info(f"Counterexample Accuracy (Bob matches LH): {counterexample_accuracy:.2f}%")
-        else:
-            logger.info("No refuted examples found. Skipping Counterexample Accuracy calculation.")
+        logger.info("Generation iteration complete.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SEQ Self-Play and Fine-tuning")
+    parser = argparse.ArgumentParser(description="SEQ Data Generation")
     parser.add_argument('--model_name_or_path', type=str, required=True, help="Path to the base model.")
 
     parser.add_argument('--dataset_name', type=str, default='../data/successfully_compiled_sorted_haskell_dataset', help="Hugging Face dataset name or local path for initial programs.")
@@ -1181,25 +981,19 @@ def main():
     parser.add_argument('--top_p', type=float, default=0.95, help="Top-p for sampling.")
     parser.add_argument('--top_k', type=int, default=20, help="Top-k for sampling.")
     parser.add_argument('--presence_penalty', type=float, default=1.5, help="Presence penalty for sampling.")
-    parser.add_argument('--timeout', type=float, default=20.0, help="Timeout for code execution.")
-    parser.add_argument('--n_iterations', type=int, default=10, help="Number of self-play iterations.")
-    parser.add_argument('--n_samples', type=int, default=10, help="Number of samples for Alice to generate.")
-    parser.add_argument('--learning_rate', type=float, default=2e-5, help="Learning rate for fine-tuning.")
-    parser.add_argument('--num_train_epochs', type=int, default=5, help="Number of training epochs.")
-    parser.add_argument('--per_device_train_batch_size', type=int, default=1, help="Batch size per device during training.")
-    parser.add_argument('--gradient_accumulation_steps', type=int, default=2, help="Number of gradient accumulation steps.")
-    parser.add_argument('--lora_r', type=int, default=8, help="LoRA r.")
-    parser.add_argument('--lora_alpha', type=int, default=16, help="LoRA alpha.")
-    parser.add_argument('--lora_dropout', type=float, default=0.05, help="LoRA dropout.")
+    parser.add_argument('--timeout', type=float, default=60.0, help="Timeout for code execution.")
     parser.add_argument('--gpu_memory_utilization', type=float, default=0.95, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     parser.add_argument('--num_initial_programs', type=int, default=100, help="Number of initial programs to load.")
-    parser.add_argument('--difficulty_threshold', type=float, default=0.0, help="Difficulty threshold for filtering Alice's training data.")
-    parser.add_argument('--n_humaneval_evaluations_per_iteration', type=int, default=1, help="Number of evaluations to run per iteration.")
-    parser.add_argument('--run_evaluation', action='store_true', help="Whether to run evaluation after each iteration.")
     parser.add_argument('--initial_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter to continue fine-tuning from.")
     parser.add_argument('--tensor_parallel_size', type=int, default=1, help="Number of tensor parallel processes.")
     parser.add_argument('--training_mode', type=str, default='positive_only', choices=['positive_only', 'negative_only', 'both'], help="Which data to use for training Alice.")
     
+    parser.add_argument('--iteration', type=int, required=True, help="Current self-play iteration number.")
+    parser.add_argument('--iteration_dir', type=str, required=True, help="Path to the directory for the current iteration.")
+    parser.add_argument('--programs_file_path', type=str, default=None, help="Path to a file with the list of programs for the current iteration.")
+    parser.add_argument('--alice_adapter_path', type=str, default=None, help="Path to an adapter for Alice.")
+    parser.add_argument('--cumulative_alice_training_data_path', type=str, default=None, help="Path to a file with the list of programs for the current iteration.")
+
     args = parser.parse_args()
 
     logger.info("Arguments:")
@@ -1209,10 +1003,10 @@ def main():
     seq = SEQ(args)
 
     try:
-        seq.run_self_play_loop()
+        seq.run_generation_iteration()
     finally:
         # Explicitly clean up the temporary directory created by CodeExecutor
-        if os.path.exists(seq.executor.tmp_dir):
+        if hasattr(seq, 'executor') and seq.executor and os.path.exists(seq.executor.tmp_dir):
             logger.info(f"Cleaning up temporary directory: {seq.executor.tmp_dir}")
             shutil.rmtree(seq.executor.tmp_dir)
 

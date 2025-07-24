@@ -1,1 +1,1 @@
-python test_runner.py --number 2
+python test_runner.py > result.txt

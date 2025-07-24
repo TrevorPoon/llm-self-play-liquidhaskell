@@ -31,7 +31,7 @@ class SavePeftModelCallback(TrainerCallback):
         model.save_pretrained(adapter_path)
         logger.info(f"Saved adapter for epoch {int(epoch)} to {adapter_path}")
 
-class SInQ_Dataset(Dataset):
+class SEQ_Dataset(Dataset):
     def __init__(self, data, tokenizer, max_length):
         self.data = data
         self.tokenizer = tokenizer
@@ -60,17 +60,16 @@ class SInQ_Dataset(Dataset):
         )
 
         input_ids = tokenized_item["input_ids"].squeeze(0)
-        labels = input_ids.clone() 
-         
+        labels = input_ids.clone()  
         return {"input_ids": input_ids, "labels": labels}
 
 def load_training_data(file_path):
     return load_dataset('json', data_files=file_path, split='train')
 
 def main():
-    parser = argparse.ArgumentParser(description="Fine-tuning script for SInQ")
+    parser = argparse.ArgumentParser(description="Fine-tuning script for SEQ")
     parser.add_argument('--model_name_or_path', type=str, required=True, help="Path to the base model.")
-    parser.add_argument('--dataset_path', type=str, required=True, help="Path to the training data file (.txt).")
+    parser.add_argument('--dataset_path', type=str, required=True, help="Path to the training data file (.jsonl).")
     parser.add_argument('--model_type', type=str, required=True, choices=['alice', 'bob'], help="Type of model to fine-tune.")
     parser.add_argument('--output_dir', type=str, required=True, help="Directory to save the trained adapter.")
     parser.add_argument('--previous_adapter_path', type=str, default=None, help="Path to a previous LoRA adapter to continue fine-tuning from.")
@@ -102,7 +101,7 @@ def main():
         logger.error(f"No training data found in {args.dataset_path}. Exiting.")
         return
 
-    train_dataset = SInQ_Dataset(training_data, tokenizer, args.max_tokens)
+    train_dataset = SEQ_Dataset(training_data, tokenizer, args.max_tokens)
     
     # --- Model Initialization ---
     logger.info("Initializing base model for fine-tuning...")
@@ -152,7 +151,7 @@ def main():
         model=peft_model,
         args=training_args,
         train_dataset=train_dataset,
-        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False)
+        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
     )
     
     logger.info(f"Starting fine-tuning for {args.model_type}...")

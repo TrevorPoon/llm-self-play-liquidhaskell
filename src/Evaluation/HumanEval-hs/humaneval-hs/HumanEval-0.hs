@@ -34,10 +34,4 @@
 -- >>> has_close_elements [1.0, 2.8, 3.0, 4.0, 5.0, 2.0] 0.3
 -- True
 has_close_elements :: [Float] -> Float -> Bool
-has_close_elements numbers threshold =
-  any (\(x,y) -> abs (x - y) < threshold)
-      [ (x,y)
-      | (i, x) <- zip [0..] numbers
-      , (j, y) <- zip [0..] numbers
-      , i < j
-      ]
+has_close_elements numbers threshold =  any (\(x, y) ->  abs (x - y) < threshold)  [(x,y) | x <- numbers, y <- numbers,  x /= y]

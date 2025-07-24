@@ -17,8 +17,6 @@
 
 
 -- Haskell Implementation:
-import Control.Monad (forM_, replicateM)
-import System.Random (randomRIO)
 
 -- Add two numbers x and y
 -- >>> add 2 3
