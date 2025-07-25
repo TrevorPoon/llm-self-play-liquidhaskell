@@ -2,8 +2,8 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:4                  # specifically four A40 GPUs
-#SBATCH --mem=515000
+#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
+#SBATCH --mem=256000
 #SBATCH --time=2-00:00:00
 #SBATCH --output=log/slurm-sinq-trial-7B-%j.out
 
@@ -49,9 +49,12 @@ NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter_without_difficulty_prediction"
 N_ITERATIONS=3
+LEARNING_RATE=5e-4
+NUM_EPOCHS=3
+
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}"
+EXPERIMENT_NAME="${MODEL_NAME}_SINQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -61,7 +64,7 @@ LATEST_BOB_ADAPTER_PATH="$INITIAL_ADAPTER_PATH" # Assuming Bob might also be tra
 ALICE_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 
-for i in $(seq 0 $((N_ITERATIONS - 1)))
+for i in $(seq 1 $N_ITERATIONS)
 do
     echo "--- Starting Self-Play Iteration ${i} ---"
     
@@ -72,7 +75,6 @@ do
     echo "--- [Iteration ${i}] Running Data Generation ---"
     
     # Set CUDA device for the generation script
-    export CUDA_VISIBLE_DEVICES=0
     
     python SINQ_wo_d_v2.py \
         --model_name_or_path "$MODEL_NAME" \
@@ -97,16 +99,16 @@ do
     # Update programs file path for the next iteration
     ALICE_TRAINING_DATA_PATH="${ITERATION_DIR}/alice_training_data.jsonl"
     BOB_TRAINING_DATA_PATH="${ITERATION_DIR}/bob_training_data.jsonl"
+
+    nvidia-smi
     
     # --- Step 2: Fine-tuning (Accelerate on GPUs 1, 2, 3) ---
     if [ -f "$ALICE_TRAINING_DATA_PATH" ] && [ -s "$ALICE_TRAINING_DATA_PATH" ]; then
         echo "--- [Iteration ${i}] Running Fine-tuning for Alice ---"
         
         # Set CUDA devices for the fine-tuning script
-        export CUDA_VISIBLE_DEVICES=1,2,3
         
         accelerate launch \
-            --config_file accelerate_config.yaml \
             finetune.py \
             --model_name_or_path "$MODEL_NAME" \
             --dataset_path "$ALICE_TRAINING_DATA_PATH" \
@@ -114,9 +116,9 @@ do
             --output_dir "${ITERATION_DIR}/alice_adapters" \
             --previous_adapter_path "" \
             --iteration "$i" \
-            --num_train_epochs 3 \
+            --num_train_epochs $NUM_EPOCHS \
             --per_device_train_batch_size 1 \
-            --learning_rate 2e-5
+            --learning_rate $LEARNING_RATE
 
         # Find the path to the latest adapter created by the fine-tuning script
         # Assuming the last epoch's adapter is the one to use next.

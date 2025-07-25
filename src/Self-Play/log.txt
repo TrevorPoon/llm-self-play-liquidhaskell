@@ -1,0 +1,12 @@
+SINQ
+456 -- 100 examples 1.5B -- done eval 
+559 -- 1000 examples 1.5B
+535 -- 100 examples 1.5B wd
+536 -- 1000 examples 1.5B wd 
+461 -- 100 examples 7B -- evaluating
+459 -- 1000 examples 7B 
+
+
+SEQ 
+783 -- 100 examples 1.5B
+784 -- 100 examples 7B

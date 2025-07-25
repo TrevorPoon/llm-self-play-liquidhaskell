@@ -68,7 +68,11 @@ for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
     --use_vllm
 done
 
+# 1.5B
+# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_PROGRAMS100_EVALS0_no_initial_adapter_without_difficulty_prediction_LR5e-4_EPOCHS3/iteration_2/alice_adapters/checkpoint-309 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 8
 
-# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_PROGRAMS100_EVALS8_no_initial_adapter_without_difficulty_prediction/alice/alice-adapter-iter-0-epoch-3 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 8
+# 7B
+# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_PROGRAMS100_EVALS8_no_initial_adapter_without_difficulty_prediction_LR5e-4_EPOCHS3/iteration_2/alice_adapters/checkpoint-189 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 8
+
 
 

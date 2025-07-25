@@ -4,8 +4,8 @@
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
 #SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
 #SBATCH --mem=256000
-#SBATCH --time=2-00:00:00
-#SBATCH --output=log/slurm-sinq-trial-7B-2GPU-%j.out
+#SBATCH --time=7-00:00:00
+#SBATCH --output=log/slurm-sinq-trial-7B-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -45,7 +45,7 @@ export BNB_CUDA_VERSION=125
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=8
-NUM_INITIAL_PROGRAMS=10 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter_without_difficulty_prediction"
 N_ITERATIONS=3
@@ -54,7 +54,7 @@ NUM_EPOCHS=3
 
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="${MODEL_NAME}_SINQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -64,7 +64,7 @@ LATEST_BOB_ADAPTER_PATH="$INITIAL_ADAPTER_PATH" # Assuming Bob might also be tra
 ALICE_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 
-for i in $(seq 0 $((N_ITERATIONS - 1)))
+for i in $(seq 1 $N_ITERATIONS)
 do
     echo "--- Starting Self-Play Iteration ${i} ---"
     

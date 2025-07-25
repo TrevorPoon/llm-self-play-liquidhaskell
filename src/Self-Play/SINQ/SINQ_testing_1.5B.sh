@@ -53,7 +53,7 @@ LEARNING_RATE=5e-4
 NUM_EPOCHS=3
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="${MODEL_NAME}_SINQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -63,7 +63,7 @@ LATEST_BOB_ADAPTER_PATH="$INITIAL_ADAPTER_PATH" # Assuming Bob might also be tra
 ALICE_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 
-for i in $(seq 0 $((N_ITERATIONS - 1)))
+for i in $(seq 1 $N_ITERATIONS)
 do
     echo "--- Starting Self-Play Iteration ${i} ---"
     

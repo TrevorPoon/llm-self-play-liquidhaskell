@@ -25,7 +25,7 @@ SINQ on synthetic on 1.5B -- ⏳ Running
 
 Evaluation on 1.5B -- 📌 TODO
 
-SINQ on synthetic on 7B -- 📌 TODO
+SINQ on synthetic on 7B -- ⏳ Running
 
 Evaluation on 7B -- 📌 TODO
 
@@ -106,7 +106,7 @@ OpenInstruct -- 📌 TODO
 
 Inspect the code carefully. Gimme me suggestions / improve / identify any bugs in my semantic equivalent game for LLM code generation -- 📌 TODO 
 
-🟥 Review the SINQ & SEQ code by code
+🟥 Review the SINQ & SEQ code by code (Refine SINQ_wo_d)
 
 ask my acclerate launch and vllm setup 
 

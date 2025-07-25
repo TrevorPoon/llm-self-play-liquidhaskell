@@ -2,8 +2,8 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:4                 # specifically four A40 GPUs
-#SBATCH --mem=515000
+#SBATCH --gres=gpu:a40:2                 # specifically four A40 GPUs
+#SBATCH --mem=256000
 #SBATCH --time=2-00:00:00
 #SBATCH --output=log/slurm-seq-trial-7B-%j.out
 
@@ -53,7 +53,7 @@ LEARNING_RATE=5e-4
 NUM_EPOCHS=3
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="SEQ_${MODEL_NAME}_PROGRAMS${NUM_INITIAL_PROGRAMS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="SEQ_${MODEL_NAME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -61,7 +61,7 @@ mkdir -p "$OUTPUT_DIR"
 LATEST_ALICE_ADAPTER_PATH="$INITIAL_ADAPTER_PATH"
 ALICE_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 
-for i in $(seq 0 $((N_ITERATIONS - 1)))
+for i in $(seq 1 $N_ITERATIONS)
 do
     echo "--- Starting Self-Play Iteration ${i} ---"
     
@@ -70,9 +70,7 @@ do
 
     # --- Step 1: Data Generation (vLLM on GPU 0) ---
     echo "--- [Iteration ${i}] Running Data Generation ---"
-    
-    # Set CUDA device for the generation script
-    export CUDA_VISIBLE_DEVICES=0
+
     
     python SEQ_v2.py \
         --model_name_or_path "$MODEL_NAME" \
@@ -97,9 +95,6 @@ do
     # --- Step 2: Fine-tuning (Accelerate on GPUs 1, 2, 3) ---
     if [ -f "$ALICE_TRAINING_DATA_PATH" ] && [ -s "$ALICE_TRAINING_DATA_PATH" ]; then
         echo "--- [Iteration ${i}] Running Fine-tuning for Alice ---"
-        
-        # Set CUDA devices for the fine-tuning script
-        export CUDA_VISIBLE_DEVICES=1,2,3
         
         accelerate launch \
             --config_file accelerate_config.yaml \
