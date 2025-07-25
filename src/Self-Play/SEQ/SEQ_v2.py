@@ -291,12 +291,8 @@ main = do
            (status_q == "success" and status_p != "success"):
             return True
 
-        # Case 3: Both failed, but in different ways (implies divergence)
-        # This covers cases like one compile error, one runtime error, or one timeout, etc.
-        if status_p != "success" and status_q != "success" and status_p != status_q:
-            return True
-        
-        if status_p == status_q == "runtime_error":
+        # Case 3: Both failed, but in different ways (implies divergence)  
+        if status_p != status_q:
             return True
 
         # If none of the above, they do not diverge (e.g., both compile_error, or both runtime_timeout)
@@ -431,8 +427,6 @@ main = do
 
         # Create the Equiv.hs file
         equiv_code_template = textwrap.dedent("""                       
-        Below are two reflected definitions with liquid haskell proof in previous attempt:
-        ```haskell
             {{-@ LIQUID "--reflection" @-}}
             {{-@ LIQUID "--ple" @-}}
             module Equiv where
@@ -447,10 +441,14 @@ main = do
 
             -- Alice’s detailed proof of equivalence
             {proof_body}
+        """).strip()
+
+        equiv_code_prompt = textwrap.dedent("""
+        Below are two reflected definitions with liquid haskell proof in previous attempt:
+        ```haskell
+        {equiv_code}
         ```
-        """)
-        
-        # 1. Fill the initial proof_body with a stub
+        """) .strip()
 
 
         MAX_PROOF_ATTEMPTS = 3 # Set a limit for proof attempts
@@ -476,7 +474,7 @@ main = do
         equiv_code = ""
 
         proof_body, equiv_llm_response = self.generate_proof_body(
-            program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code
+            program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code_prompt_msg
         )
 
         for attempt in range(MAX_PROOF_ATTEMPTS):
@@ -490,6 +488,10 @@ main = do
                 program_p_content=dedented_program_p,
                 program_q_content=dedented_program_q,
                 proof_body=proof_body
+            )
+
+            equiv_code_prompt_msg = equiv_code_prompt.format(
+                equiv_code=equiv_code
             )
 
             equiv_file_path = os.path.join(self.tmp_dir, "Equiv.hs")
@@ -543,7 +545,7 @@ main = do
                 if attempt < MAX_PROOF_ATTEMPTS - 1:
                     logger.info("Asking Alice for a new proof body...")
                     proof_body, equiv_llm_response = self.generate_proof_body(
-                        program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code
+                        program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code_prompt_msg
                     )
                 else:
                     logger.warning(f"Max proof attempts ({MAX_PROOF_ATTEMPTS}) reached. Final refutation.")

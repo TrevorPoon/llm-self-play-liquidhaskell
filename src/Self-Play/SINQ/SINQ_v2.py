@@ -213,7 +213,7 @@ main = do
         if status_p == "success" and status_q == "success" and out_p != out_q:
             return True
 
-        if status_p == status_q == "runtime_error":
+        if status_p != status_q:
             return True
 
         return False
@@ -632,15 +632,6 @@ class SInQ:
                 difficulty_level=f"{ex['difficulty']:.2f}",
                 program=ex['p_original']
             )
-            main_sft_messages = [
-                {"role": "system", "content": ALICE_SYSTEM_PROMPT},
-                {"role": "user", "content": main_sft_user_content},
-                {"role": "assistant", "content": ex['alice_raw_output']}
-            ]
-
-            logger.info(f"Main SFT example: {main_sft_messages}")
-            logger.info(f"Main SFT example: {ex['alice_raw_output']}")
-            
             # Convert to desired format: 'system prompt', 'user prompt', 'output'
             alice_training_example = {
                 "system_prompt": ALICE_SYSTEM_PROMPT,
