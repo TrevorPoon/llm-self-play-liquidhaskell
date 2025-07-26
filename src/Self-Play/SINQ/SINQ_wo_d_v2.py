@@ -661,6 +661,9 @@ class SInQ:
         if self.cumulative_bob_training_data:
             self.save_as_hf_jsonl(self.cumulative_bob_training_data, os.path.join(iter_output_dir, "bob_training_data.jsonl"))
         
+        self.save_as_hf_jsonl([warning_counts], os.path.join(iter_output_dir, "warning_counts.jsonl"))
+        self.save_as_hf_jsonl(candidate_examples, os.path.join(iter_output_dir, "candidate_examples.jsonl"))
+        
         logger.info("Generation iteration complete.")
 
 

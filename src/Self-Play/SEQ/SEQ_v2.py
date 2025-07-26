@@ -114,7 +114,7 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
                                             
     However, you should also use more advanced proof techniques if necessary. 
                                             
-    Here is an example of a *complete* proof:
+    Few-Shot Example 1:
     
     ```haskell
     {{-@ LIQUID "--reflection"        @-}}
@@ -142,6 +142,29 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
     === double' x
     *** QED
     ```
+                                            
+    Few-Shot Example 2:
+    ```haskell
+    {{-@ LIQUID "--reflection" @-}}
+    {{-@ LIQUID "--ple" @-}}
+    module Equiv where
+
+    import Language.Haskell.Liquid.ProofCombinators
+
+    {-@ reflect addNumbers @-}
+    addNumbers :: Int -> Int -> Int
+    addNumbers a b = a + b
+
+    {-@ reflect addNumbers' @-}
+    addNumbers' :: Int -> (Int -> Int)
+    addNumbers' a = \b -> a + b
+
+    -- Alice’s detailed proof of equivalence
+    lemma_addNumbers_equiv :: Int -> Int -> Proof
+    lemma_addNumbers_equiv x y
+        =   addNumbers x y 
+        === addNumbers' x y 
+        *** QED
                                             
     When you answer, output **only** the complete lemma block in the same style:
     1. Use the `{{-@ lemma_… @-}}` annotation , with the exact naming pattern lemma_<P>_equiv
@@ -472,6 +495,10 @@ main = do
 
         error_msg = ""
         equiv_code = ""
+        
+        equiv_code_prompt_msg = equiv_code_prompt.format(
+                equiv_code=equiv_code
+            )
 
         proof_body, equiv_llm_response = self.generate_proof_body(
             program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code_prompt_msg
@@ -480,8 +507,12 @@ main = do
         for attempt in range(MAX_PROOF_ATTEMPTS):
             logger.info(f"--- Proof attempt {attempt + 1}/{MAX_PROOF_ATTEMPTS} ---")
             
-            # 2. Render Equiv.hs with proof_body
+            
+            if proof_body.strip() == "":
+                logger.warning("🟥 --- Alice generated an empty proof body. Skipping example. ---")
+                return "empty_proof", "Alice generated an empty proof body. Skipping example."
 
+            # 2. Render Equiv.hs with proof_body
             equiv_code = equiv_code_template.format(
                 func_name_p=func_name_p,
                 func_name_q=func_name_q,
@@ -736,7 +767,7 @@ class SEQ:
                 if program_q:
                     # Check if the generated program Q compiles
                     if self.executor.check_compiles(program_q):
-                        logger.info("✅ Alice generated a compilable program Q.")
+                        logger.info("Alice generated a compilable program Q.")
                         return program_q, alice_raw_output, user_content
                     else:
                         logger.warning("🟨 Alice's generated program Q failed to compile. Retrying...")
@@ -967,6 +998,25 @@ class SEQ:
             alice_training_path = os.path.join(iter_output_dir, "alice_training_data.jsonl")
             self.save_as_hf_jsonl(self.cumulative_alice_training_data, alice_training_path)
 
+        # Log summary statistics
+        # logger.info("\n--- Iteration Summary ---")
+        # logger.info(f"Total programs processed: {len(self.programs)}")
+        # logger.info(f"Successfully proved equivalence (Liquid Haskell): {len([r for r in iteration_data if r['status'] == 'proved'])}")
+        # logger.info("Warning Counts:")
+        # for warning_type, count in warning_counts.items():
+        #     logger.info(f"  {warning_type}: {count}")
+
+        # # Save summary statistics to a separate JSONL file
+        # summary_data = [
+        #     {
+        #         "total_programs_processed": len(self.programs),
+        #         "successfully_proved_equivalence": len([r for r in iteration_data if r['status'] == 'proved']),
+        #         "warning_counts": warning_counts
+        #     }
+        # ]
+        # summary_file_path = os.path.join(iter_output_dir, "seq_summary.jsonl")
+        # self.save_as_hf_jsonl(summary_data, summary_file_path)
+
 
         logger.info("Generation iteration complete.")
 
@@ -987,7 +1037,7 @@ def main():
     parser.add_argument('--num_initial_programs', type=int, default=100, help="Number of initial programs to load.")
     parser.add_argument('--initial_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter to continue fine-tuning from.")
     parser.add_argument('--tensor_parallel_size', type=int, default=1, help="Number of tensor parallel processes.")
-    parser.add_argument('--training_mode', type=str, default='positive_only', choices=['positive_only', 'negative_only', 'both'], help="Which data to use for training Alice.")
+    parser.add_argument('--training_mode', type=str, default='both', choices=['positive_only', 'negative_only', 'both'], help="Which data to use for training Alice.")
     
     parser.add_argument('--iteration', type=int, required=True, help="Current self-play iteration number.")
     parser.add_argument('--iteration_dir', type=str, required=True, help="Path to the directory for the current iteration.")

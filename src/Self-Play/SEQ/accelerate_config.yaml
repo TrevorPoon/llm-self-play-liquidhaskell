@@ -1,5 +1,5 @@
 distributed_type: MULTI_GPU
 mixed_precision: bf16
 num_machines: 1
-num_processes: 3
+num_processes: 2
 dynamo_backend: 'inductor'

@@ -35,11 +35,23 @@ ALICE_SYSTEM_PROMPT = textwrap.dedent("""
     A good inequivalent program `Q` should be subtly different from `P`.
     A good diverging input `x` should be simple and clearly demonstrate the semantic difference between `P` and `Q`.
 
-    The original program and your program will be used in a test to evaluate the skill of an expert Haskell programmer who will have to produce a diverging example (not necessarily the same as yours), so make sure that the difference you introduce are not very easy to understand. You will be given a difficulty level from 0 (easiest) to 10 (hardest) to target. E.g. difficulty level 0 means that an expert computer scientist in the bottom decile or above should be able to find a diverging example, difficulty level 9 means that only an expert computer scientist in the top decile should be able to find a diverging example, and difficulty level 10 means that only the top 0.01 or less of expert Haskell programmer should be able to find a diverging example.                                 
+    The original program and your program will be used in a test to evaluate the skill of an expert Haskell programmer who will have to produce a diverging example (not necessarily the same as yours), so make sure that the difference you introduce are not very easy to understand. 
+    You will be given a difficulty level from 0 (easiest) to 10 (hardest) to target. E.g. difficulty level 0 means that an expert computer scientist in the bottom decile or above should be able to find a diverging example, difficulty level 9 means that only an expert computer scientist in the top decile should be able to find a diverging example, and difficulty level 10 means that only the top 0.01 or less of expert Haskell programmer should be able to find a diverging example.                                 
 
     First, think step-by-step and write down your analysis of program `P` and your strategy for creating an inequivalent program `Q`. Enclose this reasoning within `<think>` and `</think>` tags.
     After the thinking block, the final answer could **only** be in the following format, without any additional explanation or context.
 
+    **Generated Program `Q`:**
+    ```haskell
+    <Your generated Haskell code for `Q`>
+    ```
+
+    **Diverging Input `x`:**
+
+    First, think step-by-step and write down your analysis of program `P` and your strategy for creating an inequivalent program `Q`. Enclose this reasoning within `<think>` and `</think>` tags.
+    After the thinking block, the final answer could **only** be in the following format, without any additional explanation or context.
+
+    Final output MUST be exactly: 
     **Generated Program `Q`:**
     ```haskell
     <Your generated Haskell code for `Q`>
@@ -117,9 +129,6 @@ class CodeExecutor:
         """Builds a complete Haskell source file from a function definition and a main body."""
         prog = textwrap.dedent(program_code).strip()
         body = textwrap.dedent(main_body).rstrip()
-
-        # No imports needed for the initial programs.
-        imports = ""
 
         imports = """
 import Prelude
@@ -678,6 +687,9 @@ class SInQ:
         if self.cumulative_bob_training_data:
             self.save_as_hf_jsonl(self.cumulative_bob_training_data, os.path.join(iter_output_dir, "bob_training_data.jsonl"))
         
+        self.save_as_hf_jsonl([warning_counts], os.path.join(iter_output_dir, "warning_counts.jsonl"))
+        self.save_as_hf_jsonl(candidate_examples, os.path.join(iter_output_dir, "candidate_examples.jsonl"))
+
         logger.info("Generation iteration complete.")
 
 
@@ -695,7 +707,7 @@ def main():
     parser.add_argument('--n_samples', type=int, default=10, help="Number of samples for Bob to generate.")
     parser.add_argument('--gpu_memory_utilization', type=float, default=0.95, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     parser.add_argument('--num_initial_programs', type=int, default=0, help="Number of initial programs to load.")
-    parser.add_argument('--difficulty_threshold', type=float, default=0.0, help="Difficulty threshold for filtering Alice's training data.")
+    parser.add_argument('--difficulty_threshold', type=float, default=3.0, help="Difficulty threshold for filtering Alice's training data.")
     parser.add_argument('--alice_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter for Alice.")
     parser.add_argument('--bob_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter for Bob.")
     parser.add_argument('--tensor_parallel_size', type=int, default=1, help="Number of tensor parallel processes.")

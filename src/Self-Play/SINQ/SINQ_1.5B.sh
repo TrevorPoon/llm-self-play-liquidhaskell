@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:a40:1                  # specifically four A40 GPUs
 #SBATCH --mem=128000
 #SBATCH --time=7-00:00:00
-#SBATCH --output=log/slurm-sinq-trial-1.5B-%j.out
+#SBATCH --output=log/slurm-sinq-1.5B-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -49,7 +49,7 @@ DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=0
 NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter"
+NAME="no_initial_adapter_without_difficulty_prediction"
 N_ITERATIONS=3
 LEARNING_RATE=5e-4
 NUM_EPOCHS=3
@@ -76,7 +76,7 @@ do
     echo "--- [Iteration ${i}] Running Data Generation ---"
   
     
-    python SINQ_v2.py \
+    python SINQ_wo_d_v2.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
         --output_dir "$OUTPUT_DIR" \
@@ -128,5 +128,17 @@ do
     # Reset CUDA_VISIBLE_DEVICES to avoid affecting other scripts or subsequent iterations
     unset CUDA_VISIBLE_DEVICES
 done
+
+echo "--- Running Fine-tuning for Bob ---"
+python finetune.py \
+    --model_name_or_path "$MODEL_NAME" \
+    --dataset_path "$BOB_TRAINING_DATA_PATH" \
+    --model_type "bob" \
+    --output_dir "${OUTPUT_DIR}/bob_adapters" \
+    --previous_adapter_path "" \
+    --iteration "$i" \
+    --num_train_epochs $NUM_EPOCHS \
+    --per_device_train_batch_size 1 \
+    --learning_rate $LEARNING_RATE \
 
 echo "--- Self-Play complete ---"

@@ -118,9 +118,9 @@ for language in records_df['language'].unique():
     def get_sort_key(iteration):
         if iteration == 'Base':
             return -1
-        if isinstance(iteration, str) and 'checkpoint-' in iteration:
+        if isinstance(iteration, str) and 'iteration_' in iteration:
             try:
-                return int(iteration.split('-')[-1])
+                return int(iteration.split('_')[-1])
             except (ValueError, IndexError):
                 return float('inf')
         return float('inf')

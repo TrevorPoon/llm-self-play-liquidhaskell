@@ -1,12 +1,15 @@
 SINQ
-456 -- 100 examples 1.5B -- done eval 
-559 -- 1000 examples 1.5B
-535 -- 100 examples 1.5B wd
-536 -- 1000 examples 1.5B wd 
-461 -- 100 examples 7B -- evaluating
+456 -- 100 examples 1.5B -- done 
+260 -- 1000 examples 1.5B
+535 -- 100 examples 1.5B wd -- OOM
+263 -- 1000 examples 1.5B wd 
+087 -- 1000 examples 7B wd 
+461 -- 100 examples 7B -- done 
 459 -- 1000 examples 7B 
 
 
 SEQ 
-783 -- 100 examples 1.5B
-784 -- 100 examples 7B
+086 -- 100 examples 1.5B -- done (failed)
+404 -- 100 examples 7B
+194 -- 1000 examples 1.5B
+195 -- 1000 examples 7B

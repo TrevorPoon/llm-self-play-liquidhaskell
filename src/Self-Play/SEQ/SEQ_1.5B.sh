@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:a40:1                 # specifically four A40 GPUs
 #SBATCH --mem=128000
 #SBATCH --time=7-00:00:00
-#SBATCH --output=log/slurm-seq-trial-1.5B-%j.out
+#SBATCH --output=log/slurm-seq-1.5B-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -96,6 +96,7 @@ do
         echo "--- [Iteration ${i}] Running Fine-tuning for Alice ---"
         
         accelerate launch \
+            --config_file accelerate_config.yaml \
             finetune.py \
             --model_name_or_path "$MODEL_NAME" \
             --dataset_path "$ALICE_TRAINING_DATA_PATH" \
@@ -117,5 +118,17 @@ do
     # Reset CUDA_VISIBLE_DEVICES to avoid affecting other scripts or subsequent iterations
     unset CUDA_VISIBLE_DEVICES
 done
+
+echo "--- Running Fine-tuning for Bob ---"
+python finetune.py \
+    --model_name_or_path "$MODEL_NAME" \
+    --dataset_path "$BOB_TRAINING_DATA_PATH" \
+    --model_type "bob" \
+    --output_dir "${OUTPUT_DIR}/bob_adapters" \
+    --previous_adapter_path "" \
+    --iteration "$i" \
+    --num_train_epochs $NUM_EPOCHS \
+    --per_device_train_batch_size 1 \
+    --learning_rate $LEARNING_RATE \
 
 echo "--- Self-Play complete ---"

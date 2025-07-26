@@ -127,4 +127,16 @@ do
     unset CUDA_VISIBLE_DEVICES
 done
 
+echo "--- Running Fine-tuning for Bob ---"
+python finetune.py \
+    --model_name_or_path "$MODEL_NAME" \
+    --dataset_path "$BOB_TRAINING_DATA_PATH" \
+    --model_type "bob" \
+    --output_dir "${OUTPUT_DIR}/bob_adapters" \
+    --previous_adapter_path "" \
+    --iteration "$i" \
+    --num_train_epochs $NUM_EPOCHS \
+    --per_device_train_batch_size 1 \
+    --learning_rate $LEARNING_RATE \
+
 echo "--- Self-Play complete ---"

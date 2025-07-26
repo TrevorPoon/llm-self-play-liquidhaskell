@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:a40:2                 # specifically four A40 GPUs
 #SBATCH --mem=256000
 #SBATCH --time=7-00:00:00
-#SBATCH --output=log/slurm-seq-trial-7B-%j.out
+#SBATCH --output=log/slurm-seq-7B-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -45,7 +45,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
-NUM_INITIAL_PROGRAMS=100 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
 NAME="no_initial_adapter_without_difficulty_prediction"
 N_ITERATIONS=3
@@ -120,5 +120,17 @@ do
     # Reset CUDA_VISIBLE_DEVICES to avoid affecting other scripts or subsequent iterations
     unset CUDA_VISIBLE_DEVICES
 done
+
+echo "--- Running Fine-tuning for Bob ---"
+python finetune.py \
+    --model_name_or_path "$MODEL_NAME" \
+    --dataset_path "$BOB_TRAINING_DATA_PATH" \
+    --model_type "bob" \
+    --output_dir "${OUTPUT_DIR}/bob_adapters" \
+    --previous_adapter_path "" \
+    --iteration "$i" \
+    --num_train_epochs $NUM_EPOCHS \
+    --per_device_train_batch_size 1 \
+    --learning_rate $LEARNING_RATE \
 
 echo "--- Self-Play complete ---"

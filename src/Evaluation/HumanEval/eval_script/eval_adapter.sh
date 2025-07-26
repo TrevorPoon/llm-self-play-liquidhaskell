@@ -4,7 +4,7 @@
 #SBATCH --partition=PGR-Standard    # only nodes with A40s
 #SBATCH --gres=gpu:a40:1
 #SBATCH --mem=120000
-#SBATCH --time=0-16:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --output=log/slurm-eval-adapter-%j.out
 
 # Find CUDA
