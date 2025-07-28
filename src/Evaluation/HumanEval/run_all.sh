@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SFT/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_dataset_fraction_0.5_epochs_10_learning_rate_5e-4_batch_4_grad_steps_8
+ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_SINQ_PROGRAMS1000_EVALS0_no_initial_adapter_LR5e-4_EPOCHS3/iteration_1/alice_adapters/
 TRIALS=8
 
 # Haskell HumanEval

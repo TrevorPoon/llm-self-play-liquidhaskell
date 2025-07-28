@@ -2,8 +2,8 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:1                  # specifically four A40 GPUs
-#SBATCH --mem=128000
+#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
+#SBATCH --mem=256000
 #SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-sinq-1.5B-%j.out
 

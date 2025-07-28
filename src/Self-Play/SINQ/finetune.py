@@ -46,8 +46,12 @@ class SInQ_Dataset(Dataset):
         user   = item.get("user_prompt", "")
         bot    = item.get("output", "")
 
-        # join with newlines (or any sep you like)
-        combined_text = "\n".join([system, user, bot]).strip()
+        # Ensure all components are strings, handling cases where they might be None
+        system_str = str(system) if system is not None else ""
+        user_str = str(user) if user is not None else ""
+        bot_str = str(bot) if bot is not None else ""
+        
+        combined_text = "\n".join([system_str, user_str, bot_str]).strip()
         
         # Tokenize the combined text
         tokenized_item = self.tokenizer(
@@ -160,6 +164,8 @@ def main():
     logger.info(f"Starting fine-tuning for {args.model_type}...")
     trainer.train()
     logger.info("Fine-tuning complete.")
+
+    torch.cuda.empty_cache()
 
 if __name__ == "__main__":
     main()

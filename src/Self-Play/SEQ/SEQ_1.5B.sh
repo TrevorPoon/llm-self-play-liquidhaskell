@@ -2,8 +2,8 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:1                 # specifically four A40 GPUs
-#SBATCH --mem=128000
+#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
+#SBATCH --mem=256000
 #SBATCH --time=7-00:00:00
 #SBATCH --output=log/slurm-seq-1.5B-%j.out
 
@@ -40,7 +40,7 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
-export USE_SDP_ATTENTION=0
+export HF_OFFLINE=1
 
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
@@ -118,17 +118,5 @@ do
     # Reset CUDA_VISIBLE_DEVICES to avoid affecting other scripts or subsequent iterations
     unset CUDA_VISIBLE_DEVICES
 done
-
-echo "--- Running Fine-tuning for Bob ---"
-python finetune.py \
-    --model_name_or_path "$MODEL_NAME" \
-    --dataset_path "$BOB_TRAINING_DATA_PATH" \
-    --model_type "bob" \
-    --output_dir "${OUTPUT_DIR}/bob_adapters" \
-    --previous_adapter_path "" \
-    --iteration "$i" \
-    --num_train_epochs $NUM_EPOCHS \
-    --per_device_train_batch_size 1 \
-    --learning_rate $LEARNING_RATE \
 
 echo "--- Self-Play complete ---"

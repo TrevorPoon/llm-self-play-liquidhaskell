@@ -1,15 +1,8 @@
 SINQ
-456 -- 100 examples 1.5B -- done 
-260 -- 1000 examples 1.5B
-535 -- 100 examples 1.5B wd -- OOM
-263 -- 1000 examples 1.5B wd 
-087 -- 1000 examples 7B wd 
-461 -- 100 examples 7B -- done 
-459 -- 1000 examples 7B 
-
+086 -- 200 examples 1.5B wd 
+418 -- 1000 examples 7B wd -- 2nd round might be slow, kill it
+088 -- 200 examples 1.5B wd 
 
 SEQ 
-086 -- 100 examples 1.5B -- done (failed)
-404 -- 100 examples 7B
-194 -- 1000 examples 1.5B
-195 -- 1000 examples 7B
+074 -- 100 examples 7B
+na -- 1000 examples 7B

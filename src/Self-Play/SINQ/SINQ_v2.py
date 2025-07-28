@@ -655,8 +655,8 @@ class SInQ:
             )
             # Convert to desired format: 'system prompt', 'user prompt', 'output'
             diff_pred_training_example = {
-                "system_prompt": "", # No system prompt for this one, as per original structure
-                "user_prompt": diff_pred_user_content + ex['alice_raw_output'] + ALICE_DIFFICULTY_PREDICTION_USER_PROMPT,
+                "system_prompt": diff_pred_user_content + ex['alice_raw_output'], # No system prompt for this one, as per original structure
+                "user_prompt": ALICE_DIFFICULTY_PREDICTION_USER_PROMPT,
                 "output": f"Difficulty level: {ex['difficulty']:.2f}"
             }
             self.cumulative_alice_training_data.append(diff_pred_training_example)

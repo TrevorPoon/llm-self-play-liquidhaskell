@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard    # only nodes with A40s
-#SBATCH --gres=gpu:a40:1
+#SBATCH --partition=PGR-Standard-Noble    
+#SBATCH --gres=gpu:l40s:1                 
 #SBATCH --mem=120000
 #SBATCH --time=2-00:00:00
+#SBATCH --exclude=scotia08
 #SBATCH --output=log/slurm-eval-adapter-%j.out
 
 # Find CUDA
@@ -69,10 +70,10 @@ for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
 done
 
 # 1.5B
-# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_SINQ_PROGRAMS1000_EVALS0_no_initial_adapter_LR5e-4_EPOCHS3/iteration_1/alice_adapters/checkpoint-570 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 8
+# sbatch eval_script/eval_adapter_s.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B_SINQ_PROGRAMS1000_EVALS0_no_initial_adapter_LR5e-4_EPOCHS3/iteration_1/alice_adapters/checkpoint-570 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B 8
 
 # 7B
-# sbatch eval_script/eval_adapter.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_PROGRAMS100_EVALS8_no_initial_adapter_without_difficulty_prediction_LR5e-4_EPOCHS3/iteration_2/alice_adapters/checkpoint-189 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 8
+# sbatch eval_script/eval_adapter_s.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SINQ/output/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_PROGRAMS100_EVALS8_no_initial_adapter_without_difficulty_prediction_LR5e-4_EPOCHS3/iteration_2/alice_adapters/checkpoint-189 hs deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 8
 
 
 

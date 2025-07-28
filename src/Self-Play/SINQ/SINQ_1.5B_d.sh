@@ -1,10 +1,11 @@
 #!/bin/sh
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --partition=PGR-Standard     # only nodes with A40s
-#SBATCH --gres=gpu:a40:2                  # specifically four A40 GPUs
-#SBATCH --mem=256000
+#SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
+#SBATCH --gres=gpu:l40s:4                 # specifically four A40 GPUs
+#SBATCH --mem=510000
 #SBATCH --time=7-00:00:00
+#SBATCH --exclude=scotia08
 #SBATCH --output=log/slurm-sinq-1.5B-%j.out
 
 # --- Environment Setup ---
@@ -40,16 +41,16 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
-export USE_SDP_ATTENTION=0
+export HF_OFFLINE=1
 
 
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=0
-NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=200 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter"
+NAME="no_initial_adapter_2nd"
 N_ITERATIONS=3
 LEARNING_RATE=5e-4
 NUM_EPOCHS=3
@@ -74,7 +75,8 @@ do
 
     # --- Step 1: Data Generation (vLLM on GPU 0) ---
     echo "--- [Iteration ${i}] Running Data Generation ---"
-  
+
+    CUDA_VISIBLE_DEVICES=0
     python SINQ_v2.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
@@ -103,7 +105,9 @@ do
     if [ -f "$ALICE_TRAINING_DATA_PATH" ] && [ -s "$ALICE_TRAINING_DATA_PATH" ]; then
         echo "--- [Iteration ${i}] Running Fine-tuning for Alice ---"
         
+        CUDA_VISIBLE_DEVICES=1,2,3
         accelerate launch \
+            --config_file accelerate_config.yaml \
             finetune.py \
             --model_name_or_path "$MODEL_NAME" \
             --dataset_path "$ALICE_TRAINING_DATA_PATH" \
@@ -129,7 +133,9 @@ do
 done
 
 echo "--- Running Fine-tuning for Bob ---"
-python finetune.py \
+CUDA_VISIBLE_DEVICES=1,2,3
+accelerate launch finetune.py \
+    --config_file accelerate_config.yaml \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_path "$BOB_TRAINING_DATA_PATH" \
     --model_type "bob" \

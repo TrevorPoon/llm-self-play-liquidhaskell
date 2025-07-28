@@ -67,14 +67,75 @@ ALICE_USER_PROMPT = textwrap.dedent("""
 """).strip()
 
 COUNTEREXAMPLE_SYSTEM_PROMPT = textwrap.dedent("""
-    You are a Haskell equivalence checker. You are given two functions, P and Q, which fails to be proven equivalent by Liquid Haskell.
-    Your task is to provide a concrete counterexample input `x` that demonstrates their inequivalence.
-    The counterexample should be a valid Haskell expression for the input type.
+You are a Haskell semantic-equivalence analyzer. For any two reflected functions P and Q of the same type:
 
-    - Choose x :: t within typical domain (e.g. small integers, small lists, etc.)
-    - Provide the smallest counterexample by size for minimality (e.g. shortest list or smallest integer)
-    - Return only the expression (no surrounding code)
-                                               
+  1. Determine whether ∀x. P x == Q x holds.
+  2. If they are equivalent, respond with:
+       **Equivalence Result:** Equivalent
+     after a detailed reasoning trace in `<think>…</think>`.
+  3. If they are not equivalent, respond with:
+       **Equivalence Result:** Not Equivalent  
+       **Counterexample:**  
+       ```haskell
+       <valid Haskell expression x>
+       ```
+     where your counterexample is a valid Haskell expression of the input type showing P x /= Q x, again with a detailed reasoning trace in `<think>…</think>`.
+
+Return only the `<think>…</think>` block and the result blocks exactly as shown—no extra commentary.
+
+Few-Shot Examples:
+
+---
+
+**Example 1: Equivalent**
+
+P:
+```haskell
+f :: Int -> Int
+f x = x + x
+````
+
+Q:
+
+```haskell
+f_alt :: Int -> Int
+f_alt x = 2 * x
+```
+
+<think>
+Both definitions compute “two times x.” Addition is commutative and multiplication by 2 yields the same result for every integer.
+</think>
+
+**Equivalence Result:** Equivalent
+
+---
+
+**Example 2: Not Equivalent**
+
+P:
+
+```haskell
+g :: Bool -> Bool
+g b = not b
+```
+
+Q:
+
+```haskell
+g_alt :: Bool -> Bool
+g_alt b = b
+```
+
+<think>
+For input `True`, `g True = not True = False`, but `g_alt True = True`. Thus they differ on at least one Boolean.
+</think>
+
+**Equivalence Result:** Not Equivalent
+**Counterexample:**
+```haskell
+True
+```
+---
 """).strip()
 
 COUNTEREXAMPLE_USER_PROMPT = textwrap.dedent("""
@@ -88,13 +149,20 @@ COUNTEREXAMPLE_USER_PROMPT = textwrap.dedent("""
     {program_q}
     ```
 
-    These two programs have failed to be proven equivalent by Liquid Haskell. Please provide a concrete counterexample.
+    Your task: Determine if P and Q are semantically equivalent for all inputs.
 
+    * If they are equivalent, provide: <think>…your detailed reasoning…</think>
+    **Equivalence Result:** Equivalent
+                                             
+    * If they are not equivalent, provide: <think>…your detailed reasoning…</think>
+    **Equivalence Result:** Not Equivalent
+                                             
     **Counterexample:**
     ```haskell
-    your counterexample here
+    <your counterexample here>
     ```
 
+    Return only the `<think>…</think>` block and the result blocks exactly as specified—no additional text.
     <think>
 """).strip()
 
@@ -117,8 +185,8 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
     Few-Shot Example 1:
     
     ```haskell
-    {{-@ LIQUID "--reflection"        @-}}
-    {{-@ LIQUID "--ple"               @-}}
+    {{-@ LIQUID "--reflection" @-}}
+    {{-@ LIQUID "--ple" @-}}
 
     module MyTest where
 
@@ -134,7 +202,7 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
     double' :: Int -> Int
     double' x = 2 * x
 
-    -- Here is the *full* lemma, from annotation to QED:
+    -- Here is the full lemma, from annotation to QED:
     {{-@ lemma_double_equiv :: x:Int -> {{ double x == double' x }} @- }}
     lemma_double_equiv :: Int -> Proof
     lemma_double_equiv x
@@ -151,15 +219,15 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
 
     import Language.Haskell.Liquid.ProofCombinators
 
-    {-@ reflect addNumbers @-}
+    {{-@ reflect addNumbers @-}}
     addNumbers :: Int -> Int -> Int
     addNumbers a b = a + b
 
-    {-@ reflect addNumbers' @-}
+    {{-@ reflect addNumbers' @-}}
     addNumbers' :: Int -> (Int -> Int)
     addNumbers' a = \b -> a + b
 
-    -- Alice’s detailed proof of equivalence
+    -- Alice detailed proof of equivalence
     lemma_addNumbers_equiv :: Int -> Int -> Proof
     lemma_addNumbers_equiv x y
         =   addNumbers x y 
@@ -170,7 +238,8 @@ LEMMA_PROOF_SYSTEM_PROMPT = textwrap.dedent("""
     1. Use the `{{-@ lemma_… @-}}` annotation , with the exact naming pattern lemma_<P>_equiv
     2. The Haskell type signature  
     3. The function definition with `===` steps  
-    4. End with `*** QED`  
+    4. End with `*** QED`
+    5. Please put your proof between ```haskell and  ```
     No extra text, no additional comments.
     Your answer must match the example format exactly, without trailing whitespace or newlines outside the code block.                                     
 
@@ -200,7 +269,6 @@ LEMMA_PROOF_USER_PROMPT = textwrap.dedent("""
     {program_q_content}
 
     -- Your complete proof of equivalence
-    ```haskell
     /* PROOF BODY HERE */
     ```
     <think>
@@ -405,8 +473,8 @@ main = do
             return body, response.strip()
         else:
             # Assume the entire response is the proof body
-            logger.info("Assuming entire response is the proof body.")
-            return response.strip(), response.strip()
+            post_think = response.partition("</think>")[2].strip()
+            return post_think, response.strip()
 
     def verify_equivalence(self, program_p: str, program_q: str):
         """Verifies semantic equivalence using Liquid Haskell."""
@@ -495,10 +563,7 @@ main = do
 
         error_msg = ""
         equiv_code = ""
-        
-        equiv_code_prompt_msg = equiv_code_prompt.format(
-                equiv_code=equiv_code
-            )
+        equiv_code_prompt_msg = ""
 
         proof_body, equiv_llm_response = self.generate_proof_body(
             program_p, program_q, func_name_p, func_name_q, arg_type_p, error_msg, equiv_code_prompt_msg
@@ -847,8 +912,13 @@ class SEQ:
             return ""
 
         response_text = request_outputs[0].outputs[0].text
-        # logger.info(f"Counterexample response: {response_text}")
-        match = re.search(r"```haskell\s*(.*?)\s*```", response_text, re.DOTALL)
+        logger.info(f"Counterexample response: {response_text}")
+        match = re.search(
+            r"\**\s*counterexample\s*:?\s*\**\s*(?:```haskell|```)\s*\n(.*?)\n```",
+            response_text,
+            re.IGNORECASE | re.DOTALL
+        )
+
         if match:
             return match.group(1).strip(), response_text.strip()
         return "", response_text.strip()
@@ -957,8 +1027,6 @@ class SEQ:
                         record["counterexample"] = counterexample
                         iteration_data.append(record)
 
-                        warning_counts["alice_not_divergent"] += 1
-
                         # Create training data for Alice (as checker)
                         alice_training_example = {
                             "system_prompt": COUNTEREXAMPLE_SYSTEM_PROMPT,
@@ -968,6 +1036,7 @@ class SEQ:
                         self.cumulative_alice_training_data.append(alice_training_example)
                     else:
                         logger.warning("❌ Alice generated an incorrect counterexample, skipping example.")
+                        warning_counts["alice_not_divergent"] += 1
                 
                 else:
                     logger.info("We are not training Alice on counterexamples, skipping example.")
@@ -999,23 +1068,23 @@ class SEQ:
             self.save_as_hf_jsonl(self.cumulative_alice_training_data, alice_training_path)
 
         # Log summary statistics
-        # logger.info("\n--- Iteration Summary ---")
-        # logger.info(f"Total programs processed: {len(self.programs)}")
-        # logger.info(f"Successfully proved equivalence (Liquid Haskell): {len([r for r in iteration_data if r['status'] == 'proved'])}")
-        # logger.info("Warning Counts:")
-        # for warning_type, count in warning_counts.items():
-        #     logger.info(f"  {warning_type}: {count}")
+        logger.info("\n--- Iteration Summary ---")
+        logger.info(f"Total programs processed: {len(self.programs)}")
+        logger.info(f"Successfully proved equivalence (Liquid Haskell): {len([r for r in iteration_data if r['status'] == 'proved'])}")
+        logger.info("Warning Counts:")
+        for warning_type, count in warning_counts.items():
+            logger.info(f"  {warning_type}: {count}")
 
-        # # Save summary statistics to a separate JSONL file
-        # summary_data = [
-        #     {
-        #         "total_programs_processed": len(self.programs),
-        #         "successfully_proved_equivalence": len([r for r in iteration_data if r['status'] == 'proved']),
-        #         "warning_counts": warning_counts
-        #     }
-        # ]
-        # summary_file_path = os.path.join(iter_output_dir, "seq_summary.jsonl")
-        # self.save_as_hf_jsonl(summary_data, summary_file_path)
+        # Save summary statistics to a separate JSONL file
+        summary_data = [
+            {
+                "total_programs_processed": len(self.programs),
+                "successfully_proved_equivalence": len([r for r in iteration_data if r['status'] == 'proved']),
+                "warning_counts": warning_counts
+            }
+        ]
+        summary_file_path = os.path.join(iter_output_dir, "seq_summary.jsonl")
+        self.save_as_hf_jsonl(summary_data, summary_file_path)
 
 
         logger.info("Generation iteration complete.")
@@ -1041,7 +1110,6 @@ def main():
     
     parser.add_argument('--iteration', type=int, required=True, help="Current self-play iteration number.")
     parser.add_argument('--iteration_dir', type=str, required=True, help="Path to the directory for the current iteration.")
-    parser.add_argument('--programs_file_path', type=str, default=None, help="Path to a file with the list of programs for the current iteration.")
     parser.add_argument('--alice_adapter_path', type=str, default=None, help="Path to an adapter for Alice.")
     parser.add_argument('--cumulative_alice_training_data_path', type=str, default=None, help="Path to a file with the list of programs for the current iteration.")
 
