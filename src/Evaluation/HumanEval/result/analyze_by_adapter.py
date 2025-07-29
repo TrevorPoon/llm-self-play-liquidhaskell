@@ -7,7 +7,7 @@ import os
 
 # Directory containing this script
 results_dir = Path(__file__).parent
-base_name = 'base_vllm'
+base_name = 'base_vllm' #DS_R1_D_Qwen_7B
 base_dir = results_dir.parent / base_name
 
 # Collect all JSON files, distinguishing between base and adapter runs

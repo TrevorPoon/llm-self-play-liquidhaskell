@@ -31,11 +31,11 @@ class SavePeftModelCallback(TrainerCallback):
         model.save_pretrained(adapter_path)
         logger.info(f"Saved adapter for epoch {int(epoch)} to {adapter_path}")
 
-class SEQ_Dataset(Dataset):
-    def __init__(self, data, tokenizer):
+class SInQ_Dataset(Dataset):
+    def __init__(self, data, tokenizer, max_tokens):
         self.data = data
         self.tokenizer = tokenizer
-
+        self.max_tokens = max_tokens
     def __len__(self):
         return len(self.data)
 
@@ -56,7 +56,8 @@ class SEQ_Dataset(Dataset):
         # Tokenize the combined text
         tokenized_item = self.tokenizer(
             combined_text,
-            truncation=False,
+            truncation=True,
+            max_length=self.max_tokens,
             padding=False,
             return_tensors="pt"
         )
@@ -70,9 +71,9 @@ def load_training_data(file_path):
     return load_dataset('json', data_files=file_path, split='train')
 
 def main():
-    parser = argparse.ArgumentParser(description="Fine-tuning script for SEQ")
+    parser = argparse.ArgumentParser(description="Fine-tuning script for SInQ")
     parser.add_argument('--model_name_or_path', type=str, required=True, help="Path to the base model.")
-    parser.add_argument('--dataset_path', type=str, required=True, help="Path to the training data file (.jsonl).")
+    parser.add_argument('--dataset_path', type=str, required=True, help="Path to the training data file (.txt).")
     parser.add_argument('--model_type', type=str, required=True, choices=['alice', 'bob'], help="Type of model to fine-tune.")
     parser.add_argument('--output_dir', type=str, required=True, help="Directory to save the trained adapter.")
     parser.add_argument('--previous_adapter_path', type=str, default=None, help="Path to a previous LoRA adapter to continue fine-tuning from.")
@@ -104,8 +105,8 @@ def main():
         logger.error(f"No training data found in {args.dataset_path}. Exiting.")
         return
 
-    train_dataset = SEQ_Dataset(training_data, tokenizer)
-    
+    train_dataset = SInQ_Dataset(training_data, tokenizer, args.max_tokens)
+
     # --- Model Initialization ---
     logger.info("Initializing base model for fine-tuning...")
     base_model = AutoModelForCausalLM.from_pretrained(
@@ -149,21 +150,25 @@ def main():
         save_steps=500,
         bf16=True,
         tf32=True,
-        torch_compile=True,
+        torch_compile=False,
         ddp_find_unused_parameters=False,
-        weight_decay=0.01 
+        weight_decay=0.01,
+        lr_scheduler_type="cosine",
+        warmup_ratio=0.03
     )
 
     trainer = Trainer(
         model=peft_model,
         args=training_args,
         train_dataset=train_dataset,
-        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
+        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False)
     )
     
     logger.info(f"Starting fine-tuning for {args.model_type}...")
     trainer.train()
     logger.info("Fine-tuning complete.")
+
+    torch.cuda.empty_cache()
 
 if __name__ == "__main__":
     main()

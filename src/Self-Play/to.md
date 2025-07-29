@@ -33,22 +33,12 @@ OpenInstruct -- 📌 TODO
 
 ## Misc
 
-
-Inspect the code carefully. Gimme me suggestions / improve / identify any bugs in my semantic equivalent game for LLM code generation -- 📌 TODO 
-
 🟥 Review the SINQ & SEQ code by code (Refine SINQ_wo_d)
 
-🟥 SEQ (is it self play)
-
-🟥 Re-run all training
+🟥 base eval for MBPP (1.5B and 7B)
 
 
-
-ask my acclerate launch and vllm setup 
-
-shd i aim for finding an equivalent example for wo_d in Bob? 
-
-universal case for liquid haskell 
+ask if he could review my code
 
 
 

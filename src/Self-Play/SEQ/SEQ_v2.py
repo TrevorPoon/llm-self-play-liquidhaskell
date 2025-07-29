@@ -471,10 +471,12 @@ main = do
             body = match.group(1).strip()
             logger.info(f"Extracted lemma proof body from full definition:\n{body}")
             return body, response.strip()
-        else:
-            # Assume the entire response is the proof body
+        elif "</think>" in response:
             post_think = response.partition("</think>")[2].strip()
             return post_think, response.strip()
+        else: 
+            logger.info(f"Assuming entire response is the proof body.")
+            return response.strip(), response.strip()
 
     def verify_equivalence(self, program_p: str, program_q: str):
         """Verifies semantic equivalence using Liquid Haskell."""

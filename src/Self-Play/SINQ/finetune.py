@@ -32,10 +32,10 @@ class SavePeftModelCallback(TrainerCallback):
         logger.info(f"Saved adapter for epoch {int(epoch)} to {adapter_path}")
 
 class SInQ_Dataset(Dataset):
-    def __init__(self, data, tokenizer):
+    def __init__(self, data, tokenizer, max_tokens):
         self.data = data
         self.tokenizer = tokenizer
-
+        self.max_tokens = max_tokens
     def __len__(self):
         return len(self.data)
 
@@ -56,7 +56,8 @@ class SInQ_Dataset(Dataset):
         # Tokenize the combined text
         tokenized_item = self.tokenizer(
             combined_text,
-            truncation=False,
+            truncation=True,
+            max_length=self.max_tokens,
             padding=False,
             return_tensors="pt"
         )
@@ -104,7 +105,7 @@ def main():
         logger.error(f"No training data found in {args.dataset_path}. Exiting.")
         return
 
-    train_dataset = SInQ_Dataset(training_data, tokenizer)
+    train_dataset = SInQ_Dataset(training_data, tokenizer, args.max_tokens)
 
     # --- Model Initialization ---
     logger.info("Initializing base model for fine-tuning...")
@@ -149,9 +150,11 @@ def main():
         save_steps=500,
         bf16=True,
         tf32=True,
-        torch_compile=True,
+        torch_compile=False,
         ddp_find_unused_parameters=False,
-        weight_decay=0.01 
+        weight_decay=0.01 ,
+        lr_scheduler_type="cosine",
+        warmup_ratio=0.03
     )
 
     trainer = Trainer(

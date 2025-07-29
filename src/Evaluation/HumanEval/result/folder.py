@@ -50,11 +50,12 @@ analyze_script_path = results_dir / 'analyze_by_adapter.py'
 if analyze_script_path.exists():
     for folder in adapter_folders:
         destination_folder = results_dir / folder
-        try:
-            shutil.copy(str(analyze_script_path), str(destination_folder / analyze_script_path.name))
-            print(f"Copied {analyze_script_path.name} to {destination_folder}")
-        except Exception as e:
-            print(f"Could not copy {analyze_script_path.name} to {destination_folder}: {e}")
+        if not (destination_folder / 'analyze_by_adapter.py').exists():
+            try:
+                shutil.copy(str(analyze_script_path), str(destination_folder / analyze_script_path.name))
+                print(f"Copied {analyze_script_path.name} to {destination_folder}")
+            except Exception as e:
+                print(f"Could not copy {analyze_script_path.name} to {destination_folder}: {e}")
 else:
     print(f"Error: {analyze_script_path} not found.")
 

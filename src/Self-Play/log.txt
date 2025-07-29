@@ -1,8 +1,6 @@
 SINQ
-086 -- 200 examples 1.5B wd 
-418 -- 1000 examples 7B wd -- 2nd round might be slow, kill it
-088 -- 200 examples 1.5B wd 
+470 -- 200 examples 1.5B epochs 7 lr 5e-4
+471 -- 200 examples 7B epochs 7 lr 5e-4
 
 SEQ 
-074 -- 100 examples 7B
-na -- 1000 examples 7B
+472 -- 500 examples 7B epochs 7 lr 5e-4

@@ -41,8 +41,8 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
-export HF_OFFLINE=1
-
+export HF_HUB_OFFLINE=1
+export HUGGINGFACE_CO_RESOLVE_ENDPOINT=https://hf-mirror.com
 
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
@@ -50,13 +50,13 @@ DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION=0
 NUM_INITIAL_PROGRAMS=200 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter_2nd"
-N_ITERATIONS=3
+NAME="no_initial_adapter"
+N_ITERATIONS=7
 LEARNING_RATE=5e-4
 NUM_EPOCHS=3
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="${MODEL_NAME}_SINQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="${MODEL_NAME}_SINQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_EVALS${NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -97,12 +97,12 @@ do
         --num_initial_programs $NUM_INITIAL_PROGRAMS \
         --tensor_parallel_size 1
 
-    # Update programs file path for the next iteration
-    ALICE_TRAINING_DATA_PATH="${ITERATION_DIR}/alice_training_data.jsonl"
-    BOB_TRAINING_DATA_PATH="${ITERATION_DIR}/bob_training_data.jsonl"
-    
     # --- Step 2: Fine-tuning (Accelerate on GPUs 1, 2, 3) ---
-    if [ -f "$ALICE_TRAINING_DATA_PATH" ] && [ -s "$ALICE_TRAINING_DATA_PATH" ]; then
+    if [ -f "${ITERATION_DIR}/alice_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/alice_training_data.jsonl" ]; then
+        # Update programs file path for the next iteration
+        ALICE_TRAINING_DATA_PATH="${ITERATION_DIR}/alice_training_data.jsonl"
+        BOB_TRAINING_DATA_PATH="${ITERATION_DIR}/bob_training_data.jsonl"
+        
         echo "--- [Iteration ${i}] Running Fine-tuning for Alice ---"
         
         CUDA_VISIBLE_DEVICES=1,2,3
@@ -134,8 +134,9 @@ done
 
 echo "--- Running Fine-tuning for Bob ---"
 CUDA_VISIBLE_DEVICES=1,2,3
-accelerate launch finetune.py \
+accelerate launch \
     --config_file accelerate_config.yaml \
+    finetune.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_path "$BOB_TRAINING_DATA_PATH" \
     --model_type "bob" \

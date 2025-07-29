@@ -7,7 +7,7 @@ import os
 
 # Directory containing this script
 results_dir = Path(__file__).parent
-base_name = 'base_vllm'
+base_name = 'base_7B' #DS_R1_D_Qwen_7B
 base_dir = results_dir.parent / base_name
 
 # Collect all JSON files, distinguishing between base and adapter runs
@@ -46,7 +46,7 @@ for fpath, run_type in all_json_files:
                 if run_type == 'adapter':
                     adapter_path = data.get('adapter_path')
                     if adapter_path:
-                        record['iteration'] = adapter_path.strip('/').split('/')[-1]
+                        record['iteration'] = adapter_path.strip('/').split('/')[-3]
                     else:
                         # If adapter_path is missing for an adapter run, skip or handle as needed
                         print(f"Skipping adapter file {fpath}: missing adapter_path")
@@ -118,9 +118,9 @@ for language in records_df['language'].unique():
     def get_sort_key(iteration):
         if iteration == 'Base':
             return -1
-        if isinstance(iteration, str) and 'checkpoint-' in iteration:
+        if isinstance(iteration, str) and 'iteration_' in iteration:
             try:
-                return int(iteration.split('-')[-1])
+                return int(iteration.split('_')[-1])
             except (ValueError, IndexError):
                 return float('inf')
         return float('inf')

@@ -302,6 +302,7 @@ class SInQ:
             logger.info(f"Loading programs from {programs_file_path}...")
             with open(programs_file_path, 'r') as f:
                 return [json.loads(line.strip()) for line in f if line.strip()]
+            
         return []
 
     def load_programs(self, dataset_name):

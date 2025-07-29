@@ -1,12 +1,12 @@
-  #!/bin/sh
-  #SBATCH -N 1
-  #SBATCH -n 1
-  #SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
-  #SBATCH --gres=gpu:l40s:4                 # specifically four A40 GPUs
-  #SBATCH --mem=510000
-  #SBATCH --time=7-00:00:00
-  #SBATCH --exclude=scotia08
-#SBATCH --output=log/slurm-seq-7B-%j.out
+#!/bin/sh
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
+#SBATCH --gres=gpu:l40s:4                 # specifically four A40 GPUs
+#SBATCH --mem=510000
+#SBATCH --time=7-00:00:00
+#SBATCH --exclude=scotia08
+#SBATCH --output=log/slurm-seq-trial-7B-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -42,20 +42,20 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-export HF_OFFLINE=1
+export HF_HUB_OFFLINE=1
 
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
-NUM_INITIAL_PROGRAMS=1000 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=500 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter_without_difficulty_prediction"
-N_ITERATIONS=3
+NAME="no_initial_adapter"
+N_ITERATIONS=7
 LEARNING_RATE=5e-4
 NUM_EPOCHS=3
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="SEQ_${MODEL_NAME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="SEQ_${MODEL_NAME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -74,6 +74,7 @@ do
     echo "--- [Iteration ${i}] Running Data Generation ---"
 
     CUDA_VISIBLE_DEVICES=0
+
     python SEQ_v2.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
@@ -92,10 +93,9 @@ do
         --tensor_parallel_size 1
 
     # Update programs file path for the next iteration
-    ALICE_TRAINING_DATA_PATH="${ITERATION_DIR}/alice_training_data.jsonl"
-    
-    # --- Step 2: Fine-tuning (Accelerate on GPUs 1, 2, 3) ---
-    if [ -f "$ALICE_TRAINING_DATA_PATH" ] && [ -s "$ALICE_TRAINING_DATA_PATH" ]; then
+    if [ -f "${ITERATION_DIR}/alice_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/alice_training_data.jsonl" ]; then
+        ALICE_TRAINING_DATA_PATH="${ITERATION_DIR}/alice_training_data.jsonl"
+
         echo "--- [Iteration ${i}] Running Fine-tuning for Alice ---"
         
         CUDA_VISIBLE_DEVICES=1,2,3

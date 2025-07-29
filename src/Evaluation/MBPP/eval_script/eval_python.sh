@@ -16,7 +16,7 @@ export VLLM_WORKER_MULTIPROC_METHOD=spawn # Required for vLLM
 
 LANG="python"
 OUTPUT_DIR="output"
-MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
 CUDA_VISIBLE_DEVICES=0 python eval_instruct.py \
   --model "$MODEL" \
