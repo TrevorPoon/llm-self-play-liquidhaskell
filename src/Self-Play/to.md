@@ -37,8 +37,7 @@ OpenInstruct -- 📌 TODO
 
 🟥 base eval for MBPP (1.5B and 7B)
 
-
-ask if he could review my code
+cant do intrinsic eval because i am using random 0.5 
 
 
 

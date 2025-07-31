@@ -42,7 +42,6 @@ source /home/$(whoami)/miniconda3/bin/activate llm_sp
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 export BNB_CUDA_VERSION=125
 export HF_HUB_OFFLINE=1
-export HUGGINGFACE_CO_RESOLVE_ENDPOINT=https://hf-mirror.com
 
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"

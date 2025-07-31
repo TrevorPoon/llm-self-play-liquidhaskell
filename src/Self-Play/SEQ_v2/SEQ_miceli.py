@@ -19,7 +19,7 @@ from datasets import load_dataset, load_from_disk, Dataset
 from typing import List
 import re
 
-from utils.utils import get_function_name, get_function_arg_type, print_nvidia_smi, print_gpu_memory_usage, strip_comments
+from utils.utils import get_function_name, print_nvidia_smi, print_gpu_memory_usage, strip_comments, get_function_arg_type
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -107,20 +107,28 @@ ALICE_INEQUIV_USER_PROMPT = textwrap.dedent("""
 
 ALICE_DIFFICULTY_PREDICTION_EQUIVALENT_SYSTEM_PROMPT_TEMPLATE = textwrap.dedent("""
     Difficulty level: Any
+    Program P
     ```haskell
-    {program}
+    {program_p}
     ```
-
-    Create a variant of the program that is semantically equivalent to the original program.
+    The program Q below is semantically equivalent to the original program P, where the equivalence is due to the fact that the two programs have the same behavior on all inputs.
+    Program Q
+    ```haskell
+    {program_q}
+    ```
 """).strip()
 
 ALICE_DIFFICULTY_PREDICTION_INEQUIVALENT_SYSTEM_PROMPT_TEMPLATE = textwrap.dedent("""
     Difficulty level: Any
-    ```haskell
-    {program}
+    program P
+    ```haskell  
+    {program_p}
     ```
-
-    Create a variant of the program that is semantically inequivalent to the original program.
+    The program Q below is semantically inequivalent to the original program P, where the inequivalence is due to the fact that the two programs have different behavior on some inputs.
+    Program Q
+    ```haskell
+    {program_q}
+    ```
 """).strip()
 
 ALICE_DIFFICULTY_PREDICTION_USER_PROMPT = textwrap.dedent("""
@@ -363,6 +371,9 @@ main = do
         logger.info(f"Output P: {out_p}")
         logger.info(f"Output Q: {out_q}")
 
+        if status_q == "compile_error":
+            return False
+        
         # Case 1: Both succeeded but outputs are different
         if status_p == "success" and status_q == "success":
             return out_p != out_q
@@ -521,7 +532,7 @@ main = do
             {{-@ reflect {func_name_q} @-}}
             {program_q_content}
 
-            -- Alice’s detailed proof of equivalence
+            -- Alice's detailed proof of equivalence
             {proof_body}
         """).strip()
 
@@ -664,6 +675,7 @@ class SEQ:
         self._initialize_vllm()
 
         self.alice_adapter_path = args.alice_adapter_path
+        self.bob_adapter_path = args.bob_adapter_path
 
         self.executor = CodeExecutor(self, timeout=args.timeout)
         self.programs = self.load_programs(args.dataset_name)
@@ -748,7 +760,7 @@ class SEQ:
             # Exit or return an empty list if dataset loading fails
             return []
 
-    def parse_alice_eqivalence_output(self, text):
+    def parse_alice_equivalence_output(self, text):
         try:
             # print(f"Alice output: \n\n{text}\n\n")
             # Extract program Q
@@ -839,9 +851,9 @@ class SEQ:
         # Note: vLLM currently doesn't support different LoRA adapters for different requests in a single batch.
         # We pass the LoRA request, and it will be applied to all prompts in the batch.
         
-        MAX_ALICE_RETRIES = 5
-        for attempt in range(MAX_ALICE_RETRIES):
-            logger.info(f"Alice generation attempt {attempt + 1}/{MAX_ALICE_RETRIES}...")
+
+        for attempt in range(self.args.max_alice_retries):
+            logger.info(f"Alice generation attempt {attempt + 1}/{self.args.max_alice_retries}...")
             request_outputs = self.vllm_model.generate(
                 [prompt] * 1,
                 sampling_params,
@@ -864,7 +876,7 @@ class SEQ:
                 else:
                     logger.warning("🟨 Alice failed to generate a valid program Q (parsing issue). Retrying...")
         
-        logger.error(f"❌ Alice failed to generate a compilable program Q after {MAX_ALICE_RETRIES} attempts.")
+        logger.error(f"❌ Alice failed to generate a compilable program Q after {self.args.max_alice_retries} attempts.")
         return None, None, None
 
     def run_alice_inequivalence(self, program_p):
@@ -978,7 +990,7 @@ class SEQ:
             logger.error(f"Full output from Bob:\n{text}")
             return None, None
         
-    def run_bob(self, program_p, program_q, equivalence_status):
+    def run_bob(self, program_p, program_q, alice_equivalence_status):
         logger.info(f"Running Bob to calculate difficulty over {self.args.n_samples} attempts...")
         
         messages = [
@@ -1011,7 +1023,7 @@ class SEQ:
             bob_output = output.text
             is_equivalent = self.parse_bob_output(bob_output)
 
-            if (is_equivalent and equivalence_status == "equivalent") or (not is_equivalent and equivalence_status == "inequivalent"):
+            if (is_equivalent and alice_equivalence_status == "equivalent") or (not is_equivalent and alice_equivalence_status == "inequivalent"):
                 bob_training_example = {
                     "system_prompt": BOB_SYSTEM_PROMPT,
                     "user_prompt": BOB_USER_PROMPT_TEMPLATE.format(program_p=program_p, program_q=program_q),
@@ -1021,6 +1033,7 @@ class SEQ:
                 n_correct += 1
         
         difficulty = 10 * (1 - (n_correct / self.args.n_samples))
+        logger.info(f"Bob's difficulty: {difficulty}")
 
         return difficulty
 
@@ -1039,8 +1052,6 @@ class SEQ:
 
     def run_generation_iteration(self):
         logger.info("Starting data generation iteration...")
-        
-        os.makedirs(os.path.join(self.args.output_dir, "seq_data"), exist_ok=True)
 
         summary_counts = {
             "p_compile_fail": 0,
@@ -1056,6 +1067,7 @@ class SEQ:
 
         # random.shuffle(self.programs)
         iteration_data = []
+        candidate_alice_training_examples = []
         
         for j, program_item in enumerate(tqdm(self.programs, desc=f"Iteration {self.args.iteration}")):
 
@@ -1075,15 +1087,17 @@ class SEQ:
             # Alice's turn
             if (random.random() < 0.5): # 50% chance to generate an equivalent program
 
+                logger.info(f" *** Running Alice for equivalence *** ")
+
                 q_candidate, alice_raw_output, alice_user_content = self.run_alice_equivalence(p_original_code)
             
                 if not q_candidate:
                     logger.warning("🟨 Alice failed to generate a candidate program.")
                     summary_counts["alice_generation_fail"] += 1
                     continue
-            
-                logger.info(f"Alice's candidate program: \n{q_candidate}")
 
+                logger.info(f"Alice's candidate program: \n{q_candidate}")
+        
                 # Phase 2: Embedding & Proving with Liquid Haskell
                 lh_status, lh_output = self.executor.verify_equivalence(p_original_code, q_candidate)
                 
@@ -1106,22 +1120,28 @@ class SEQ:
                     })
 
                     diff_pred_user_content = ALICE_DIFFICULTY_PREDICTION_EQUIVALENT_SYSTEM_PROMPT_TEMPLATE.format(
-                        program=p_original_code,
+                        program_p=p_original_code,
+                        program_q=q_candidate
                     )
                     diff_pred_training_example = {
-                        "system_prompt": diff_pred_user_content + alice_raw_output,
+                        "system_prompt": diff_pred_user_content,
                         "user_prompt": ALICE_DIFFICULTY_PREDICTION_USER_PROMPT,
-                        "output": f"Difficulty level: {bob_difficulty:.2f}"
+                        "output": f"Difficulty level: {bob_difficulty:.2f}",
                     }
                     self.cumulative_alice_training_data.append(diff_pred_training_example)      
 
-                    if bob_difficulty > self.args.difficulty_threshold: # Alice is too smart to generate a program that Bob thinks it's inequivalent.
+                    if bob_difficulty >= self.args.difficulty_threshold: # Alice is too smart to generate a program that Bob thinks it's inequivalent.
                         alice_training_example = {
                             "system_prompt": ALICE_EQUIV_SYSTEM_PROMPT,
                             "user_prompt": alice_user_content,
-                            "output" : alice_raw_output
+                            "output" : alice_raw_output,
+                            "difficulty": bob_difficulty, # Add difficulty for biasing
+                            "p_original": p_original_code, # Add p_original for biasing
+                            "alice_raw_output": alice_raw_output, # Add alice_raw_output for biasing
+                            "Alice_goal": "equivalent" # Add Alice_goal for biasing
                         }
-                        self.cumulative_alice_training_data.append(alice_training_example)
+                        # Moved to biased sampling: self.cumulative_alice_training_data.append(alice_training_example)
+                        candidate_alice_training_examples.append(alice_training_example)
 
                 elif lh_status == "refuted":
                     logger.warning("❌ Alice's claim was refuted by Liquid Haskell.")
@@ -1144,15 +1164,14 @@ class SEQ:
                     continue
 
             else: # 50% chance to generate an inequivalent program
+
+                logger.info(f" *** Running Alice for inequivalence *** ")
                 q_candidate, x_candidate, alice_raw_output = self.run_alice_inequivalence(p_original_code)
             
                 if not q_candidate:
                     logger.warning("🟨 Alice failed to generate a candidate program.")
                     summary_counts["alice_generation_fail"] += 1
                     continue
-            
-                logger.info(f"Alice's candidate program: \n{q_candidate}")
-                logger.info(f"Alice's diverging input: {x_candidate}")
 
                 is_divergent_alice = self.executor.check_divergence(p_original_code, q_candidate, x_candidate)
                 
@@ -1160,6 +1179,9 @@ class SEQ:
                     logger.warning("🟨 Alice's candidate program and diverging input were not divergent / Execution failed. Skipping.")
                     summary_counts["alice_not_divergent"] += 1
                     continue
+
+                logger.info(f"Alice's candidate program: \n{q_candidate}")
+                logger.info(f"Alice's diverging input: {x_candidate}")
                 
                 summary_counts["Alice_generated_inequivalent_program"] += 1
                 bob_difficulty = self.run_bob(p_original_code, q_candidate, "inequivalent")
@@ -1174,30 +1196,103 @@ class SEQ:
                     })
                 
                 diff_pred_user_content = ALICE_DIFFICULTY_PREDICTION_INEQUIVALENT_SYSTEM_PROMPT_TEMPLATE.format(
-                    program=p_original_code,
+                    program_p=p_original_code,
+                    program_q=q_candidate
                 )
 
                 diff_pred_training_example = {
-                    "system_prompt": diff_pred_user_content + alice_raw_output, 
+                    "system_prompt": diff_pred_user_content, 
                     "user_prompt": ALICE_DIFFICULTY_PREDICTION_USER_PROMPT,
-                    "output": f"Difficulty level: {bob_difficulty:.2f}"
+                    "output": f"Difficulty level: {bob_difficulty:.2f}",
                 }
                 self.cumulative_alice_training_data.append(diff_pred_training_example)
                     
-                if bob_difficulty > self.args.difficulty_threshold:
+                if bob_difficulty >= self.args.difficulty_threshold:
                     alice_training_example = {
                         "system_prompt": ALICE_INEQUIV_SYSTEM_PROMPT,
                         "user_prompt": ALICE_INEQUIV_USER_PROMPT.format(difficulty_level=bob_difficulty, program=p_original_code),
-                        "output" : alice_raw_output
+                        "output" : alice_raw_output,
+                        "difficulty": bob_difficulty, # Add difficulty for biasing
+                        "p_original": p_original_code, # Add p_original for biasing
+                        "alice_raw_output": alice_raw_output, # Add alice_raw_output for biasing
+                        "Alice_goal": "inequivalent" # Add Alice_goal for biasing
                     }
-                    self.cumulative_alice_training_data.append(alice_training_example)
+                    # Moved to biased sampling: self.cumulative_alice_training_data.append(alice_training_example)
+                    candidate_alice_training_examples.append(alice_training_example)
+
+        # --- Task 3: Biasing Alice's Training Set --- 
+        hard_examples = [ex for ex in candidate_alice_training_examples if ex["difficulty"] >= self.args.difficulty_threshold]
+        easy_examples = [ex for ex in candidate_alice_training_examples if ex["difficulty"] < self.args.difficulty_threshold]
+
+        # Group easy examples by integer difficulty bins
+        num_easy_bins = int(self.args.difficulty_threshold) if self.args.difficulty_threshold >= 1 else 1
+        bins = {k: [] for k in range(num_easy_bins)}
+        for ex in easy_examples:
+            bin_idx = int(ex["difficulty"])
+            if bin_idx < num_easy_bins:
+                bins[bin_idx].append(ex)
+
+        # Sample 20% of the number of hard examples from the easy examples
+        needed = int(0.2 * len(hard_examples))
+        sampled_easies = []
+        
+        # Round-robin sampling from bins
+        if easy_examples:
+            i = 0
+            while len(sampled_easies) < needed:
+                bin_idx = i % num_easy_bins
+                if bins[bin_idx]:
+                    sampled_easies.append(bins[bin_idx].pop(random.randrange(len(bins[bin_idx]))))
+                i += 1
+                # Break if we have cycled through all bins and can't find any more examples
+                if i > 0 and i % num_easy_bins == 0:
+                    if sum(len(b) for b in bins.values()) == 0:
+                        break
+        
+        final_alice_examples = hard_examples + sampled_easies
+
+        for ex in final_alice_examples:
+            # (A) Main SFT Example
+            # We need to reconstruct the original user_content based on the Alice goal.
+            if ex.get("Alice_goal") == "equivalent":
+                # For equivalent examples, the user_prompt template is ALICE_EQUIV_USER_PROMPT
+                user_content_for_sft = ALICE_EQUIV_USER_PROMPT.format(
+                    difficulty_level=f"{ex['difficulty']:.2f}",
+                    program_p_completion=ex['p_original'],
+                    t=get_function_arg_type(ex['p_original'])
+                )
+                alice_training_example = {
+                    "system_prompt": ALICE_EQUIV_SYSTEM_PROMPT,
+                    "user_prompt": user_content_for_sft,
+                    "output": ex['alice_raw_output']
+                }
+            elif ex.get("Alice_goal") == "inequivalent":
+                # For inequivalent examples, the user_prompt template is ALICE_INEQUIV_USER_PROMPT
+                user_content_for_sft = ALICE_INEQUIV_USER_PROMPT.format(
+                    difficulty_level=f"{ex['difficulty']:.2f}",
+                    program=ex['p_original']
+                )
+                alice_training_example = {
+                    "system_prompt": ALICE_INEQUIV_SYSTEM_PROMPT,
+                    "user_prompt": user_content_for_sft,
+                    "output": ex['alice_raw_output']
+                }
+            else:
+                # This case should ideally not be reached if "Alice_goal" is always set.
+                logger.warning(f"Skipping Alice SFT example due to missing or unknown 'Alice_goal': {ex}")
+                continue
+
+            self.cumulative_alice_training_data.append(alice_training_example)
 
         # Save iteration data to JSON
         iter_output_dir = self.args.iteration_dir
+        if iteration_data: 
+            iteration_data_path = os.path.join(iter_output_dir, "iteration_data.jsonl")
+            self.save_as_hf_jsonl(iteration_data, iteration_data_path)
+
         # Also save the training data for finetuning
-        if self.cumulative_alice_training_data:
-            alice_training_path = os.path.join(iter_output_dir, "alice_training_data.jsonl")
-            self.save_as_hf_jsonl(self.cumulative_alice_training_data, alice_training_path)
+        alice_training_path = os.path.join(iter_output_dir, "alice_training_data.jsonl")
+        self.save_as_hf_jsonl(self.cumulative_alice_training_data, alice_training_path)
         
         if self.cumulative_bob_training_data:
             bob_training_path = os.path.join(iter_output_dir, "bob_training_data.jsonl")
@@ -1210,16 +1305,25 @@ class SEQ:
         for summary_type, count in summary_counts.items():
             logger.info(f"  {summary_type}: {count}")
 
+        if iteration_data: 
+            avg_diff = sum(item['difficulty'] for item in iteration_data) / len(iteration_data)
+            logger.info(f"Average Difficulty: {avg_diff}")
+            logger.info(f"Number of examples with difficulty > {self.args.difficulty_threshold}: {sum(1 for item in iteration_data if item['difficulty'] > self.args.difficulty_threshold)}")
+            logger.info(f"Number of examples with difficulty < {self.args.difficulty_threshold}: {sum(1 for item in iteration_data if item['difficulty'] < self.args.difficulty_threshold)}")
+
         # Save summary statistics to a separate JSONL file
         summary_data = [
             {
                 "total_programs_processed": len(self.programs),
-                "summary_counts": summary_counts
+                "summary_counts": summary_counts,
+                f"Number of examples with difficulty > {self.args.difficulty_threshold}": sum(1 for item in iteration_data if item['difficulty'] > self.args.difficulty_threshold),
+                f"Number of examples with difficulty < {self.args.difficulty_threshold}": sum(1 for item in iteration_data if item['difficulty'] < self.args.difficulty_threshold)
             }
         ]
         summary_file_path = os.path.join(iter_output_dir, "seq_summary.jsonl")
         self.save_as_hf_jsonl(summary_data, summary_file_path)
 
+        torch.cuda.empty_cache()
         logger.info("Generation iteration complete.")
 
 
@@ -1237,10 +1341,10 @@ def main():
     parser.add_argument('--timeout', type=float, default=60.0, help="Timeout for code execution.")
     parser.add_argument('--gpu_memory_utilization', type=float, default=0.95, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     parser.add_argument('--num_initial_programs', type=int, default=100, help="Number of initial programs to load.")
-    parser.add_argument('--initial_adapter_path', type=str, default=None, help="Path to an initial LoRA adapter to continue fine-tuning from.")
     parser.add_argument('--tensor_parallel_size', type=int, default=1, help="Number of tensor parallel processes.")
     parser.add_argument('--n_samples', type=int, default=10, help="Number of samples to generate for Bob.")
     parser.add_argument('--difficulty_threshold', type=float, default=5, help="Difficulty threshold for Bob to be considered successful.")
+    parser.add_argument('--max_alice_retries', type=int, default=3, help="Maximum number of retries for Alice to generate a program.")
     
     parser.add_argument('--iteration', type=int, required=True, help="Current self-play iteration number.")
     parser.add_argument('--iteration_dir', type=str, required=True, help="Path to the directory for the current iteration.")
@@ -1250,6 +1354,8 @@ def main():
     parser.add_argument('--cumulative_bob_training_data_path', type=str, default=None, help="Path to a file with the list of programs for the current iteration.")
 
     args = parser.parse_args()
+
+    random.seed(42)
 
     logger.info("Arguments:")
     for arg in vars(args):

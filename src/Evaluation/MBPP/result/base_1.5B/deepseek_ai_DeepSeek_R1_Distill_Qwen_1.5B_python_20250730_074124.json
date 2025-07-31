@@ -1,0 +1,22 @@
+{
+    "timestamp": "20250730_074124",
+    "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+    "language": "python",
+    "max_new_tokens": 32768,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "presence_penalty": 1.5,
+    "evaluation_results": {
+        "pass@1": 0.408
+    },
+    "failed_code_extractions": 25,
+    "compilation_error_count": 0,
+    "execution_error_count": 0,
+    "use_openrouter": false,
+    "use_vllm": true,
+    "tokenizer_path": null,
+    "reasoning_trace_count": 500,
+    "adapter_path": null,
+    "gpu_memory_utilization": 0.95
+}

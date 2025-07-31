@@ -42,16 +42,9 @@ class SInQ_Dataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
         # Construct a single string by combining system, user, and assistant content
-        system = item.get("system_prompt", "")
-        user   = item.get("user_prompt", "")
-        bot    = item.get("output", "")
-
-        # Ensure all components are strings, handling cases where they might be None
-        system_str = str(system) if system is not None else ""
-        user_str = str(user) if user is not None else ""
-        bot_str = str(bot) if bot is not None else ""
         
-        combined_text = "\n".join([system_str, user_str, bot_str]).strip()
+        # Ensure all components are strings, handling cases where they might be None
+        combined_text = "\n".join([str(value) for value in item.values() if value is not None]).strip()
         
         # Tokenize the combined text
         tokenized_item = self.tokenizer(
