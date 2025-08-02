@@ -1319,6 +1319,7 @@ class SEQ:
             {
                 "total_programs_processed": len(self.programs),
                 "summary_counts": summary_counts,
+                "avg_difficulty": avg_diff if iteration_data else None,
                 f"Number of examples with difficulty > {self.args.difficulty_threshold}": sum(1 for item in iteration_data if item['difficulty'] > self.args.difficulty_threshold),
                 f"Number of examples with difficulty < {self.args.difficulty_threshold}": sum(1 for item in iteration_data if item['difficulty'] < self.args.difficulty_threshold)
             }

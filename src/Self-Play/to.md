@@ -33,11 +33,7 @@ OpenInstruct -- 📌 TODO
 
 ## Misc
 
-🟥 Review the SINQ & SEQ code by code (Refine SINQ_wo_d)
-
-🟥 base eval for MBPP (1.5B and 7B)
-
-cant do intrinsic eval because i am using random 0.5 
+HumanEval MBPP python version
 
 
 

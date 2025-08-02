@@ -78,18 +78,25 @@ def main():
 
 
 
-    all_predictions = []
-    all_truth_labels = []
+
 
     for i in range(args.num_iterations):
 
         logging.info(f"Iteration {i+1} of {args.num_iterations}")
 
         for cfg in configs:
+
+            all_predictions = []
+            all_truth_labels = []
+            total_samples = 0
+            unparsed_samples = 0
+
             dataset = all_datasets[cfg]
             logging.info(f"Processing dataset: {cfg}")
 
             for item in tqdm.tqdm(dataset, desc=f"Processing {cfg} set"):
+
+                total_samples += 1
 
                 program_1 = item['program_1_code']
                 program_2 = item['program_2_code']
@@ -108,20 +115,23 @@ def main():
                 )
                 model_response = output[0].outputs[0].text.strip().lower()
 
-                # Parse prediction
-                prediction = None
-                # Look for the designated answer format first
-                match = re.search(r"```\s*(true|yes)\s*```", model_response, re.IGNORECASE)
+                # Remove markdown formatting and extract the last boolean-like token
+                match = re.search(r"(true|false|yes|no)\s*```?", model_response, re.IGNORECASE)
+                if not match:
+                    match = re.search(r"```(?:\s*\n)?(true|false|yes|no)\s*```?", model_response, re.IGNORECASE)
+                if not match:
+                    match = re.search(r"<answer>(true|false)</answer>", model_response, re.IGNORECASE)
+                if not match:
+                    match = re.search(r"(true|false|yes|no)\b", model_response)
+
                 if match:
-                    prediction = True
+                    prediction_text = match.group(1).strip().lower()
+                    prediction = prediction_text in ["true", "yes"]
                 else:
-                    match = re.search(r"```\s*(false|no)\s*```", model_response, re.IGNORECASE)
-                    if match:
-                        prediction = False
-                
-                if prediction is None:
-                    # logging.warning(f"Could not parse model response: {model_response}. Skipping this sample.")
+                    unparsed_samples += 1
+                    logging.info(f"Unparsed sample: {model_response}")
                     continue
+
 
                 all_predictions.append(prediction)
                 all_truth_labels.append(truth_label)
@@ -153,9 +163,9 @@ def main():
                 "datasets": cfg,
                 "evaluation_metrics": {},
                 "predictions_summary": {
-                    "total_samples": len(all_predictions),
+                    "total_samples": total_samples,
                     "parsed_samples": len(all_predictions),
-                    "unparsed_samples": 0 # This needs to be tracked if implemented properly
+                    "unparsed_samples": unparsed_samples
                 }
             }
 
@@ -183,12 +193,23 @@ def main():
             else:
                 logging.info("No predictions were made to evaluate.")
 
-        # Save results to JSON file
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_filename = os.path.join(results_dir, f"{args.model}_evaluation_results_{timestamp}_iterations{args.num_iterations}_cfg{cfg}.json")
-        with open(output_filename, 'w') as f:
-            json.dump(results, f, indent=4)
-        logging.info(f"Results saved to {output_filename}")
+            # Save results to JSON file
+            safe_model = args.model.replace(os.sep, "_").replace("/", "_")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            fname = f"{safe_model}_evaluation_results_{timestamp}_iters{args.num_iterations}_cfg{cfg}.json"
+            output_path = os.path.join(results_dir, fname)
+            tmp_path = output_path + ".tmp"
+
+            try:
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(results, f, indent=4)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, output_path)
+                logging.info(f"Results saved to {output_path}")
+            except Exception as e:
+                logging.exception(f"Failed to save results to {output_path}: {e}")
 
 if __name__ == "__main__":
     main()

@@ -18,7 +18,7 @@ for fpath in results_dir.glob('*.json'):
             adapter_path = data.get('adapter_path')
             if adapter_path:
                 # Get the second to last component for the folder name
-                folder_name = adapter_path.strip('/').split('/')[-4]
+                folder_name = adapter_path.strip('/').split('/')[-4] + '_' + adapter_path.strip('/').split('/')[-2]
                 if folder_name:
                     adapter_folders.add(folder_name)
                     json_files_to_move.append((fpath, folder_name))

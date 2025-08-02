@@ -1,8 +1,11 @@
+Intrinsic Eval: Bob train test with Alice 7
+Extrinsic Eval: HumanEval, MBPP, Equiv
+
 SEQ
-701 -- 100 examples (random) 7B epochs 7 lr 5e-4 AliceRetries3, eval: iter123567 
-905 -- 100 examples (random) 7B epochs 7 lr 5e-4 AliceRetries3, eval:
-908 -- 500 examples (random) 7B epochs 7 lr 2e-4 AliceRetries3, eval:
-938 -- 500 examples (random) 7B epochs 7 lr 1e-4 AliceRetries3, eval:
+
+905 -- 100 examples (random) 7B epochs 7 lr 5e-4 AliceRetries3, eval: a1234567, b7, equi, intrinsic 
+908 -- 500 examples (random) 7B epochs 7 lr 2e-4 AliceRetries3, eval: a12
+938 -- 500 examples (random) 7B epochs 7 lr 1e-4 AliceRetries3, eval: a12 
 
 
 

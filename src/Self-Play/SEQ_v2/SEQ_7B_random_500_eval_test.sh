@@ -5,7 +5,8 @@
 #SBATCH --gres=gpu:l40s:1                # specifically four A40 GPUs
 #SBATCH --mem=120000
 #SBATCH --time=7-00:00:00
-#SBATCH --output=log/slurm-seq-7B-eval-%j.out
+#SBATCH --exclude=scotia08
+#SBATCH --output=log/slurm-seq-7B-eval-test-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -48,12 +49,12 @@ MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_INITIAL_PROGRAMS=500 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter_random_dataset_eval"
+NAME="no_initial_adapter_random_dataset_eval_test"
 N_ITERATIONS=1
 
 # --- Evaluation Paths---
-LATEST_ALICE_ADAPTER_PATH=""
-LATEST_BOB_ADAPTER_PATH=""
+LATEST_ALICE_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS100_ITERATIONS7_no_initial_adapter_random_dataset_2nd_LR5e-4_EPOCHS3/iteration_5/alice_adapters/checkpoint-72
+LATEST_BOB_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS100_ITERATIONS7_no_initial_adapter_random_dataset_2nd_LR5e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-879
 
 # Generate a unique experiment name for this run
 EXPERIMENT_NAME="SEQ_${MODEL_NAME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
@@ -76,11 +77,10 @@ BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first itera
       --dataset_name "$DATASET_NAME" \
       --output_dir "$OUTPUT_DIR" \
       --iteration_dir "$ITERATION_DIR" \
-      --iteration "$i" \
+      --iteration "1" \
       --cumulative_alice_training_data_path "$ALICE_TRAINING_DATA_PATH" \
       --cumulative_bob_training_data_path "$BOB_TRAINING_DATA_PATH" \
       --alice_adapter_path "$LATEST_ALICE_ADAPTER_PATH" \
-      --bob_adapter_path "" \
       --timeout 60 \
       --max_tokens 32768 \
       --top_p 0.95 \
@@ -100,7 +100,7 @@ BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first itera
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \
     --iteration_dir "$ITERATION_DIR" \
-    --iteration "$i" \
+    --iteration "1" \
     --cumulative_alice_training_data_path "$ALICE_TRAINING_DATA_PATH" \
     --cumulative_bob_training_data_path "$BOB_TRAINING_DATA_PATH" \
     --alice_adapter_path "$LATEST_ALICE_ADAPTER_PATH" \
