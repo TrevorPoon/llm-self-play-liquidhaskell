@@ -1,0 +1,38 @@
+{
+    "timestamp": "2025-08-03 14:22:29",
+    "setup": {
+        "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        "adapter_path": "",
+        "gpu_memory_utilization": 0.95,
+        "sampling_parameters": {
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "presence_penalty": 1.5,
+            "max_new_tokens": 4096
+        }
+    },
+    "iteration": 0,
+    "datasets": "DCE",
+    "evaluation_metrics": {
+        "accuracy": 0.5509641873278237,
+        "precision": 0.5542168674698795,
+        "recall": 0.5082872928176796,
+        "f1_score": 0.5302593659942363,
+        "confusion_matrix": [
+            [
+                108,
+                74
+            ],
+            [
+                89,
+                92
+            ]
+        ]
+    },
+    "predictions_summary": {
+        "total_samples": 400,
+        "parsed_samples": 363,
+        "unparsed_samples": 37
+    }
+}

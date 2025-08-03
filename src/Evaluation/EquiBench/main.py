@@ -44,7 +44,7 @@ def main():
     parser.add_argument("--top_k", type=int, default=20, help="Sampling top-k.")
     parser.add_argument("--presence_penalty", type=float, default=1.5, help="Sampling presence penalty.")
     parser.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", help="The model to use for inference.")
-    parser.add_argument("--max_new_tokens", type=int, default=4096, help="The maximum number of new tokens to generate.")
+    parser.add_argument("--max_new_tokens", type=int, default=32768, help="The maximum number of new tokens to generate.")
     parser.add_argument("--adapter_path", type=str, default=None, help="Path to the LoRA adapter.")
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.95, help="The fraction of GPU memory to be used for the vLLM KV cache.")
     parser.add_argument("--num_iterations", type=int, default=8, help="The number of samples to evaluate.")
@@ -107,42 +107,41 @@ def main():
                 # Combine prompts for inference
                 full_prompt = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
 
-                # Perform inference
-                output = llm.generate(
-                    [full_prompt], 
-                    sampling_params, 
-                    lora_request=LoRARequest("adapter", 1, args.adapter_path) if args.adapter_path else None
-                )
-                model_response = output[0].outputs[0].text.strip().lower()
 
-                # Remove markdown formatting and extract the last boolean-like token
-                match = re.search(r"(true|false|yes|no)\s*```?", model_response, re.IGNORECASE)
-                if not match:
-                    match = re.search(r"```(?:\s*\n)?(true|false|yes|no)\s*```?", model_response, re.IGNORECASE)
-                if not match:
-                    match = re.search(r"<answer>(true|false)</answer>", model_response, re.IGNORECASE)
-                if not match:
-                    match = re.search(r"(true|false|yes|no)\b", model_response)
+                try:
+                    # Perform inference
+                    output = llm.generate(
+                        [full_prompt], 
+                        sampling_params, 
+                        lora_request=LoRARequest("adapter", 1, args.adapter_path) if args.adapter_path else None
+                    )
+                    model_response = output[0].outputs[0].text.strip().lower()
 
-                if match:
-                    prediction_text = match.group(1).strip().lower()
-                    prediction = prediction_text in ["true", "yes"]
-                else:
+                    # Remove markdown formatting and extract the last boolean-like token
+                    match = re.search(r"(true|false|yes|no)\s*```?", model_response, re.IGNORECASE)
+                    if not match:
+                        match = re.search(r"```(?:\s*\n)?(true|false|yes|no)\s*```?", model_response, re.IGNORECASE)
+                    if not match:
+                        match = re.search(r"<answer>(true|false)</answer>", model_response, re.IGNORECASE)
+                    if not match:
+                        match = re.search(r"(true|false|yes|no)\b", model_response)
+
+                    if match:
+                        prediction_text = match.group(1).strip().lower()
+                        prediction = prediction_text in ["true", "yes"]
+                    else:
+                        unparsed_samples += 1
+                        logging.info(f"Unparsed sample: {model_response}")
+                        continue
+
+                    all_predictions.append(prediction)
+                    all_truth_labels.append(truth_label)
+                    
+                except Exception as e:
+                    logging.exception(f"Error processing sample {item}: {e}")
                     unparsed_samples += 1
-                    logging.info(f"Unparsed sample: {model_response}")
                     continue
 
-
-                all_predictions.append(prediction)
-                all_truth_labels.append(truth_label)
-
-                # Print example queries and responses (Optional Bonus)
-                # if len(all_predictions) <= 5: # Print first 5 examples
-                #     logging.info(f"\n--- Example {len(all_predictions)} ---")
-                #     logging.info(f"User Prompt:\n{user_prompt}")
-                #     logging.info(f"Model Response: {model_response}")
-                #     logging.info(f"Parsed Prediction: {prediction}")
-                #     logging.info(f"Truth Label: {truth_label}")
 
             # Compute evaluation metrics
             results = {
