@@ -9,7 +9,6 @@ SEQ
 524 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 1, alice1
 090 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3, alice123
 187 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5, alice123
-580 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5 (with prev adapter), alice1
 
 TODO
 Choose the best from above
