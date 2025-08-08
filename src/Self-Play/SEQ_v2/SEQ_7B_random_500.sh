@@ -49,13 +49,14 @@ MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_INITIAL_PROGRAMS=500 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter_random_dataset"
+TIME="20250807"
+NAME="no_initial_adapter_random_dataset_withdiffbiasing_diff1"
 N_ITERATIONS=7
-LEARNING_RATE=1e-4
+LEARNING_RATE=2e-4
 NUM_EPOCHS=3
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="SEQ_${MODEL_NAME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="SEQ_${MODEL_NAME}_TIME${TIME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -77,7 +78,7 @@ do
 
     CUDA_VISIBLE_DEVICES=0
 
-    python SEQ_miceli_random.py \
+    python SEQ_miceli_random_v2.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
         --output_dir "$OUTPUT_DIR" \
@@ -94,7 +95,8 @@ do
         --top_k 20 \
         --gpu_memory_utilization 0.95 \
         --num_initial_programs $NUM_INITIAL_PROGRAMS \
-        --tensor_parallel_size 1
+        --tensor_parallel_size 1 \
+        --difficulty_threshold 1
 
     # Update programs file path for the next iteration
     if [ -f "${ITERATION_DIR}/alice_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/alice_training_data.jsonl" ]; then
@@ -105,7 +107,7 @@ do
         CUDA_VISIBLE_DEVICES=1,2,3
         accelerate launch \
             --config_file accelerate_config.yaml \
-            finetune.py \
+            finetune_v2.py \
             --model_name_or_path "$MODEL_NAME" \
             --dataset_path "$ALICE_TRAINING_DATA_PATH" \
             --model_type "alice" \
@@ -161,7 +163,7 @@ if [ -f "${ITERATION_DIR}/bob_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/b
   CUDA_VISIBLE_DEVICES=1,2,3
   accelerate launch \
       --config_file accelerate_config.yaml \
-      finetune.py \
+      finetune_v2.py \
       --model_name_or_path "$MODEL_NAME" \
       --dataset_path "$BOB_TRAINING_DATA_PATH" \
       --model_type "bob" \

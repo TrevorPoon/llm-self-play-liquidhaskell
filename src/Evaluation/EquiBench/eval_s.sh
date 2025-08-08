@@ -47,20 +47,21 @@ echo "Adapter path: $ADAPTER_PATH"
 MODEL="$2"
 echo "Model: $MODEL"
 
-NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION="$3"
-echo "Number of HumanEval evaluations per iteration: $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION"
+NUM_ITERATION="$3"
+echo "Number of iterations: $NUM_ITERATION"
 
 
-for ((i=1; i<=NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION; i++)); do
-  echo "Running evaluation $i of $NUM_HUMANEVAL_EVALUATIONS_PER_ITERATION..."
+for ((i=1; i<=NUM_ITERATION; i++)); do
+  echo "Running evaluation $i of $NUM_ITERATION..."
   python main.py \
     --model "$MODEL" \
     --adapter_path "$ADAPTER_PATH" \
-    --max_new_tokens 4096
+    --max_new_tokens 4096 \
+    --num_iterations "$NUM_ITERATION"
 done
 
 
 # sbatch eval_s.sh "" deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 1
-# sbatch eval_s.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS100_ITERATIONS7_no_initial_adapter_random_dataset_2nd_LR5e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-879 deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 1
+# sbatch eval_s.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR1e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-4236 deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 1
 
 

@@ -38,9 +38,6 @@ HumanEval MBPP python version
 
 Ask 
 
-SFT Difficulty Prediction
-
-How to generate charts
 
 
 

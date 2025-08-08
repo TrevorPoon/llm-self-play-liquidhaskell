@@ -47,7 +47,7 @@ def main():
     parser.add_argument("--max_new_tokens", type=int, default=32768, help="The maximum number of new tokens to generate.")
     parser.add_argument("--adapter_path", type=str, default=None, help="Path to the LoRA adapter.")
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.95, help="The fraction of GPU memory to be used for the vLLM KV cache.")
-    parser.add_argument("--num_iterations", type=int, default=8, help="The number of samples to evaluate.")
+    parser.add_argument("--num_iterations", type=int, default=1, help="The number of samples to evaluate.")
     args = parser.parse_args()
 
 

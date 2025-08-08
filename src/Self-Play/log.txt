@@ -1,11 +1,25 @@
 Intrinsic Eval: Bob train test with Alice 7
-Extrinsic Eval: HumanEval, MBPP, Equiv
+Extrinsic Eval: HumanEval, MBPP, Equiv, codexglue, pysecdb
+
+Backup plan
+/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3
 
 SEQ
 
-905 -- 100 examples (random) 7B epochs 7 lr 5e-4 AliceRetries3, eval: a1234567, b7, equi, intrinsic 
-908 -- 500 examples (random) 7B epochs 7 lr 2e-4 AliceRetries3, eval: a12
-938 -- 500 examples (random) 7B epochs 7 lr 1e-4 AliceRetries3, eval: a12 
+524 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 1, alice1
+090 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3, alice123
+187 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5, alice123
+580 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5 (with prev adapter), alice1
+
+TODO
+Choose the best from above
+train sinq
+finetune bob
+choose the best for the extrinsic eval
+
+
+
+
 
 
 

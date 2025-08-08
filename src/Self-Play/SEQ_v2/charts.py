@@ -54,7 +54,7 @@ def generate_difficulty_chart(base_path, output_folder):
     plt.xlabel("Alice's training round")
     plt.ylabel("Difficulty")
     plt.grid(True, linestyle='--', alpha=0.7)
-    plt.ylim(0, 1)
+    plt.ylim(0, 5)
     plt.legend()
     plt.tight_layout()
 
@@ -65,7 +65,7 @@ def generate_difficulty_chart(base_path, output_folder):
 
 # Example usage:
 # Adjust the base_output_dir to your specific path
-base_output_dir = "output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR1e-4_EPOCHS3"
+base_output_dir = "output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3"
 output_chart_dir = base_output_dir
 
 generate_difficulty_chart(base_output_dir, output_chart_dir)

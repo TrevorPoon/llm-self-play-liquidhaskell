@@ -49,15 +49,16 @@ MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_INITIAL_PROGRAMS=500 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
+TIME="20250804"
 NAME="no_initial_adapter_random_dataset_eval_test"
 N_ITERATIONS=1
 
 # --- Evaluation Paths---
-LATEST_ALICE_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS100_ITERATIONS7_no_initial_adapter_random_dataset_2nd_LR5e-4_EPOCHS3/iteration_5/alice_adapters/checkpoint-72
-LATEST_BOB_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS100_ITERATIONS7_no_initial_adapter_random_dataset_2nd_LR5e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-879
+LATEST_ALICE_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3/iteration_7/alice_adapters/checkpoint-537
+LATEST_BOB_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-4548
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="SEQ_${MODEL_NAME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="SEQ_${MODEL_NAME}_TIME${TIME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 

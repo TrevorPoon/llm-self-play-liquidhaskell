@@ -2,11 +2,11 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --partition=PGR-Standard-Noble     # only nodes with A40s
-#SBATCH --gres=gpu:l40s:4                 # specifically four A40 GPUs
+#SBATCH --gres=gpu:l40s:4                # specifically four A40 GPUs
 #SBATCH --mem=510000
 #SBATCH --time=7-00:00:00
 #SBATCH --exclude=scotia08
-#SBATCH --output=log/slurm-seq-7B-%j.out
+#SBATCH --output=log/slurm-seq-7B-test-%j.out
 
 # --- Environment Setup ---
 # Find CUDA
@@ -49,14 +49,15 @@ MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_INITIAL_PROGRAMS=10 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-NAME="no_initial_adapter"
+NAME="testing"
 N_ITERATIONS=1
-LEARNING_RATE=5e-4
-NUM_EPOCHS=3
+LEARNING_RATE=1e-4
+NUM_EPOCHS=1
 
 # Generate a unique experiment name for this run
 EXPERIMENT_NAME="SEQ_${MODEL_NAME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
+rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
 # --- Self-Play Loop ---
@@ -77,7 +78,7 @@ do
 
     CUDA_VISIBLE_DEVICES=0
 
-    python SEQ_miceli.py \
+    python SEQ_miceli_random_v2.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
         --output_dir "$OUTPUT_DIR" \
@@ -102,10 +103,10 @@ do
 
         echo "--- [Iteration ${i}] Running Fine-tuning for Alice ---"
         
-        CUDA_VISIBLE_DEVICES=1,2,3
+        CUDA_VISIBLE_DEVICES=0,1,2,3
         accelerate launch \
             --config_file accelerate_config.yaml \
-            finetune.py \
+            finetune_v2.py \
             --model_name_or_path "$MODEL_NAME" \
             --dataset_path "$ALICE_TRAINING_DATA_PATH" \
             --model_type "alice" \
@@ -158,10 +159,10 @@ if [ -f "${ITERATION_DIR}/bob_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/b
 
   echo "--- [Iteration ${i}] Running Fine-tuning for Bob ---"
 
-  CUDA_VISIBLE_DEVICES=1,2,3
+  CUDA_VISIBLE_DEVICES=0,1,2,3
   accelerate launch \
       --config_file accelerate_config.yaml \
-      finetune.py \
+      finetune_v2.py \
       --model_name_or_path "$MODEL_NAME" \
       --dataset_path "$BOB_TRAINING_DATA_PATH" \
       --model_type "bob" \
@@ -175,6 +176,5 @@ if [ -f "${ITERATION_DIR}/bob_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/b
   # Find the path to the latest adapter created by the fine-tuning script
   LATEST_BOB_ADAPTER_PATH=$(find "${ITERATION_DIR}/bob_adapters" -type d -name "checkpoint-*" | sort -V | tail -n 1)
   echo "Updated LATEST_BOB_ADAPTER_PATH=${LATEST_BOB_ADAPTER_PATH}"
-fi
-
+fi 
 echo "--- Self-Play complete ---"

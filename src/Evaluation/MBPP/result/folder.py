@@ -2,6 +2,7 @@
 import json
 import shutil
 from pathlib import Path
+import subprocess
 
 results_dir = Path(__file__).parent
 
@@ -58,4 +59,12 @@ if analyze_script_path.exists():
                 print(f"Could not copy {analyze_script_path.name} to {destination_folder}: {e}")
 else:
     print(f"Error: {analyze_script_path} not found.")
+
+# 6. Run the script in each folder
+for folder in adapter_folders:
+    try: 
+        subprocess.run(['python', 'analyze_by_adapter.py'], cwd=results_dir / folder)
+        print(f"Ran {analyze_script_path.name} in {results_dir / folder}")
+    except Exception as e:
+        print(f"Could not run {analyze_script_path.name} in {results_dir / folder}: {e}")
 

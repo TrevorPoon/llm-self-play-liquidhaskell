@@ -42,9 +42,12 @@ class SInQ_Dataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
         # Construct a single string by combining system, user, and assistant content
+        system = item.get("system_prompt", "").strip()
+        user = item.get("user_prompt", "").strip()
+        output = item.get("output", "").strip()
         
         # Ensure all components are strings, handling cases where they might be None
-        combined_text = "\n".join([str(value) for value in item.values() if value is not None]).strip()
+        combined_text = system + "\n" + user + "\n" + output
         
         # Tokenize the combined text
         tokenized_item = self.tokenizer(
@@ -52,11 +55,11 @@ class SInQ_Dataset(Dataset):
             truncation=True,
             max_length=self.max_tokens,
             padding=False,
-            return_tensors="pt"
+            return_tensors=None,
         )
 
-        input_ids = tokenized_item["input_ids"].squeeze(0)
-        labels = input_ids.clone() 
+        input_ids = tokenized_item["input_ids"]
+        labels = input_ids.copy() 
          
         return {"input_ids": input_ids, "labels": labels}
 
