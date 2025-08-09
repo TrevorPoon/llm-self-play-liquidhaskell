@@ -4,7 +4,7 @@
 [![Liquid Haskell](https://img.shields.io/badge/Liquid%20Haskell-%23007ACC)](https://github.com/ucsd-progsys/liquidhaskell)
 [![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 
-<p align="left">
+<p align="center">
   <img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/Haskell-Logo.svg" alt="Haskell" height="40"/>
   <img src="https://img.shields.io/badge/Liquid%20Haskell-blue" alt="Liquid Haskell" height="40"/>
   <img src="https://upload.wikimedia.org/wikipedia/commons/9/96/Pytorch_logo.png" alt="PyTorch" height="40"/>
