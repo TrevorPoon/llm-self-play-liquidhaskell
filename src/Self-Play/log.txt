@@ -6,14 +6,16 @@ Backup plan
 
 SEQ
 
-524 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 1, alice1
-090 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3, alice123
-187 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5, alice123
+187 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5 out ft,  alice1234
+090 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3 out ft,  alice1234
+524 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 1 out ft,  alice123
+381 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5 full ft, 
+382 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3 full ft
 
 TODO
 Choose the best from above
 train sinq
-finetune bob
+finetune bob -- finetune different of finetune.py
 choose the best for the extrinsic eval
 
 
