@@ -49,13 +49,13 @@ MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
 NUM_INITIAL_PROGRAMS=500 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-TIME="20250804"
+TIME="20250810"
 NAME="no_initial_adapter_random_dataset_eval_train"
 N_ITERATIONS=1
 
 # --- Evaluation Paths---
-LATEST_ALICE_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3/iteration_7/alice_adapters/checkpoint-537
-LATEST_BOB_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-4548
+LATEST_ALICE_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_TIME20250806_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_withdiffbiasing_LR2e-4_EPOCHS3/iteration_7/alice_adapters/checkpoint-129
+LATEST_BOB_ADAPTER_PATH=/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_TIME20250806_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_withdiffbiasing_LR2e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-4335
 
 # Generate a unique experiment name for this run
 EXPERIMENT_NAME="SEQ_${MODEL_NAME}_TIME${TIME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
@@ -66,37 +66,14 @@ mkdir -p "$OUTPUT_DIR"
 ALICE_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first iteration
 
-  echo "--- Starting Evaluation (Base) ---"
-  
-  ITERATION_DIR="${OUTPUT_DIR}/evaluation/base"
-  mkdir -p "$ITERATION_DIR"
+echo "--- Starting Evaluation (Base) ---"
 
-  CUDA_VISIBLE_DEVICES=0
+ITERATION_DIR="${OUTPUT_DIR}/evaluation/base"
+mkdir -p "$ITERATION_DIR"
 
-  python SEQ_miceli_random.py \
-      --model_name_or_path "$MODEL_NAME" \
-      --dataset_name "$DATASET_NAME" \
-      --output_dir "$OUTPUT_DIR" \
-      --iteration_dir "$ITERATION_DIR" \
-      --iteration "1" \
-      --cumulative_alice_training_data_path "$ALICE_TRAINING_DATA_PATH" \
-      --cumulative_bob_training_data_path "$BOB_TRAINING_DATA_PATH" \
-      --alice_adapter_path "$LATEST_ALICE_ADAPTER_PATH" \
-      --timeout 60 \
-      --max_tokens 32768 \
-      --top_p 0.95 \
-      --temperature 0.6 \
-      --top_k 20 \
-      --gpu_memory_utilization 0.95 \
-      --num_initial_programs $NUM_INITIAL_PROGRAMS \
-      --tensor_parallel_size 1
+CUDA_VISIBLE_DEVICES=0
 
-  echo "--- Starting Evaluation (Bob) ---"
-
-  ITERATION_DIR="${OUTPUT_DIR}/evaluation/bob"
-  mkdir -p "$ITERATION_DIR"
-
-  python SEQ_miceli_random.py \
+python SEQ_miceli_random.py \
     --model_name_or_path "$MODEL_NAME" \
     --dataset_name "$DATASET_NAME" \
     --output_dir "$OUTPUT_DIR" \
@@ -105,7 +82,6 @@ BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first itera
     --cumulative_alice_training_data_path "$ALICE_TRAINING_DATA_PATH" \
     --cumulative_bob_training_data_path "$BOB_TRAINING_DATA_PATH" \
     --alice_adapter_path "$LATEST_ALICE_ADAPTER_PATH" \
-    --bob_adapter_path "$LATEST_BOB_ADAPTER_PATH" \
     --timeout 60 \
     --max_tokens 32768 \
     --top_p 0.95 \
@@ -114,6 +90,30 @@ BOB_TRAINING_DATA_PATH="" # Start with empty, will be created in the first itera
     --gpu_memory_utilization 0.95 \
     --num_initial_programs $NUM_INITIAL_PROGRAMS \
     --tensor_parallel_size 1
+
+echo "--- Starting Evaluation (Bob) ---"
+
+ITERATION_DIR="${OUTPUT_DIR}/evaluation/bob"
+mkdir -p "$ITERATION_DIR"
+
+python SEQ_miceli_random.py \
+  --model_name_or_path "$MODEL_NAME" \
+  --dataset_name "$DATASET_NAME" \
+  --output_dir "$OUTPUT_DIR" \
+  --iteration_dir "$ITERATION_DIR" \
+  --iteration "1" \
+  --cumulative_alice_training_data_path "$ALICE_TRAINING_DATA_PATH" \
+  --cumulative_bob_training_data_path "$BOB_TRAINING_DATA_PATH" \
+  --alice_adapter_path "$LATEST_ALICE_ADAPTER_PATH" \
+  --bob_adapter_path "$LATEST_BOB_ADAPTER_PATH" \
+  --timeout 60 \
+  --max_tokens 32768 \
+  --top_p 0.95 \
+  --temperature 0.6 \
+  --top_k 20 \
+  --gpu_memory_utilization 0.95 \
+  --num_initial_programs $NUM_INITIAL_PROGRAMS \
+  --tensor_parallel_size 1
 
 
 echo "--- Self-Play complete ---"

@@ -6,11 +6,14 @@ Backup plan
 
 SEQ
 
-187 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5 out ft,  alice1234
-090 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3 out ft,  alice1234
-524 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 1 out ft,  alice123
-381 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 5 full ft, 
-382 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3 full ft
+*** 090 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3 out ft,  alice123456
+
+025 -- inq 500
+075 -- eq 0.9 (do Alice eval as well)
+082 -- inq 100 -- all evals
+135 -- inq 70
+684 - eq 0.96 (do Alice eval as well)
+685 -- inq 40
 
 TODO
 Choose the best from above

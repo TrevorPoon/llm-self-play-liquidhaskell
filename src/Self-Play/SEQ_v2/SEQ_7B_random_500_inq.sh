@@ -47,16 +47,17 @@ export HF_HUB_OFFLINE=1
 # --- Configuration ---
 MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATASET_NAME="../data/SINQ_synthetic_haskell_dataset_nvidia_hf"
-NUM_INITIAL_PROGRAMS=500 # Set 0 to use all programs
+NUM_INITIAL_PROGRAMS=40 # Set 0 to use all programs
 INITIAL_ADAPTER_PATH=""
-TIME="20250805"
+TIME="20250811"
 NAME="no_initial_adapter_random_dataset_withdiffbiasing_inq"
 N_ITERATIONS=7
 LEARNING_RATE=2e-4
 NUM_EPOCHS=3
+DIFFICULTY_THRESHOLD=3
 
 # Generate a unique experiment name for this run
-EXPERIMENT_NAME="SEQ_${MODEL_NAME}_TIME${TIME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}"
+EXPERIMENT_NAME="SEQ_${MODEL_NAME}_TIME${TIME}_SEQ_PROGRAMS${NUM_INITIAL_PROGRAMS}_ITERATIONS${N_ITERATIONS}_${NAME}_LR${LEARNING_RATE}_EPOCHS${NUM_EPOCHS}_DIFF${DIFFICULTY_THRESHOLD}"
 OUTPUT_DIR="output/${EXPERIMENT_NAME}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -95,7 +96,8 @@ do
         --top_k 20 \
         --gpu_memory_utilization 0.95 \
         --num_initial_programs $NUM_INITIAL_PROGRAMS \
-        --tensor_parallel_size 1
+        --tensor_parallel_size 1 \
+        --difficulty_threshold $DIFFICULTY_THRESHOLD
 
     # Update programs file path for the next iteration
     if [ -f "${ITERATION_DIR}/alice_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/alice_training_data.jsonl" ]; then

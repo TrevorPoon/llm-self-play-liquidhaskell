@@ -23,39 +23,84 @@ def plot_metrics(df):
 
     sns.set_theme(style="whitegrid", palette="deep")
 
-    for metric in metrics:
-        plt.figure(figsize=(12, 7))
-        
-        # Prepare data for plotting
+    # If there is only one dataset configuration, put all metrics in one chart
+    if len(configs) == 1:
+        cfg = configs[0]
         plot_df = pd.DataFrame()
-        for cfg in configs:
-            for model_type in ["base", "finetuned"]:
-                subset = df[(df["datasets"] == cfg) & (df["model_type"] == model_type)]
-                if not subset.empty:
-                    # For simplicity, let's take the mean if there are multiple iterations/runs
-                    # You might want to plot all individual points or show variance depending on data
+        for model_type in ["base", "finetuned"]:
+            subset = df[(df["datasets"] == cfg) & (df["model_type"] == model_type)]
+            if not subset.empty:
+                for metric in metrics:
                     mean_metric = subset["evaluation_metrics"].apply(lambda x: x.get(metric, 0)).mean() * 100
                     plot_df = pd.concat([
                         plot_df,
-                        pd.DataFrame([{"config": cfg, "model_type": model_type, "value": mean_metric}])
+                        pd.DataFrame([
+                            {
+                                "metric": metric.replace("_", " ").title(),
+                                "model_type": model_type,
+                                "value": mean_metric,
+                            }
+                        ]),
                     ])
 
         if plot_df.empty:
-            print(f"No data to plot for metric: {metric}")
-            continue
+            print("No data to plot for the single dataset configuration.")
+        else:
+            plt.figure(figsize=(12, 7))
+            sns.barplot(
+                x="metric",
+                y="value",
+                hue="model_type",
+                data=plot_df,
+                palette={"base": "skyblue", "finetuned": "lightcoral"},
+            )
+            for container in plt.gca().containers:
+                plt.bar_label(container, fmt='%.1f%%', fontsize=10)
+            plt.title(f"Metrics Comparison ({cfg})", fontsize=16)
+            plt.xlabel("Metric", fontsize=12)
+            plt.ylabel("Score (%)", fontsize=12)
+            plt.legend(title="Model Type")
+            plt.ylim(0, 100)
+            plt.tight_layout()
+            plt.savefig("figures/metrics_comparison.png")
+            plt.close()
+            print("Generated figures/metrics_comparison.png")
+    else:
+        # Multiple configs: keep per-metric charts across configs
+        for metric in metrics:
+            plt.figure(figsize=(12, 7))
 
-        sns.barplot(x="config", y="value", hue="model_type", data=plot_df, palette={"base": "skyblue", "finetuned": "lightcoral"})
-        for container in plt.gca().containers:
-            plt.bar_label(container, fmt='%.1f%%', fontsize=10)
-        plt.title(f"Comparison of {metric.replace('_', ' ').title()} Across Datasets", fontsize=16)
-        plt.xlabel("Dataset Configuration", fontsize=12)
-        plt.ylabel(metric.replace("_", " ").title(), fontsize=12)
-        plt.legend(title="Model Type")
-        plt.ylim(0, 100) # Metrics are usually between 0 and 100
-        plt.tight_layout()
-        plt.savefig(f"{metric}_comparison.png")
-        plt.close()
-        print(f"Generated figures/{metric}_comparison.png")
+            # Prepare data for plotting
+            plot_df = pd.DataFrame()
+            for cfg in configs:
+                for model_type in ["base", "finetuned"]:
+                    subset = df[(df["datasets"] == cfg) & (df["model_type"] == model_type)]
+                    if not subset.empty:
+                        # For simplicity, let's take the mean if there are multiple iterations/runs
+                        # You might want to plot all individual points or show variance depending on data
+                        mean_metric = subset["evaluation_metrics"].apply(lambda x: x.get(metric, 0)).mean() * 100
+                        plot_df = pd.concat([
+                            plot_df,
+                            pd.DataFrame([{"config": cfg, "model_type": model_type, "value": mean_metric}]),
+                        ])
+
+            if plot_df.empty:
+                print(f"No data to plot for metric: {metric}")
+                plt.close()
+                continue
+
+            sns.barplot(x="config", y="value", hue="model_type", data=plot_df, palette={"base": "skyblue", "finetuned": "lightcoral"})
+            for container in plt.gca().containers:
+                plt.bar_label(container, fmt='%.1f%%', fontsize=10)
+            plt.title(f"Comparison of {metric.replace('_', ' ').title()} Across Datasets", fontsize=16)
+            plt.xlabel("Dataset Configuration", fontsize=12)
+            plt.ylabel(metric.replace("_", " ").title(), fontsize=12)
+            plt.legend(title="Model Type")
+            plt.ylim(0, 100)  # Metrics are usually between 0 and 100
+            plt.tight_layout()
+            plt.savefig(f"figures/{metric}_comparison.png")
+            plt.close()
+            print(f"Generated figures/{metric}_comparison.png")
 
     # Print confusion matrices
     print("\n--- Confusion Matrices ---")
@@ -67,7 +112,7 @@ def plot_metrics(df):
                 sum_confusion_matrix = [[0, 0], [0, 0]]
                 count = 0
                 for _, row in subset.iterrows():
-                    cm = row["evaluation_metrics"].get("confusion_matrix", [[0,0],[0,0]])
+                    cm = row["evaluation_metrics"].get("confusion_matrix", [[0, 0], [0, 0]])
                     if cm:
                         sum_confusion_matrix[0][0] += cm[0][0]
                         sum_confusion_matrix[0][1] += cm[0][1]
@@ -75,7 +120,7 @@ def plot_metrics(df):
                         sum_confusion_matrix[1][1] += cm[1][1]
                         count += 1
                     unparsed_samples = row["predictions_summary"].get("unparsed_samples")
-                
+
                 if count > 0:
                     avg_confusion_matrix = [[int(val / count) for val in row] for row in sum_confusion_matrix]
                     print(f"\nDataset: {cfg}, Model Type: {model_type}")
