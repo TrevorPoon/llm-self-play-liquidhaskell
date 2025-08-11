@@ -30,7 +30,7 @@ for fpath, run_type in all_json_files:
             data = json.load(f)
             language = data.get('language')
             pass_at_1 = data.get('evaluation_results', {}).get('pass@1')
-            reasoning_trace_count = data.get('reasoning_trace_count')
+            # reasoning_trace_count = data.get('reasoning_trace_count')
             compilation_error_count = data.get('compilation_error_count')
             execution_error_count = data.get('execution_error_count')
             
@@ -38,7 +38,7 @@ for fpath, run_type in all_json_files:
                 record = {
                     'language': language,
                     'pass@1': pass_at_1,
-                    'reasoning_trace_count': reasoning_trace_count,
+                    # 'reasoning_trace_count': reasoning_trace_count,
                     'compilation_error_count': compilation_error_count,
                     'execution_error_count': execution_error_count,
                     'type': run_type
@@ -67,9 +67,10 @@ records_df = pd.DataFrame(all_records)
 for language in records_df['language'].unique():
     lang_df = records_df[records_df['language'] == language].copy()
     
-    has_reasoning_trace = 'reasoning_trace_count' in lang_df.columns and not lang_df['reasoning_trace_count'].isnull().all()
-    if has_reasoning_trace:
-        lang_df['reasoning_trace_count'] = lang_df['reasoning_trace_count'].fillna(0)
+    # has_reasoning_trace = 'reasoning_trace_count' in lang_df.columns and not lang_df['reasoning_trace_count'].isnull().all()
+    # if has_reasoning_trace:
+    #     lang_df['reasoning_trace_count'] = lang_df['reasoning_trace_count'].fillna(0)
+    has_reasoning_trace = False
 
     has_comp_errors = 'compilation_error_count' in lang_df.columns and not lang_df['compilation_error_count'].isnull().all()
     if has_comp_errors:
@@ -89,9 +90,9 @@ for language in records_df['language'].unique():
 
     # Summarize base results
     base_summary = base_lang_df.groupby('iteration')['pass@1'].agg(['min', 'max', 'mean', 'count']).reset_index()
-    if has_reasoning_trace:
-        base_rtc_summary = base_lang_df.groupby('iteration')['reasoning_trace_count'].agg(mean_rtc='mean').reset_index()
-        base_summary = pd.merge(base_summary, base_rtc_summary, on='iteration', how='left')
+    # if has_reasoning_trace:
+    #     base_rtc_summary = base_lang_df.groupby('iteration')['reasoning_trace_count'].agg(mean_rtc='mean').reset_index()
+    #     base_summary = pd.merge(base_summary, base_rtc_summary, on='iteration', how='left')
     if has_comp_errors:
         base_cec_summary = base_lang_df.groupby('iteration')['compilation_error_count'].agg(mean_cec='mean').reset_index()
         base_summary = pd.merge(base_summary, base_cec_summary, on='iteration', how='left')
@@ -101,9 +102,9 @@ for language in records_df['language'].unique():
 
     # Summarize adapter results
     adapter_summary = adapter_lang_df.groupby('iteration')['pass@1'].agg(['min', 'max', 'mean', 'count']).reset_index()
-    if has_reasoning_trace:
-        adapter_rtc_summary = adapter_lang_df.groupby('iteration')['reasoning_trace_count'].agg(mean_rtc='mean').reset_index()
-        adapter_summary = pd.merge(adapter_summary, adapter_rtc_summary, on='iteration', how='left')
+    # if has_reasoning_trace:
+    #     adapter_rtc_summary = adapter_lang_df.groupby('iteration')['reasoning_trace_count'].agg(mean_rtc='mean').reset_index()
+    #     adapter_summary = pd.merge(adapter_summary, adapter_rtc_summary, on='iteration', how='left')
     if has_comp_errors:
         adapter_cec_summary = adapter_lang_df.groupby('iteration')['compilation_error_count'].agg(mean_cec='mean').reset_index()
         adapter_summary = pd.merge(adapter_summary, adapter_cec_summary, on='iteration', how='left')
@@ -130,8 +131,8 @@ for language in records_df['language'].unique():
     
     # Fill NA for count columns for plotting
     count_cols_to_fill = []
-    if has_reasoning_trace:
-        count_cols_to_fill.append('mean_rtc')
+    # if has_reasoning_trace:
+    #     count_cols_to_fill.append('mean_rtc')
     if has_comp_errors:
         count_cols_to_fill.append('mean_cec')
     if has_exec_errors:
@@ -176,10 +177,10 @@ for language in records_df['language'].unique():
     any_secondary_axis = has_reasoning_trace or has_comp_errors or has_exec_errors
     if any_secondary_axis:
         ax2 = ax.twinx()
-        if has_reasoning_trace:
-            ax2.plot(x_positions, combined_summary['mean_rtc'], marker='^', color='green', linestyle='--', label='Mean Reasoning Traces')
-            for i, row in combined_summary.iterrows():
-                ax2.text(x_positions[i], row['mean_rtc'] + 0.5, f"{row['mean_rtc']:.0f}", ha='center', va='bottom', fontsize=10, color='darkgreen')
+        # if has_reasoning_trace:
+        #     ax2.plot(x_positions, combined_summary['mean_rtc'], marker='^', color='green', linestyle='--', label='Mean Reasoning Traces')
+        #     for i, row in combined_summary.iterrows():
+        #         ax2.text(x_positions[i], row['mean_rtc'] + 0.5, f"{row['mean_rtc']:.0f}", ha='center', va='bottom', fontsize=10, color='darkgreen')
         
         if has_comp_errors:
             ax2.plot(x_positions, combined_summary['mean_cec'], marker='x', color='orange', linestyle=':', label='Mean Compilation Errors')
@@ -194,7 +195,7 @@ for language in records_df['language'].unique():
         ax2.set_ylabel("Counts")
         
         max_val = 0
-        if has_reasoning_trace: max_val = max(max_val, combined_summary['mean_rtc'].max())
+        # if has_reasoning_trace: max_val = max(max_val, combined_summary['mean_rtc'].max())
         if has_comp_errors: max_val = max(max_val, combined_summary['mean_cec'].max())
         if has_exec_errors: max_val = max(max_val, combined_summary['mean_eec'].max())
         ax2.set_ylim(0, max_val * 1.2 if max_val > 0 else 10)
@@ -211,10 +212,10 @@ for language in records_df['language'].unique():
         plt.Line2D([0], [0], marker='o', color='w', label='Min/Max Pass@1', markerfacecolor='#1f77b4', markersize=10),
         plt.Line2D([0], [0], marker='s', color='w', label='Mean Pass@1', markerfacecolor='#6a9bd8', markersize=10),
     ]
-    if has_reasoning_trace:
-        legend_elements.append(
-            plt.Line2D([0], [0], marker='^', color='w', label='Mean Reasoning Traces', markerfacecolor='green', markersize=8)
-        )
+    # if has_reasoning_trace:
+    #     legend_elements.append(
+    #         plt.Line2D([0], [0], marker='^', color='w', label='Mean Reasoning Traces', markerfacecolor='green', markersize=8)
+    #     )
     if has_comp_errors:
         legend_elements.append(
             plt.Line2D([0], [0], marker='x', color='orange', linestyle='None', label='Mean Compilation Errors', markersize=8)
@@ -227,7 +228,7 @@ for language in records_df['language'].unique():
     ax.grid(True, linestyle='--', alpha=0.6)
     plt.tight_layout()
 
-    chart_filename = f"pass_at_1_range_chart_{language}_by_adapter_with_base.png"
+    chart_filename = f"pass_at_1_range_chart_{language}_by_adapter_with_base.pdf"
     chart_filepath = results_dir / chart_filename
     plt.savefig(chart_filepath, dpi=300)
     print(f"Chart for {language} saved to {chart_filepath}")
