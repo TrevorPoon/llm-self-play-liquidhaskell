@@ -1,0 +1,38 @@
+{
+    "timestamp": "2025-08-13 17:12:11",
+    "setup": {
+        "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        "adapter_path": "/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_TIME20250811_SEQ_PROGRAMS40_ITERATIONS7_no_initial_adapter_random_dataset_withdiffbiasing_inq_LR2e-4_EPOCHS3_DIFF3/iteration_7/bob_adapters/checkpoint-738",
+        "gpu_memory_utilization": 0.95,
+        "sampling_parameters": {
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "presence_penalty": 1.5,
+            "max_new_tokens": 4096
+        }
+    },
+    "iteration": 0,
+    "datasets": "OJ_VA",
+    "evaluation_metrics": {
+        "accuracy": 0.5475,
+        "precision": 0.5683453237410072,
+        "recall": 0.395,
+        "f1_score": 0.46607669616519176,
+        "confusion_matrix": [
+            [
+                140,
+                60
+            ],
+            [
+                121,
+                79
+            ]
+        ]
+    },
+    "predictions_summary": {
+        "total_samples": 400,
+        "parsed_samples": 400,
+        "unparsed_samples": 0
+    }
+}

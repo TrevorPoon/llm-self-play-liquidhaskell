@@ -40,28 +40,49 @@ class SInQ_Dataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        item = self.data[idx]
-        # Construct a single string by combining system, user, and assistant content
-        system = item.get("system_prompt", "").strip()
-        user = item.get("user_prompt", "").strip()
-        output = item.get("output", "").strip()
-        
-        # Ensure all components are strings, handling cases where they might be None
-        combined_text = system + "\n" + user + "\n" + output
-        
-        # Tokenize the combined text
-        tokenized_item = self.tokenizer(
-            combined_text,
+        ex = self.data[idx]
+        system = ex.get("system_prompt", "").strip()
+        user = ex.get("user_prompt", "").strip()
+        output = ex.get("output", "").strip()
+
+        # Build prompt and full sequence. Model sees prompt+output, but loss only on output.
+        prompt = system + "\n" + user + "\n"
+        full_sequence = prompt + output + self.tokenizer.eos_token
+
+        # Tokenize prompt alone to get its length (no padding here).
+        prompt_tok = self.tokenizer(
+            prompt,
+            add_special_tokens=False,
             truncation=True,
             max_length=self.max_tokens,
-            padding=False,
+        )
+        prompt_len = len(prompt_tok["input_ids"])
+
+        # Tokenize full sequence with padding/truncation to max_tokens.
+        full_tok = self.tokenizer(
+            full_sequence,
+            add_special_tokens=False,
+            truncation=True,
+            max_length=self.max_tokens,
+            padding="max_length",
             return_tensors=None,
         )
+        input_ids = full_tok["input_ids"]
 
-        input_ids = tokenized_item["input_ids"]
-        labels = input_ids.copy() 
-         
-        return {"input_ids": input_ids, "labels": labels}
+        # Prepare labels: mask out prompt tokens.
+        labels = input_ids.copy()
+        if prompt_len >= len(labels):
+            # prompt consumed entire context window; no output left. 
+            # To avoid spurious loss, make all labels -100.
+            labels = [-100] * len(labels)
+        else:
+            for i in range(prompt_len):
+                labels[i] = -100  # no loss on prompt
+
+        return {
+            "input_ids": torch.tensor(input_ids, dtype=torch.long),
+            "labels": torch.tensor(labels, dtype=torch.long),
+        }
 
 def load_training_data(file_path):
     return load_dataset('json', data_files=file_path, split='train')

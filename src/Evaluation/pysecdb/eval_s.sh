@@ -62,6 +62,6 @@ done
 
 
 # sbatch eval_s.sh "" deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 1
-# sbatch eval_s.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3/iteration_7/bob_adapters/checkpoint-4548 deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 1
+# sbatch eval_s.sh /home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_TIME20250810_SEQ_PROGRAMS70_ITERATIONS7_no_initial_adapter_random_dataset_withdiffbiasing_inq_LR2e-4_EPOCHS3_DIFF3/iteration_7/bob_adapters/checkpoint-1161 deepseek-ai/DeepSeek-R1-Distill-Qwen-7B 1
 
 

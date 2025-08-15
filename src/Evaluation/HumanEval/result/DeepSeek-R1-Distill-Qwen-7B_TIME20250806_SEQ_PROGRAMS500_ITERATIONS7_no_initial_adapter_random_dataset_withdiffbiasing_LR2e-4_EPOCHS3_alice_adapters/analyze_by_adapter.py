@@ -7,7 +7,7 @@ import os
 
 # Directory containing this script
 results_dir = Path(__file__).parent
-base_name = 'base_7B' #DS_R1_D_Qwen_7B
+base_name = 'DS_R1_D_Qwen_7B' #DS_R1_D_Qwen_7B
 base_dir = results_dir.parent / base_name
 
 # Collect all JSON files, distinguishing between base and adapter runs
@@ -198,7 +198,7 @@ for language in records_df['language'].unique():
         # if has_reasoning_trace: max_val = max(max_val, combined_summary['mean_rtc'].max())
         if has_comp_errors: max_val = max(max_val, combined_summary['mean_cec'].max())
         if has_exec_errors: max_val = max(max_val, combined_summary['mean_eec'].max())
-        ax2.set_ylim(0, max_val * 1.2 if max_val > 0 else 10)
+        ax2.set_ylim(0, max_val * 1.5 if max_val > 0 else 10)
 
     ax.set_xlabel("Iteration (adapter) / Base")
     ax.set_ylabel("Pass@1 Rate")

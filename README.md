@@ -30,7 +30,7 @@ Optionally, we fine-tune lightweight LoRA adapters (via PyTorch) using the highe
 5. Keep hard examples and a stratified sample of easy ones; fine-tune adapters for the next round.
 
 ## Key components
-- `src/Self-Play/SEQ_v2/SEQ_miceli_random_v2.py`: Orchestrates one self-play iteration (load data, run SEQ/SINQ, validate via Liquid Haskell or execution, query Bob for difficulty, save outputs, and optionally fine-tune).
+- `src/Self-Play/SEQ_v2/SEQ.py`: Orchestrates one self-play iteration (load data, run SEQ/SINQ, validate via Liquid Haskell or execution, query Bob for difficulty, save outputs, and optionally fine-tune).
 - `src/Self-Play/SEQ_v2/finetune.py`: LoRA adapter fine-tuning script (PyTorch + Accelerate).
 - `src/Self-Play/SEQ_v2/SEQ_7B_random_500.sh`: Example Slurm script for multi-iteration runs and interleaved fine-tuning.
 - `src/Self-Play/OpInstruct-HSx/`: End-to-end dataset generation, validation, and filtering pipeline for runnable Haskell snippets.
@@ -42,7 +42,7 @@ Optionally, we fine-tune lightweight LoRA adapters (via PyTorch) using the highe
 
 ### Quickstart: run a single SEQ/SINQ iteration
 ```bash
-python src/Self-Play/SEQ_v2/SEQ_miceli_random_v2.py \
+python src/Self-Play/SEQ_v2/SEQ.py \
   --model_name_or_path deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
   --dataset_name ./data/successfully_compiled_sorted_haskell_dataset \
   --iteration 1 \

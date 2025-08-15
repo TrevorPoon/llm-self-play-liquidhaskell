@@ -1,0 +1,26 @@
+Intrinsic Eval: Bob train test with Alice 7
+Extrinsic Eval: HumanEval (AB), MBPP (AB), Equiv, codexglue, pysecdb
+
+Backup plan
+/home/s2652867/llm-self-play-liquidhaskell/src/Self-Play/SEQ_v2/output/SEQ_deepseek-ai/DeepSeek-R1-Distill-Qwen-7B_SEQ_PROGRAMS500_ITERATIONS7_no_initial_adapter_random_dataset_LR2e-4_EPOCHS3
+
+SEQ
+
+*** 090 -- 500 examples (random) 7B rounds 7 lr 2e-4 epoch 3 diff 3 out ft,  alice123456
+
+E1 025 -- inq 500 -- all evals
+E2 (backup) 075 -- eq 0.9 
+082 -- inq 100 -- all evals
+E3 (backup) 135 -- inq 70 -- all evals
+E2 684 - eq 0.96 
+E3 685 -- inq 40 -- all evals
+
+TODO
+Run 7 times more for extrinsic (including E0)
+
+
+
+
+
+
+

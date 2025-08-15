@@ -69,6 +69,8 @@ def extract_generation_code(example: str, lang_code: str, verbose: bool=True):
     try:
         code_blocks = re.findall(f'```{lang.lower()}\n(.*?)```', output, re.DOTALL | re.IGNORECASE)
         if not code_blocks:
+            code_blocks = re.findall(f'```\n(.*?)```', output, re.DOTALL | re.IGNORECASE)
+        if not code_blocks:
             raise ValueError(f"No code block found for language {lang.lower()}")
         code_block: str = code_blocks[-1]
         print(f"[DEBUG][extract_generation_code] Code Block:\n---\n{code_block}\n---")

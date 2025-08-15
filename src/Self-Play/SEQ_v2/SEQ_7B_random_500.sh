@@ -78,7 +78,7 @@ do
 
     CUDA_VISIBLE_DEVICES=0
 
-    python SEQ_miceli_random_v2.py \
+    python SEQ.py \
         --model_name_or_path "$MODEL_NAME" \
         --dataset_name "$DATASET_NAME" \
         --output_dir "$OUTPUT_DIR" \
@@ -107,7 +107,7 @@ do
         CUDA_VISIBLE_DEVICES=1,2,3
         accelerate launch \
             --config_file accelerate_config.yaml \
-            finetune_v2.py \
+            finetune.py \
             --model_name_or_path "$MODEL_NAME" \
             --dataset_path "$ALICE_TRAINING_DATA_PATH" \
             --model_type "alice" \
@@ -163,7 +163,7 @@ if [ -f "${ITERATION_DIR}/bob_training_data.jsonl" ] && [ -s "${ITERATION_DIR}/b
   CUDA_VISIBLE_DEVICES=1,2,3
   accelerate launch \
       --config_file accelerate_config.yaml \
-      finetune_v2.py \
+      finetune.py \
       --model_name_or_path "$MODEL_NAME" \
       --dataset_path "$BOB_TRAINING_DATA_PATH" \
       --model_type "bob" \

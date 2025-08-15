@@ -2,7 +2,7 @@
 import json
 import shutil
 from pathlib import Path
-
+import subprocess
 results_dir = Path(__file__).parent
 
 # 1. Get all the adapter path from the json in @/result
@@ -59,3 +59,9 @@ if analyze_script_path.exists():
 else:
     print(f"Error: {analyze_script_path} not found.")
 
+for folder in adapter_folders:
+    try: 
+        subprocess.run(['python', 'analyze_by_adapter.py'], cwd=results_dir / folder)
+        print(f"Ran {analyze_script_path.name} in {results_dir / folder}")
+    except Exception as e:
+        print(f"Could not run {analyze_script_path.name} in {results_dir / folder}: {e}")

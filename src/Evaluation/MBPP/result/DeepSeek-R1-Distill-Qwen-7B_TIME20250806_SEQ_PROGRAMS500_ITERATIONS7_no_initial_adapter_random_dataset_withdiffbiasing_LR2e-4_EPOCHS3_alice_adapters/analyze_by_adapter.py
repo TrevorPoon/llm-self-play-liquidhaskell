@@ -198,7 +198,7 @@ for language in records_df['language'].unique():
         # if has_reasoning_trace: max_val = max(max_val, combined_summary['mean_rtc'].max())
         if has_comp_errors: max_val = max(max_val, combined_summary['mean_cec'].max())
         if has_exec_errors: max_val = max(max_val, combined_summary['mean_eec'].max())
-        ax2.set_ylim(0, max_val * 1.2 if max_val > 0 else 10)
+        ax2.set_ylim(0, max_val * 1.5 if max_val > 0 else 10)
 
     ax.set_xlabel("Iteration (adapter) / Base")
     ax.set_ylabel("Pass@1 Rate")

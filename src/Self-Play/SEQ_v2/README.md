@@ -31,7 +31,7 @@ At each iteration we (optionally) fine-tune LoRA adapters for both agents using 
 
 ### Key components
 
-- `SEQ_miceli_random_v2.py`: End-to-end self-play iteration. Loads `P`, calls Alice to produce `Q` and a proof (SEQ) or diverging input (SINQ), verifies with Liquid Haskell or execution, queries Bob for difficulty, saves data, and updates cumulative buffers.
+- `SEQ.py`: End-to-end self-play iteration. Loads `P`, calls Alice to produce `Q` and a proof (SEQ) or diverging input (SINQ), verifies with Liquid Haskell or execution, queries Bob for difficulty, saves data, and updates cumulative buffers.
 - `finetune.py`: Fine-tunes a base model with LoRA on JSONL conversation-style data (`system_prompt`, `user_prompt`, `output`). Saves adapters per epoch/checkpoint.
 - `SEQ_7B_random_500.sh`: Example Slurm job orchestrating multiple self-play iterations and adapter fine-tuning across GPUs.
 
@@ -55,7 +55,7 @@ The dataset OpInstruct-HSx could be found in `https://huggingface.co/datasets/Tr
 ### Running a single iteration locally
 
 ```bash
-python SEQ_miceli_random_v2.py \
+python SEQ.py \
   --model_name_or_path deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
   --dataset_name ../data/successfully_compiled_sorted_haskell_dataset \
   --iteration 1 \
