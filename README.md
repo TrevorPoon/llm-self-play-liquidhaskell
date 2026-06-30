@@ -1,4 +1,4 @@
-# LLM Self-Play with Liquid Haskell (SEQ/SINQ)
+# [Improving LLM Code Reasoning via Semantic Equivalence Self-Play with Formal Verification (SEQ/SINQ)](https://aclanthology.org/2026.findings-acl.1615/)
 
 [![Haskell](https://img.shields.io/badge/Haskell-%235e5086?logo=haskell&logoColor=white)](https://www.haskell.org/)
 [![Liquid Haskell](https://img.shields.io/badge/Liquid%20Haskell-%23007ACC)](https://github.com/ucsd-progsys/liquidhaskell)
@@ -72,3 +72,25 @@ python src/Self-Play/SEQ_v2/SEQ.py \
 ## Learn more
 - SEQ/SINQ framework details: `src/Self-Play/SEQ_v2/README.md`
 - Dataset pipeline and tiers: `src/Self-Play/OpInstruct-HSx/README.md`
+
+## Cite as
+```bibtex
+@inproceedings{nok-barone-2026-improving,
+    title = "Improving {LLM} Code Reasoning via Semantic Equivalence Self-Play with Formal Verification",
+    author = "Nok, Poon Tsz  and
+      Barone, Antonio Valerio Miceli",
+    editor = "Liakata, Maria  and
+      Moreira, Viviane P.  and
+      Zhang, Jiajun  and
+      Jurgens, David",
+    booktitle = "Findings of the {A}ssociation for {C}omputational {L}inguistics: {ACL} 2026",
+    month = jul,
+    year = "2026",
+    address = "San Diego, California, United States",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2026.findings-acl.1615/",
+    pages = "32273--32292",
+    ISBN = "979-8-89176-395-1",
+    abstract = "We introduce a self-play framework for semantic equivalence in Haskell, utilizing formal verification to guide adversarial training between a generator and an evaluator. The framework leverages Liquid Haskell proofs for validating equivalence and execution-based counterexamples for inequivalence, organized via a difficulty-aware curriculum. To facilitate this, we release OpInstruct-HSx, a synthetic dataset of $\approx$ 28k validated Haskell programs. Empirical experiments show that our evaluator transfers effectively to downstream tasks, achieving up to 13.3pp accuracy gain on EquiBench and consistent gains on PySecDB. Ablation studies on the SEQ-SINQ regimes indicate that while inequivalence supervision provides data volume, equivalence proofs are uniquely responsible for the model{'}s reasoning capabilities. The entire training pipeline and dataset are publicly released on GitHub and Hugging Face respectively."
+}
+```
